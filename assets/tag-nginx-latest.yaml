@@ -1,0 +1,7 @@
+apiVersion: images.io/v1
+kind: Tag
+metadata:
+  name: nginx-latest
+  namespace: default
+spec:
+  from: nginx:latest
