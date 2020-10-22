@@ -60,7 +60,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to create image tag client: %v", err)
 	}
-	taginf := itaginf.NewSharedInformerFactory(tagcli, 10*time.Minute)
+	taginf := itaginf.NewSharedInformerFactory(tagcli, time.Minute)
 	taglis := taginf.Images().V1().Tags().Lister()
 
 	// creates core client, informer and lister.
@@ -68,13 +68,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to create core client: %v", err)
 	}
-	corinf := coreinf.NewSharedInformerFactory(corcli, 5*time.Second)
+	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 	seclis := corinf.Core().V1().Secrets().Lister()
 	replis := corinf.Apps().V1().ReplicaSets().Lister()
+	deplis := corinf.Apps().V1().Deployments().Lister()
 
 	syssvc := services.NewSysContext(seclis)
 	impsvc := services.NewImporter(syssvc)
-	tagsvc := services.NewTag(tagcli, taglis, replis, impsvc)
+	tagsvc := services.NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
 	itctrl := controllers.NewTag(taginf, tagsvc, 10)
 	whctrl := controllers.NewWebHook(tagsvc)
 
@@ -83,14 +84,15 @@ func main() {
 	// up, only then we start the operator i.e. start to process
 	// events from the queue. XXX This is cumbersome as we don't
 	// know exactly to which caches wait for sync, for now we hard
-	// coded here Secrets, ReplicaSets and ImageStreams but later
-	// on this list may get way longer.
+	// coded here Secrets, ReplicaSets, Deployments and ImageStreams
+	// but later on this list may get way longer.
 	corinf.Start(ctx.Done())
 	taginf.Start(ctx.Done())
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
 		corinf.Core().V1().Secrets().Informer().HasSynced,
 		corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
+		corinf.Apps().V1().Deployments().Informer().HasSynced,
 		taginf.Images().V1().Tags().Informer().HasSynced,
 	) {
 		klog.Fatal("caches not syncing")

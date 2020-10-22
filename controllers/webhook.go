@@ -9,6 +9,7 @@ import (
 	"time"
 
 	admnv1 "k8s.io/api/admission/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -99,7 +100,8 @@ func (wh *WebHook) responseAuthorized(w http.ResponseWriter, req *admnv1.Admissi
 	_, _ = w.Write(resp)
 }
 
-// serve handles mutation requests made by kubernetes api.
+// serve handles mutation requests made by kubernetes api with regards to
+// pods and deployments.
 func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	reviewReq := &admnv1.AdmissionReview{}
 	body, err := ioutil.ReadAll(r.Body)
@@ -118,25 +120,40 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	// we only mutate pods, if mutating webhook is properly configured this
 	// should never happen.
 	objkind := reviewReq.Request.Kind.Kind
-	if objkind != "Pod" {
+	if objkind != "Pod" && objkind != "Deployment" {
 		klog.Errorf("received event for %s, authorizing", objkind)
 		wh.responseAuthorized(w, reviewReq)
 		return
 	}
 
 	var pod corev1.Pod
-	if err := json.Unmarshal(reviewReq.Request.Object.Raw, &pod); err != nil {
-		klog.Errorf("cant decoding pod: %v", err)
+	var deploy appsv1.Deployment
+	switch objkind {
+	case "Pod":
+		err = json.Unmarshal(reviewReq.Request.Object.Raw, &pod)
+	case "Deployment":
+		err = json.Unmarshal(reviewReq.Request.Object.Raw, &deploy)
+	}
+	if err != nil {
+		klog.Errorf("error decoding raw object: %s", err)
 		wh.responseError(w, reviewReq, err)
 		return
 	}
 
 	// XXX pod namespace comes in empty, set it here.
-	pod.Namespace = reviewReq.Request.Namespace
+	if objkind == "Pod" {
+		pod.Namespace = reviewReq.Request.Namespace
+	}
 
-	patch, err := wh.tagsvc.PatchForPod(pod)
+	var patch []byte
+	switch objkind {
+	case "Pod":
+		patch, err = wh.tagsvc.PatchForPod(pod)
+	case "Deployment":
+		patch, err = wh.tagsvc.PatchForDeployment(deploy)
+	}
 	if err != nil {
-		klog.Errorf("error patching pod: %v", err)
+		klog.Errorf("error patching object: %s", err)
 		wh.responseError(w, reviewReq, err)
 		return
 	}
@@ -170,7 +187,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // Start puts the http server online. Points requests to /mutate endpoint to
-// WebHook.serve handler. This function returns when the context is cancelled.
+// WebHook.serve. This function returns when the context is cancelled.
 func (wh *WebHook) Start(ctx context.Context) error {
 	http.HandleFunc("/mutate", wh.serve)
 	server := &http.Server{

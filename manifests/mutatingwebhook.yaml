@@ -43,3 +43,11 @@ webhooks:
     - pods
     operations: 
     - CREATE
+  - apiGroups:
+    - "apps"
+    apiVersions:
+    - "v1"
+    resources: 
+    - deployments
+    operations: 
+    - CREATE
