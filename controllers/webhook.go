@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
+	imgtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
 	"github.com/ricardomaraschini/it/services"
 )
 
@@ -100,9 +101,66 @@ func (wh *WebHook) responseAuthorized(w http.ResponseWriter, req *admnv1.Admissi
 	_, _ = w.Write(resp)
 }
 
-// serve handles mutation requests made by kubernetes api with regards to
-// pods and deployments.
-func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
+// tag validates a tag.
+func (wh *WebHook) tag(w http.ResponseWriter, r *http.Request) {
+	reviewReq := &admnv1.AdmissionReview{}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		klog.Errorf("error reading body: %s", err)
+		wh.responseError(w, reviewReq, err)
+		return
+	}
+
+	if _, _, err := wh.decoder.Decode(body, nil, reviewReq); err != nil {
+		klog.Errorf("cant decoding body: %s", err)
+		wh.responseError(w, reviewReq, err)
+		return
+	}
+
+	// we only mutate pods, if mutating webhook is properly configured this
+	// should never happen.
+	objkind := reviewReq.Request.Kind.Kind
+	if objkind != "Tag" {
+		klog.Errorf("received event for %s, authorizing", objkind)
+		wh.responseAuthorized(w, reviewReq)
+		return
+	}
+
+	var tag imgtagv1.Tag
+	if err := json.Unmarshal(reviewReq.Request.Object.Raw, &tag); err != nil {
+		klog.Errorf("unable to decode tag: %s", err)
+		wh.responseError(w, reviewReq, err)
+		return
+	}
+
+	if err := wh.tagsvc.ValidateTag(tag); err != nil {
+		wh.responseError(w, reviewReq, err)
+		return
+	}
+
+	reviewResp := &admnv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admission.k8s.io/v1",
+			Kind:       "AdmissionReview",
+		},
+		Response: &admnv1.AdmissionResponse{
+			Allowed: true,
+			UID:     reviewReq.Request.UID,
+		},
+	}
+
+	resp, err := json.Marshal(reviewResp)
+	if err != nil {
+		errstr := fmt.Sprintf("error encoding response: %v", err)
+		http.Error(w, errstr, http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write(resp)
+}
+
+// deploy handles mutation requests made by kubernetes api with regards
+// to pods and deployments.
+func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 	reviewReq := &admnv1.AdmissionReview{}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -186,10 +244,12 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
-// Start puts the http server online. Points requests to /mutate endpoint to
-// WebHook.serve. This function returns when the context is cancelled.
+// Start puts the http server online. Requests for resources related to
+// deploys (Deployments and Pods) are set to deploy() handler while
+// image tag resources are managed by tag() handler.
 func (wh *WebHook) Start(ctx context.Context) error {
-	http.HandleFunc("/mutate", wh.serve)
+	http.HandleFunc("/deploy", wh.deploy)
+	http.HandleFunc("/tag", wh.tag)
 	server := &http.Server{
 		Addr: wh.bind,
 	}
