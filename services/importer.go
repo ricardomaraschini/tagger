@@ -48,8 +48,8 @@ func (i *Importer) SplitRegistryDomain(imgPath string) (string, string) {
 // ImportTag runs an import on provided Tag.
 func (i *Importer) ImportTag(
 	ctx context.Context, it *imagtagv1.Tag, namespace string,
-) (imagtagv1.TagStatus, error) {
-	var zero imagtagv1.TagStatus
+) (imagtagv1.HashReference, error) {
+	var zero imagtagv1.HashReference
 	if it.Name == "" {
 		return zero, fmt.Errorf("invalid tag reference: %v", it.Name)
 	}
@@ -110,11 +110,11 @@ func (i *Importer) ImportTag(
 			}
 
 			imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
-			return imagtagv1.TagStatus{
+			return imagtagv1.HashReference{
+				Generation:     it.Spec.Generations,
 				From:           it.Spec.From,
 				LastUpdatedAt:  metav1.NewTime(time.Now()),
 				ImageReference: imageref,
-				Generation:     it.Spec.Generation,
 			}, nil
 		}
 	}

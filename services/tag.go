@@ -50,9 +50,57 @@ func NewTag(
 	}
 }
 
-// DockerReferenceForTag returns the docker reference for an image tag. If
-// the image tag does not exist empty string is returned.
-func (t *Tag) DockerReferenceForTag(namespace, name string) (string, error) {
+// isGenerationValid returns if spec property Generation is set to a valid
+// value. It must point to the last imported Generation or to the next
+// Generation (last generation + 1).
+func (t *Tag) isGenerationValid(tag imagtagv1.Tag) error {
+	validGens := []int64{0}
+	if len(tag.Status.References) > 0 {
+		lastGen := tag.Status.References[0].Generation
+		validGens = []int64{lastGen, lastGen + 1}
+	}
+	for _, gen := range validGens {
+		if gen != tag.Spec.Generations {
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("'generation' must be in %s", fmt.Sprint(validGens))
+}
+
+// isDeployedGenerationValid makes sure spec's DeployedGeneration points
+// to a generation tha has been previously imported or is zeroed in case
+// no generation is present.
+func (t *Tag) isDeployedGenerationValid(tag imagtagv1.Tag) error {
+	dplGens := []int64{0}
+	if len(tag.Status.References) > 0 {
+		dplGens = []int64{}
+		for _, ref := range tag.Status.References {
+			dplGens = append([]int64{ref.Generation}, dplGens...)
+		}
+	}
+	for _, gen := range dplGens {
+		if gen != tag.Spec.DeployedGeneration {
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("'deployedGeneration' must be in %s", fmt.Sprint(dplGens))
+}
+
+// ValidateTag checks if tag's spec information is valid.
+func (t *Tag) ValidateTag(tag imagtagv1.Tag) error {
+	if err := t.isGenerationValid(tag); err != nil {
+		return err
+	}
+	return t.isDeployedGenerationValid(tag)
+}
+
+// DeployedReferenceForTag returns the docker reference we are using when
+// deploying for for an image tag. If the image being deployed does not
+// exist on image tag status an error is returned, if image tag does not
+// exist empty value is returned.
+func (t *Tag) DeployedReferenceForTag(namespace, name string) (string, error) {
 	it, err := t.taglis.Tags(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -60,14 +108,17 @@ func (t *Tag) DockerReferenceForTag(namespace, name string) (string, error) {
 		}
 		return "", err
 	}
-	if !t.tagAlreadyImported(it) {
-		return "", fmt.Errorf("tag needs import")
+	for _, hashref := range it.Status.References {
+		if hashref.Generation != it.Status.DeployedGeneration {
+			continue
+		}
+		return hashref.ImageReference, nil
 	}
-	return it.Status.ImageReference, nil
+	return "", fmt.Errorf("deployed generation does not exist anymore")
 }
 
 // PatchForDeployment creates a patch to be applied on top of a deployment
-// in order to keep track of what version of image tag it is using.
+// in order to keep track of what version of all image tags it is using.
 func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]byte, error) {
 	if _, ok := deploy.Annotations["image-tag"]; !ok {
 		return nil, nil
@@ -83,11 +134,13 @@ func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]byte, error) {
 			return nil, err
 		}
 
-		if !t.tagAlreadyImported(is) {
+		// if deployed generation does not exist yet it means
+		// we can't add the proper annotation, just move on.
+		if t.tagNotImported(is) {
 			continue
 		}
 
-		newAnnotations[is.Name] = is.Status.LastUpdatedAt.String()
+		newAnnotations[is.Name] = fmt.Sprint(is.Status.DeployedGeneration)
 	}
 	changed := deploy.DeepCopy()
 	if changed.Spec.Template.Annotations == nil {
@@ -140,7 +193,7 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]byte, error) {
 
 	nconts := []corev1.Container{}
 	for _, c := range pod.Spec.Containers {
-		ref, err := t.DockerReferenceForTag(pod.Namespace, c.Image)
+		ref, err := t.DeployedReferenceForTag(pod.Namespace, c.Image)
 		if err != nil {
 			return nil, err
 		}
@@ -169,38 +222,55 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]byte, error) {
 	return json.Marshal(patch)
 }
 
-// tagAlreadyImported returs true if tag has already been imported by
-// comparing its spec with its status.
-func (t *Tag) tagAlreadyImported(it *imagtagv1.Tag) bool {
-	importedOnce := it.Status.Generation > 0
-	sameGeneration := it.Status.Generation == it.Spec.Generation
-	sameOrigin := it.Spec.From == it.Status.From
-	return importedOnce && sameGeneration && sameOrigin
+// tagNotImported returs true if tag generation has not yet been imported.
+func (t *Tag) tagNotImported(it *imagtagv1.Tag) bool {
+	for _, hashref := range it.Status.References {
+		if hashref.Generation == it.Spec.Generations {
+			return false
+		}
+	}
+	return true
+}
+
+// prependHashReference prepends ref into refs. The resulting slice
+// contains at most 5 references.
+func (t *Tag) prependHashReference(
+	ref imagtagv1.HashReference,
+	refs []imagtagv1.HashReference,
+) []imagtagv1.HashReference {
+	newRefs := []imagtagv1.HashReference{ref}
+	newRefs = append(newRefs, refs...)
+	if len(newRefs) > 5 {
+		newRefs = newRefs[:5]
+	}
+	return newRefs
 }
 
 // Update manages image tag updates, assuring we have the tag imported.
 // Beware that we change Tag in place before updating it on api server,
 // i.e. use DeepCopy() before passing the image tag in.
 func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
-	if t.tagAlreadyImported(it) {
-		klog.Infof("tag %s/%s already imported", it.Namespace, it.Name)
-		if err := t.updateDeployments(ctx, it); err != nil {
-			return fmt.Errorf("unable to update deployments: %w", err)
+	importNeeded := t.tagNotImported(it)
+	if importNeeded {
+		klog.Infof("importing tag %s/%s", it.Namespace, it.Name)
+		hashref, err := t.impsvc.ImportTag(ctx, it, it.Namespace)
+		if err != nil {
+			return fmt.Errorf("fail to import tag: %w", err)
 		}
-		return nil
+		it.Status.References = t.prependHashReference(
+			hashref, it.Status.References,
+		)
 	}
 
-	klog.Infof("importing tag %s/%s", it.Namespace, it.Name)
-	tagStatus, err := t.impsvc.ImportTag(ctx, it, it.Namespace)
-	if err != nil {
-		return fmt.Errorf("fail to import tag: %w", err)
-	}
-	it.Status = tagStatus
-
-	if it, err = t.tagcli.ImagesV1().Tags(it.Namespace).Update(
-		ctx, it, metav1.UpdateOptions{},
-	); err != nil {
-		return fmt.Errorf("error updating image stream: %w", err)
+	deployedMismatch := it.Spec.DeployedGeneration != it.Status.DeployedGeneration
+	if importNeeded || deployedMismatch {
+		it.Status.DeployedGeneration = it.Spec.DeployedGeneration
+		var err error
+		if it, err = t.tagcli.ImagesV1().Tags(it.Namespace).Update(
+			ctx, it, metav1.UpdateOptions{},
+		); err != nil {
+			return fmt.Errorf("error updating image stream: %w", err)
+		}
 	}
 
 	if err := t.updateDeployments(ctx, it); err != nil {
@@ -240,20 +310,20 @@ func (t *Tag) updateDeployments(ctx context.Context, it *imagtagv1.Tag) error {
 		if dep.Spec.Template.Annotations == nil {
 			dep.Spec.Template.Annotations = map[string]string{}
 		}
-		updatedAt := it.Status.LastUpdatedAt.String()
+		gen := fmt.Sprint(it.Status.DeployedGeneration)
 
-		// pod is already using the last image tag
-		if dep.Spec.Template.Annotations[it.Name] == updatedAt {
+		// pod is already using the right image tag
+		if dep.Spec.Template.Annotations[it.Name] == gen {
 			continue
 		}
 
-		klog.Infof("trigger redeployment for deploy %s/%s", dep.Namespace, dep.Name)
-		dep.Spec.Template.Annotations[it.Name] = updatedAt
+		dep.Spec.Template.Annotations[it.Name] = gen
 		if _, err := t.corcli.AppsV1().Deployments(dep.Namespace).Update(
 			ctx, dep, metav1.UpdateOptions{},
 		); err != nil {
 			return err
 		}
+		klog.Infof("triggered redeployment for %s/%s", dep.Namespace, dep.Name)
 	}
 	return nil
 }

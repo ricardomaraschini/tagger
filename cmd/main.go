@@ -60,7 +60,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to create image tag client: %v", err)
 	}
-	taginf := itaginf.NewSharedInformerFactory(tagcli, time.Minute)
+	taginf := itaginf.NewSharedInformerFactory(tagcli, 10*time.Minute)
 	taglis := taginf.Images().V1().Tags().Lister()
 
 	// creates core client, informer and lister.
