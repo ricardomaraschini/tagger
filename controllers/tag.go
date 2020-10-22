@@ -124,13 +124,6 @@ func (t *Tag) syncTag(namespace, name string) error {
 		return err
 	}
 	it = it.DeepCopy()
-
-	// TODO this should be done through openapi schema v3 validation,
-	// no tags with generation lower than one should be accepted.
-	if it.Spec.Generation == 0 {
-		it.Spec.Generation = 1
-	}
-
 	return t.tagsvc.Update(ctx, it)
 }
 
