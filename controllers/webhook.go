@@ -101,7 +101,7 @@ func (wh *WebHook) responseAuthorized(w http.ResponseWriter, req *admnv1.Admissi
 	_, _ = w.Write(resp)
 }
 
-// tag validates a tag.
+// tag validates a tag during update.
 func (wh *WebHook) tag(w http.ResponseWriter, r *http.Request) {
 	reviewReq := &admnv1.AdmissionReview{}
 	body, err := ioutil.ReadAll(r.Body)
@@ -198,10 +198,9 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// XXX pod namespace comes in empty, set it here.
-	if objkind == "Pod" {
-		pod.Namespace = reviewReq.Request.Namespace
-	}
+	// XXX namespaces come in empty, set it here.
+	pod.Namespace = reviewReq.Request.Namespace
+	deploy.Namespace = reviewReq.Request.Namespace
 
 	var patch []byte
 	switch objkind {

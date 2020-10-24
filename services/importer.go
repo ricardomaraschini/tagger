@@ -111,9 +111,9 @@ func (i *Importer) ImportTag(
 
 			imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
 			return imagtagv1.HashReference{
-				Generation:     it.Spec.Generations,
+				Generation:     it.Spec.Generation,
 				From:           it.Spec.From,
-				LastUpdatedAt:  metav1.NewTime(time.Now()),
+				ImportedAt:     metav1.NewTime(time.Now()),
 				ImageReference: imageref,
 			}, nil
 		}
