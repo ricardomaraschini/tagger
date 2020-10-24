@@ -1,7 +1,0 @@
-apiVersion: images.io/v1
-kind: Tag
-metadata:
-  name: nginx-stable
-  namespace: default
-spec:
-  from: nginx:stable
