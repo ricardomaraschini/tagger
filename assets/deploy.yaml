@@ -1,23 +1,39 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
     image-tag: "yes-please"
-  name: nginx
+  name: app 
   labels:
-    app: nginx
+    app: app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nginx
+      app: app
   template:
     metadata:
       labels:
-        app: nginx
+        app: app
     spec:
       containers:
-      - name: nginx-stable
-        image: nginx-stable
+      - name: app
+        image: webserver
         ports:
         - containerPort: 80
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: app
+  labels:
+    app: app
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 80
+  selector:
+    app: app

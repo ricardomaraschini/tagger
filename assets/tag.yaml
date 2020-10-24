@@ -1,7 +1,7 @@
 apiVersion: images.io/v1
 kind: Tag
 metadata:
-  name: nginx-latest
+  name: webserver
   namespace: default
 spec:
-  from: nginx:latest
+  from: nginx:stable
