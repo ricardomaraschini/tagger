@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corelister "k8s.io/client-go/listers/core/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
@@ -46,21 +47,26 @@ func (s *SysContext) AuthsFor(
 		return nil, err
 	}
 
-	dockerAuths := []*types.DockerAuthConfig{}
 	domain := reference.Domain(imgref.DockerReference())
-	for _, secret := range secrets {
-		if secret.Type != corev1.SecretTypeDockerConfigJson {
+	if domain == "" {
+		return nil, nil
+	}
+
+	var dockerAuths []*types.DockerAuthConfig
+	for _, sec := range secrets {
+		if sec.Type != corev1.SecretTypeDockerConfigJson {
 			continue
 		}
 
-		secdata, ok := secret.Data[corev1.DockerConfigJsonKey]
+		secdata, ok := sec.Data[corev1.DockerConfigJsonKey]
 		if !ok {
 			continue
 		}
 
 		var cfg dockerAuthConfig
 		if err := json.Unmarshal(secdata, &cfg); err != nil {
-			return nil, err
+			klog.Infof("ignoring secret %s/%s: %s", sec.Namespace, sec.Name, err)
+			continue
 		}
 
 		sec, ok := cfg.Auths[domain]
@@ -69,10 +75,6 @@ func (s *SysContext) AuthsFor(
 		}
 
 		dockerAuths = append(dockerAuths, &sec)
-	}
-
-	if len(dockerAuths) == 0 || domain == "" {
-		return []*types.DockerAuthConfig{nil}, nil
 	}
 	return dockerAuths, nil
 }
