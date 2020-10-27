@@ -17,13 +17,21 @@ import (
 	imagtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
 )
 
+// ContextProvider provides context information for the import process. This exists to make
+// testing easier, you most likely would prefer to have a proper implementation of this on
+// SysContext at sysctx.go.
+type ContextProvider interface {
+	UnqualifiedRegistries(context.Context) []string
+	AuthsFor(context.Context, types.ImageReference, string) ([]*types.DockerAuthConfig, error)
+}
+
 // Importer wrap srvices for tag import related operations.
 type Importer struct {
-	syssvc *SysContext
+	syssvc ContextProvider
 }
 
 // NewImporter returns a handler for tag related services.
-func NewImporter(syssvc *SysContext) *Importer {
+func NewImporter(syssvc ContextProvider) *Importer {
 	return &Importer{
 		syssvc: syssvc,
 	}
@@ -50,8 +58,8 @@ func (i *Importer) ImportTag(
 	ctx context.Context, it *imagtagv1.Tag, namespace string,
 ) (imagtagv1.HashReference, error) {
 	var zero imagtagv1.HashReference
-	if it.Name == "" {
-		return zero, fmt.Errorf("invalid tag reference: %v", it.Name)
+	if it.Spec.From == "" {
+		return zero, fmt.Errorf("invalid empty tag reference")
 	}
 
 	regDomain, remainder := i.SplitRegistryDomain(it.Spec.From)
@@ -84,12 +92,16 @@ func (i *Importer) ImportTag(
 			errors = multierror.Append(errors, err)
 			continue
 		}
+		// adds a no authenticated attempt to the last position so
+		// if everything fails we attempt without auth at all.
+		auths = append(auths, nil)
 
 		for _, auth := range auths {
 			sysctx := &types.SystemContext{
 				DockerAuthConfig: auth,
 			}
 
+			// XXX move this to its own func.
 			img, err := imgref.NewImage(ctx, sysctx)
 			if err != nil {
 				errors = multierror.Append(errors, err)

@@ -218,6 +218,7 @@ func (t *Tag) prependHashReference(
 ) []imagtagv1.HashReference {
 	newRefs := []imagtagv1.HashReference{ref}
 	newRefs = append(newRefs, refs...)
+	// XXX make this configurable.
 	if len(newRefs) > 5 {
 		newRefs = newRefs[:5]
 	}
