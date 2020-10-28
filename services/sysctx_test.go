@@ -72,7 +72,7 @@ func TestAuthsFor(t *testing.T) {
 			image: "centos:latest",
 		},
 		{
-			name:  "secret without type",
+			name:  "secret without type present on namespace",
 			image: "centos:latest",
 			objects: []runtime.Object{
 				&corev1.Secret{
@@ -84,7 +84,7 @@ func TestAuthsFor(t *testing.T) {
 			},
 		},
 		{
-			name:  "secret right type but no 'data'",
+			name:  "secret with right type but no 'data' map entry",
 			image: "centos:latest",
 			objects: []runtime.Object{
 				&corev1.Secret{
@@ -98,7 +98,7 @@ func TestAuthsFor(t *testing.T) {
 			},
 		},
 		{
-			name:  "secret right type invalid data",
+			name:  "secret right type but with invalid auth configuration",
 			image: "centos:latest",
 			objects: []runtime.Object{
 				&corev1.Secret{
@@ -114,7 +114,7 @@ func TestAuthsFor(t *testing.T) {
 			},
 		},
 		{
-			name:       "happy path with one auth",
+			name:       "happy path with one auth present for docker.io",
 			image:      "centos:latest",
 			authsCount: 1,
 			objects: []runtime.Object{
@@ -131,7 +131,7 @@ func TestAuthsFor(t *testing.T) {
 			},
 		},
 		{
-			name:       "happy path with multiple auths",
+			name:       "happy path with multiple auths for docker.io",
 			image:      "centos:latest",
 			authsCount: 2,
 			objects: []runtime.Object{
@@ -158,7 +158,7 @@ func TestAuthsFor(t *testing.T) {
 			},
 		},
 		{
-			name:       "no auth for specific registry",
+			name:       "no auth present for specific registry",
 			image:      "192.168.10.1/repo/image:latest",
 			authsCount: 0,
 			objects: []runtime.Object{
@@ -166,16 +166,6 @@ func TestAuthsFor(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "default",
 						Name:      "secret",
-					},
-					Type: corev1.SecretTypeDockerConfigJson,
-					Data: map[string][]byte{
-						corev1.DockerConfigJsonKey: auths,
-					},
-				},
-				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "default",
-						Name:      "another-secret",
 					},
 					Type: corev1.SecretTypeDockerConfigJson,
 					Data: map[string][]byte{
@@ -204,16 +194,15 @@ func TestAuthsFor(t *testing.T) {
 			imgref, _ := docker.NewReference(ref)
 			sysctx := NewSysContext(seclis)
 
-			auths, err := sysctx.AuthsFor(context.Background(), imgref, "default")
+			auths, err := sysctx.AuthsFor(ctx, imgref, "default")
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error %s", err)
-				}
-				if strings.Contains(err.Error(), tt.err) {
 					return
 				}
-				t.Errorf("invalid error %s", err.Error())
-				return
+				if !strings.Contains(err.Error(), tt.err) {
+					t.Errorf("invalid error %s", err.Error())
+				}
 			} else if len(tt.err) > 0 {
 				t.Errorf("expecting error %s, nil received instead", tt.err)
 			}

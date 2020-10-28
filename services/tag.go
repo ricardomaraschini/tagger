@@ -50,10 +50,10 @@ func NewTag(
 	}
 }
 
-// ValidateTag checks if tag's spec information is valid. Generation may
-// be set to any already imported generation or to a new one (last imported
+// ValidateTagGeneration checks if tag's spec information is valid. Generation
+// may be set to any already imported generation or to a new one (last imported
 // generation + 1).
-func (t *Tag) ValidateTag(tag imagtagv1.Tag) error {
+func (t *Tag) ValidateTagGeneration(tag imagtagv1.Tag) error {
 	validGens := []int64{0}
 	if len(tag.Status.References) > 0 {
 		validGens = []int64{tag.Status.References[0].Generation + 1}
@@ -67,7 +67,7 @@ func (t *Tag) ValidateTag(tag imagtagv1.Tag) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("'generation' must be one of: %s", fmt.Sprint(validGens))
+	return fmt.Errorf("generation must be one of: %s", fmt.Sprint(validGens))
 }
 
 // CurrentReferenceForTag returns the image reference this tag is pointing to.
