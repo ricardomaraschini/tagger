@@ -114,10 +114,9 @@ func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]jsonpatch.JsonPatchOpe
 			continue
 		}
 
-		// we now the generation provided on image tag spec is
-		// already imported, add a annotation to the deployment
-		// pointing to it
-		newAnnotations[is.Name] = fmt.Sprint(is.Spec.Generation)
+		// we now the generation is already imported, add an
+		// annotation to the deployment pointing to it
+		newAnnotations[is.Name] = fmt.Sprint(is.Status.Generation)
 	}
 	changed := deploy.DeepCopy()
 	if changed.Spec.Template.Annotations == nil {
