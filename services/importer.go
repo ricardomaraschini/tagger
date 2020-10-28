@@ -59,7 +59,7 @@ func (i *Importer) ImportTag(
 ) (imagtagv1.HashReference, error) {
 	var zero imagtagv1.HashReference
 	if it.Spec.From == "" {
-		return zero, fmt.Errorf("invalid empty tag reference")
+		return zero, fmt.Errorf("empty tag reference")
 	}
 
 	regDomain, remainder := i.SplitRegistryDomain(it.Spec.From)

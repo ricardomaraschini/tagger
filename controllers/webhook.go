@@ -133,7 +133,7 @@ func (wh *WebHook) tag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := wh.tagsvc.ValidateTag(tag); err != nil {
+	if err := wh.tagsvc.ValidateTagGeneration(tag); err != nil {
 		wh.responseError(w, reviewReq, err)
 		return
 	}

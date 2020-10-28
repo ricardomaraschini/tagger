@@ -2,9 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -32,38 +29,38 @@ func TestSplitRegistryDomain(t *testing.T) {
 			img:   "centos:latest",
 		},
 		{
-			name:  "empty strings",
+			name:  "empty string",
 			input: "",
 			reg:   "",
 			img:   "",
 		},
 		{
-			name:  "ip address as registry",
+			name:  "registry by ip address",
 			input: "10.1.1.1:8080/image:tag",
 			reg:   "10.1.1.1:8080",
 			img:   "image:tag",
 		},
 		{
-			name:  "no explicit registry",
+			name:  "no explicit registry with tag",
 			input: "centos:latest",
 			reg:   "",
 			img:   "centos:latest",
 		},
 		{
-			name:  "no explicit registry and no tag",
+			name:  "no explicit registry without tag",
 			input: "centos",
 			reg:   "",
 			img:   "centos",
 		},
 		{
-			name:  "no explicit registry within repository",
+			name:  "no explicit registry with repo and image",
 			input: "repository/centos",
 			reg:   "",
 			img:   "repository/centos",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			imp := NewImporter(&SysContextMock{})
+			imp := NewImporter(nil)
 			reg, img := imp.SplitRegistryDomain(tt.input)
 			if reg != tt.reg {
 				t.Errorf("expecting reg %q, received %q", tt.reg, reg)
@@ -76,29 +73,19 @@ func TestSplitRegistryDomain(t *testing.T) {
 }
 
 func TestImportPath(t *testing.T) {
-	fkreg := httptest.NewServer(
-		http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {},
-		),
-	)
-	defer fkreg.Close()
-
 	for _, tt := range []struct {
 		name   string
 		sysctx ContextProvider
 		tag    *imgtagv1.Tag
-		ns     string
 		err    string
 	}{
 		{
-			name: "invalid tag name",
+			name: "empty tag",
 			tag:  &imgtagv1.Tag{},
-			ns:   "default",
-			err:  "invalid empty tag reference",
+			err:  "empty tag reference",
 		},
 		{
-			name: "no unqualified registries",
-			ns:   "default",
+			name: "no unqualified registry registered",
 			err:  "no registry candidates",
 			tag: &imgtagv1.Tag{
 				Spec: imgtagv1.TagSpec{
@@ -108,7 +95,6 @@ func TestImportPath(t *testing.T) {
 		},
 		{
 			name: "happy path using unqualified registry",
-			ns:   "default",
 			sysctx: &SysContextMock{
 				unqualifiedRegistries: []string{"docker.io"},
 			},
@@ -119,11 +105,7 @@ func TestImportPath(t *testing.T) {
 			},
 		},
 		{
-			name: "happy path not using unqualified registry",
-			ns:   "default",
-			sysctx: &SysContextMock{
-				unqualifiedRegistries: []string{"docker.io"},
-			},
+			name: "happy path with full image reference",
 			tag: &imgtagv1.Tag{
 				Spec: imgtagv1.TagSpec{
 					From: "docker.io/centos:latest",
@@ -132,7 +114,6 @@ func TestImportPath(t *testing.T) {
 		},
 		{
 			name: "invalid image reference format",
-			ns:   "default",
 			err:  "invalid reference format",
 			tag: &imgtagv1.Tag{
 				Spec: imgtagv1.TagSpec{
@@ -142,7 +123,6 @@ func TestImportPath(t *testing.T) {
 		},
 		{
 			name: "non existent tag",
-			ns:   "default",
 			err:  "manifest unknown",
 			sysctx: &SysContextMock{
 				unqualifiedRegistries: []string{"docker.io"},
@@ -154,42 +134,11 @@ func TestImportPath(t *testing.T) {
 			},
 		},
 		{
-			name: "non existent registry",
-			ns:   "default",
-			err:  "error pinging docker registry",
-			tag: &imgtagv1.Tag{
-				Spec: imgtagv1.TagSpec{
-					From: "10.1.1.1:8888/centos:latest",
-				},
-			},
-		},
-		{
 			name: "non existent registry by name",
-			ns:   "default",
 			err:  "error pinging docker registry",
 			tag: &imgtagv1.Tag{
 				Spec: imgtagv1.TagSpec{
 					From: "i.do.not.exist.com/centos:latest",
-				},
-			},
-		},
-		{
-			name: "non existent image",
-			ns:   "default",
-			err:  "requested access to the resource is denied",
-			tag: &imgtagv1.Tag{
-				Spec: imgtagv1.TagSpec{
-					From: "docker.io/idonotexist:latest",
-				},
-			},
-		},
-		{
-			name: "http registry without insecure flag",
-			ns:   "default",
-			err:  "server gave HTTP response",
-			tag: &imgtagv1.Tag{
-				Spec: imgtagv1.TagSpec{
-					From: fmt.Sprintf("%s/image:tag", fkreg.Listener.Addr()),
 				},
 			},
 		},
@@ -206,7 +155,7 @@ func TestImportPath(t *testing.T) {
 			defer cancel()
 
 			imp := NewImporter(sysctx)
-			_, err := imp.ImportTag(ctx, tt.tag, tt.ns)
+			_, err := imp.ImportTag(ctx, tt.tag, "default")
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error %s", err)
