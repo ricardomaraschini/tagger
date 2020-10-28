@@ -7,11 +7,11 @@ import (
 
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
-	"k8s.io/cri-api/pkg/errors"
 	"k8s.io/klog/v2"
 
 	"github.com/mattbaird/jsonpatch"
@@ -93,7 +93,7 @@ func (t *Tag) CurrentReferenceForTag(namespace, name string) (string, error) {
 
 // PatchForDeployment creates a patch to be applied on top of a deployment
 // in order to keep track of what version of all image tags it is using.
-func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]byte, error) {
+func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]jsonpatch.JsonPatchOperation, error) {
 	if _, ok := deploy.Annotations["image-tag"]; !ok {
 		return nil, nil
 	}
@@ -140,13 +140,18 @@ func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(patch)
+
+	// always return nil instead of an empty slice.
+	if len(patch) == 0 {
+		return nil, nil
+	}
+	return patch, nil
 }
 
 // PatchForPod creates and returns a json patch to be applied on top of a pod
 // in order to make it point to an already imported image tag. May returns nil
 // if no patch is needed (i.e. pod does not use image tag).
-func (t *Tag) PatchForPod(pod corev1.Pod) ([]byte, error) {
+func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error) {
 	if len(pod.OwnerReferences) == 0 {
 		return nil, nil
 	}
@@ -197,13 +202,18 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(patch)
+
+	// always return nil instead of an empty slice.
+	if len(patch) == 0 {
+		return nil, nil
+	}
+	return patch, nil
 }
 
 // tagNotImported returs true if tag generation has not yet been imported.
 func (t *Tag) tagNotImported(it *imagtagv1.Tag) bool {
 	for _, hashref := range it.Status.References {
-		if hashref.Generation == it.Spec.Generation {
+		if hashref.Generation == it.Status.Generation {
 			return false
 		}
 	}
