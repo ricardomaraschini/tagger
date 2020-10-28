@@ -100,7 +100,8 @@ func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]jsonpatch.JsonPatchOpe
 
 	newAnnotations := map[string]string{}
 	for _, c := range deploy.Spec.Template.Spec.Containers {
-		is, err := t.taglis.Tags(deploy.Namespace).Get(c.Image)
+		// XXX HERE USE t.CurrentReferenceForTag()
+		it, err := t.taglis.Tags(deploy.Namespace).Get(c.Image)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				continue
@@ -108,15 +109,15 @@ func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]jsonpatch.JsonPatchOpe
 			return nil, err
 		}
 
-		// if current generation does not exist yet it means
+		// if desired generation does not exist yet it means
 		// we can't add the proper annotation, just move on.
-		if t.tagNotImported(is) {
+		if t.specTagNotImported(it) {
 			continue
 		}
 
 		// we now the generation is already imported, add an
 		// annotation to the deployment pointing to it
-		newAnnotations[is.Name] = fmt.Sprint(is.Status.Generation)
+		newAnnotations[it.Name] = fmt.Sprint(it.Status.Generation)
 	}
 	changed := deploy.DeepCopy()
 	if changed.Spec.Template.Annotations == nil {
@@ -209,10 +210,11 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 	return patch, nil
 }
 
-// tagNotImported returs true if tag generation has not yet been imported.
-func (t *Tag) tagNotImported(it *imagtagv1.Tag) bool {
+// specTagNotImported returs true if tag generation defined on spec has not
+// yet been imported.
+func (t *Tag) specTagNotImported(it *imagtagv1.Tag) bool {
 	for _, hashref := range it.Status.References {
-		if hashref.Generation == it.Status.Generation {
+		if hashref.Generation == it.Spec.Generation {
 			return false
 		}
 	}
@@ -238,7 +240,7 @@ func (t *Tag) prependHashReference(
 // Beware that we change Tag in place before updating it on api server,
 // i.e. use DeepCopy() before passing the image tag in.
 func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
-	importNeeded := t.tagNotImported(it)
+	importNeeded := t.specTagNotImported(it)
 	if importNeeded {
 		klog.Infof("importing tag %s/%s", it.Namespace, it.Name)
 		hashref, err := t.impsvc.ImportTag(ctx, it, it.Namespace)
