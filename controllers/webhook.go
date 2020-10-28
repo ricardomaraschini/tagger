@@ -17,6 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
+	"github.com/mattbaird/jsonpatch"
+
 	imgtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
 	"github.com/ricardomaraschini/it/services"
 )
@@ -202,7 +204,7 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 	pod.Namespace = reviewReq.Request.Namespace
 	deploy.Namespace = reviewReq.Request.Namespace
 
-	var patch []byte
+	var patch []jsonpatch.JsonPatchOperation
 	switch objkind {
 	case "Pod":
 		patch, err = wh.tagsvc.PatchForPod(pod)
@@ -215,10 +217,18 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var patchData []byte
 	var ptype *admnv1.PatchType
 	if patch != nil {
 		jpt := admnv1.PatchType("JSONPatch")
 		ptype = &jpt
+
+		patchData, err = json.Marshal(patch)
+		if err != nil {
+			klog.Errorf("error marshaling patch: %s", err)
+			wh.responseError(w, reviewReq, err)
+			return
+		}
 	}
 
 	reviewResp := &admnv1.AdmissionReview{
@@ -229,7 +239,7 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 		Response: &admnv1.AdmissionResponse{
 			Allowed:   true,
 			UID:       reviewReq.Request.UID,
-			Patch:     patch,
+			Patch:     patchData,
 			PatchType: ptype,
 		},
 	}
