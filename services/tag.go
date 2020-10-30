@@ -73,7 +73,8 @@ func (t *Tag) ValidateTagGeneration(tag imagtagv1.Tag) error {
 // CurrentReferenceForTag returns the image reference this tag is pointing to.
 // If we can't find the image tag by namespace and name an empty string is
 // returned instead. Image tag generation in status points to the current
-// generation.
+// generation, if this generation does not exist then we haven't imported it
+// yet, return an empty string and no error on this case.
 func (t *Tag) CurrentReferenceForTag(namespace, name string) (string, error) {
 	it, err := t.taglis.Tags(namespace).Get(name)
 	if err != nil {
@@ -88,7 +89,7 @@ func (t *Tag) CurrentReferenceForTag(namespace, name string) (string, error) {
 		}
 		return hashref.ImageReference, nil
 	}
-	return "", fmt.Errorf("generation does not exist")
+	return "", nil
 }
 
 // PatchForDeployment creates a patch to be applied on top of a deployment
@@ -100,24 +101,17 @@ func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]jsonpatch.JsonPatchOpe
 
 	newAnnotations := map[string]string{}
 	for _, c := range deploy.Spec.Template.Spec.Containers {
-		// XXX HERE USE t.CurrentReferenceForTag()
-		it, err := t.taglis.Tags(deploy.Namespace).Get(c.Image)
+		ref, err := t.CurrentReferenceForTag(deploy.Namespace, c.Image)
 		if err != nil {
-			if errors.IsNotFound(err) {
-				continue
-			}
 			return nil, err
 		}
 
-		// if desired generation does not exist yet it means
-		// we can't add the proper annotation, just move on.
-		if t.specTagNotImported(it) {
+		// if there is no reference do not patch, just move on.
+		if ref == "" {
 			continue
 		}
 
-		// we now the generation is already imported, add an
-		// annotation to the deployment pointing to it
-		newAnnotations[it.Name] = fmt.Sprint(it.Status.Generation)
+		newAnnotations[c.Image] = ref
 	}
 	changed := deploy.DeepCopy()
 	if changed.Spec.Template.Annotations == nil {
@@ -210,15 +204,15 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 	return patch, nil
 }
 
-// specTagNotImported returs true if tag generation defined on spec has not
-// yet been imported.
-func (t *Tag) specTagNotImported(it *imagtagv1.Tag) bool {
+// specTagImported returs true if tag generation defined on spec has
+// already been imported.
+func (t *Tag) specTagImported(it *imagtagv1.Tag) bool {
 	for _, hashref := range it.Status.References {
 		if hashref.Generation == it.Spec.Generation {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // prependHashReference prepends ref into refs. The resulting slice
@@ -240,22 +234,21 @@ func (t *Tag) prependHashReference(
 // Beware that we change Tag in place before updating it on api server,
 // i.e. use DeepCopy() before passing the image tag in.
 func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
-	importNeeded := t.specTagNotImported(it)
-	if importNeeded {
-		klog.Infof("importing tag %s/%s", it.Namespace, it.Name)
+	var err error
+
+	alreadyImported := t.specTagImported(it)
+	if !alreadyImported {
+		klog.Infof("tag %s/%s needs import", it.Namespace, it.Name)
 		hashref, err := t.impsvc.ImportTag(ctx, it, it.Namespace)
 		if err != nil {
-			return fmt.Errorf("fail to import tag: %w", err)
+			return fmt.Errorf("fail import %s/%s: %w", it.Namespace, it.Name, err)
 		}
-		it.Status.References = t.prependHashReference(
-			hashref, it.Status.References,
-		)
+		it.Status.References = t.prependHashReference(hashref, it.Status.References)
 	}
 
-	deployedMismatch := it.Spec.Generation != it.Status.Generation
-	if importNeeded || deployedMismatch {
+	genMismatch := it.Spec.Generation != it.Status.Generation
+	if !alreadyImported || genMismatch {
 		it.Status.Generation = it.Spec.Generation
-		var err error
 		if it, err = t.tagcli.ImagesV1().Tags(it.Namespace).Update(
 			ctx, it, metav1.UpdateOptions{},
 		); err != nil {
