@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattbaird/jsonpatch"
-	imagtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,8 +15,11 @@ import (
 	corfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/mattbaird/jsonpatch"
+
 	tagfake "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/fake"
 	taginf "github.com/ricardomaraschini/it/imagetags/generated/informers/externalversions"
+	imagtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
 )
 
 func TestValidateTagGeneration(t *testing.T) {
@@ -115,7 +116,6 @@ func TestCurrentReferenceForTag(t *testing.T) {
 		},
 		{
 			name:   "generation not existent",
-			err:    "generation does not exist",
 			itname: "tag",
 			objects: []runtime.Object{
 				&imagtagv1.Tag{
@@ -226,7 +226,7 @@ func TestPatchForDeployment(t *testing.T) {
 					Operation: "add",
 					Path:      "/spec/template/metadata/annotations",
 					Value: map[string]interface{}{
-						"imagetag": "1",
+						"imagetag": "repo/image@hash",
 					},
 				},
 			},
@@ -262,7 +262,7 @@ func TestPatchForDeployment(t *testing.T) {
 							{Generation: 2},
 							{
 								Generation:     1,
-								ImageReference: "my ref",
+								ImageReference: "repo/image@hash",
 							},
 						},
 					},
@@ -276,8 +276,8 @@ func TestPatchForDeployment(t *testing.T) {
 					Operation: "add",
 					Path:      "/spec/template/metadata/annotations",
 					Value: map[string]interface{}{
-						"imagetag":   "1",
-						"anothertag": "2",
+						"imagetag":   "ref",
+						"anothertag": "anotherref",
 					},
 				},
 			},
@@ -312,7 +312,7 @@ func TestPatchForDeployment(t *testing.T) {
 							{Generation: 2},
 							{
 								Generation:     1,
-								ImageReference: "my ref",
+								ImageReference: "ref",
 							},
 						},
 					},
@@ -327,7 +327,7 @@ func TestPatchForDeployment(t *testing.T) {
 						References: []imagtagv1.HashReference{
 							{
 								Generation:     2,
-								ImageReference: "another ref",
+								ImageReference: "anotherref",
 							},
 							{
 								Generation:     1,
@@ -352,9 +352,7 @@ func TestPatchForDeployment(t *testing.T) {
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
-								{
-									Image: "imagetag",
-								},
+								{Image: "imagetag"},
 							},
 						},
 					},
@@ -429,7 +427,7 @@ func TestPatchForDeployment(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(tt.expected, patch) {
-				t.Errorf("patch mismatch: %v, %v", tt.expected, patch)
+				t.Errorf("patch mismatch, expected %v, %v", tt.expected, patch)
 			}
 		})
 	}
@@ -632,6 +630,222 @@ func TestPatchForPod(t *testing.T) {
 
 			if !reflect.DeepEqual(tt.expected, patch) {
 				t.Errorf("patch mismatch: %v, %v", tt.expected, patch)
+			}
+		})
+	}
+}
+
+func Test_specTagImported(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		exp  bool
+		tag  *imagtagv1.Tag
+	}{
+		{
+			name: "empty tag",
+			exp:  false,
+			tag:  &imagtagv1.Tag{},
+		},
+		{
+			name: "not imported yet",
+			exp:  false,
+			tag: &imagtagv1.Tag{
+				Spec: imagtagv1.TagSpec{
+					Generation: 2,
+				},
+				Status: imagtagv1.TagStatus{
+					References: []imagtagv1.HashReference{
+						{Generation: 1},
+						{Generation: 0},
+					},
+				},
+			},
+		},
+		{
+			name: "tag already imported",
+			exp:  true,
+			tag: &imagtagv1.Tag{
+				Spec: imagtagv1.TagSpec{
+					Generation: 1,
+				},
+				Status: imagtagv1.TagStatus{
+					References: []imagtagv1.HashReference{
+						{Generation: 4},
+						{Generation: 3},
+						{Generation: 2},
+						{Generation: 1},
+						{Generation: 0},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewTag(nil, nil, nil, nil, nil, nil)
+			res := svc.specTagImported(tt.tag)
+			if res != tt.exp {
+				t.Errorf("expected %v, %v received", tt.exp, res)
+			}
+		})
+	}
+}
+
+func Test_prependHashReference(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		current   []imagtagv1.HashReference
+		reference imagtagv1.HashReference
+		expected  []imagtagv1.HashReference
+	}{
+		{
+			name:    "nil current generations slice",
+			current: nil,
+			reference: imagtagv1.HashReference{
+				Generation: 1,
+			},
+			expected: []imagtagv1.HashReference{
+				{Generation: 1},
+			},
+		},
+		{
+			name:    "empty current generations slice",
+			current: []imagtagv1.HashReference{},
+			reference: imagtagv1.HashReference{
+				Generation: 1,
+			},
+			expected: []imagtagv1.HashReference{
+				{Generation: 1},
+			},
+		},
+		{
+			name: "full current generations slice",
+			current: []imagtagv1.HashReference{
+				{Generation: 4},
+				{Generation: 3},
+				{Generation: 2},
+				{Generation: 1},
+				{Generation: 0},
+			},
+			reference: imagtagv1.HashReference{
+				Generation: 5,
+			},
+			expected: []imagtagv1.HashReference{
+				{Generation: 5},
+				{Generation: 4},
+				{Generation: 3},
+				{Generation: 2},
+				{Generation: 1},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewTag(nil, nil, nil, nil, nil, nil)
+			res := svc.prependHashReference(tt.reference, tt.current)
+			if reflect.DeepEqual(res, tt.expected) {
+				return
+			}
+			t.Errorf("expected %+v, %+v received", tt.expected, res)
+		})
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		tag        *imagtagv1.Tag
+		err        string
+		corObjects []runtime.Object
+		tagObjects []runtime.Object
+	}{
+		{
+			name: "empty tag",
+			err:  "empty tag reference",
+			tag: &imagtagv1.Tag{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "empty-tag",
+				},
+			},
+		},
+		{
+			name: "import of non existing tag",
+			err:  "not found",
+			tag: &imagtagv1.Tag{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "new-tag",
+				},
+				Spec: imagtagv1.TagSpec{
+					From:       "centos:latest",
+					Generation: 0,
+				},
+			},
+		},
+		{
+			name: "first import (happy path)",
+			tag: &imagtagv1.Tag{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "new-tag",
+				},
+				Spec: imagtagv1.TagSpec{
+					From:       "centos:latest",
+					Generation: 0,
+				},
+			},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "new-tag",
+					},
+					Spec: imagtagv1.TagSpec{
+						From:       "centos:latest",
+						Generation: 0,
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			corcli := corfake.NewSimpleClientset(tt.corObjects...)
+			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
+			seclis := corinf.Core().V1().Secrets().Lister()
+			replis := corinf.Apps().V1().ReplicaSets().Lister()
+			deplis := corinf.Apps().V1().Deployments().Lister()
+
+			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
+			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
+			taglis := taginf.Images().V1().Tags().Lister()
+
+			corinf.Start(ctx.Done())
+			taginf.Start(ctx.Done())
+			if !cache.WaitForCacheSync(
+				ctx.Done(),
+				corinf.Core().V1().Secrets().Informer().HasSynced,
+				corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
+				corinf.Apps().V1().Deployments().Informer().HasSynced,
+				taginf.Images().V1().Tags().Informer().HasSynced,
+			) {
+				t.Fatal("errors waiting for caches to sync")
+			}
+
+			syssvc := NewSysContext(seclis)
+			impsvc := NewImporter(syssvc)
+			svc := NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
+
+			err := svc.Update(ctx, tt.tag)
+			if err != nil {
+				if len(tt.err) == 0 {
+					t.Errorf("unexpected error: %s", err)
+				} else if !strings.Contains(err.Error(), tt.err) {
+					t.Errorf("expecting %q, %q received instead", tt.err, err)
+				}
+			} else if len(tt.err) > 0 {
+				t.Errorf("expecting error %q, nil received instead", tt.err)
 			}
 		})
 	}
