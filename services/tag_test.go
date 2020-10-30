@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	coreinf "k8s.io/client-go/informers"
 	corfake "k8s.io/client-go/kubernetes/fake"
@@ -103,7 +104,7 @@ func TestValidateTagGeneration(t *testing.T) {
 	}
 }
 
-func TestCurrentReferenceForTag(t *testing.T) {
+func TestCurrentReferenceForTagByName(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		itname  string
@@ -189,7 +190,7 @@ func TestCurrentReferenceForTag(t *testing.T) {
 			}
 
 			svc := NewTag(nil, nil, taglis, nil, nil, nil)
-			ref, err := svc.CurrentReferenceForTag("default", tt.itname)
+			ref, err := svc.CurrentReferenceForTagByName("default", tt.itname)
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error: %s", err)
@@ -846,6 +847,254 @@ func TestUpdate(t *testing.T) {
 				}
 			} else if len(tt.err) > 0 {
 				t.Errorf("expecting error %q, nil received instead", tt.err)
+			}
+		})
+	}
+}
+
+func Test_updateDeployment(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		err        string
+		tag        *imagtagv1.Tag
+		exp        []map[string]string
+		corObjects []runtime.Object
+		tagObjects []runtime.Object
+	}{
+		{
+			name: "happy path",
+			tag: &imagtagv1.Tag{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "mytag",
+				},
+				Status: imagtagv1.TagStatus{
+					Generation: 3,
+					References: []imagtagv1.HashReference{
+						{Generation: 7},
+						{Generation: 6},
+						{Generation: 5},
+						{Generation: 4},
+						{
+							Generation:     3,
+							ImageReference: "centos:latest",
+						},
+					},
+				},
+			},
+			corObjects: []runtime.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "mydeployment",
+						Annotations: map[string]string{
+							"image-tag": "true",
+						},
+					},
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{Image: "centos:latest"},
+									{Image: "nginx:latest"},
+									{Image: "mytag"},
+								},
+							},
+						},
+					},
+				},
+			},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "mytag",
+					},
+					Status: imagtagv1.TagStatus{
+						Generation: 3,
+						References: []imagtagv1.HashReference{
+							{Generation: 7},
+							{Generation: 6},
+							{Generation: 5},
+							{Generation: 4},
+							{
+								Generation:     3,
+								ImageReference: "centos:latest",
+							},
+						},
+					},
+				},
+			},
+			exp: []map[string]string{
+				{"mytag": "centos:latest"},
+			},
+		},
+		{
+			name: "deployment without annotation",
+			tag: &imagtagv1.Tag{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "mytag",
+				},
+				Status: imagtagv1.TagStatus{
+					Generation: 0,
+					References: []imagtagv1.HashReference{
+						{
+							Generation:     0,
+							ImageReference: "centos:latest",
+						},
+					},
+				},
+			},
+			corObjects: []runtime.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "mydeployment",
+					},
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{Image: "centos:latest"},
+									{Image: "nginx:latest"},
+								},
+							},
+						},
+					},
+				},
+			},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "mytag",
+					},
+					Status: imagtagv1.TagStatus{
+						Generation: 3,
+						References: []imagtagv1.HashReference{
+							{Generation: 7},
+							{Generation: 6},
+							{Generation: 5},
+							{Generation: 4},
+							{
+								Generation:     3,
+								ImageReference: "centos:latest",
+							},
+						},
+					},
+				},
+			},
+			exp: []map[string]string{nil},
+		},
+		{
+			name: "deployment in a different namespace",
+			tag: &imagtagv1.Tag{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "mytag",
+				},
+				Status: imagtagv1.TagStatus{
+					Generation: 0,
+					References: []imagtagv1.HashReference{
+						{
+							Generation:     0,
+							ImageReference: "centos:latest",
+						},
+					},
+				},
+			},
+			corObjects: []runtime.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "anotherns",
+						Name:      "mydeployment",
+						Annotations: map[string]string{
+							"image-tag": "true",
+						},
+					},
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{Image: "mytag"},
+								},
+							},
+						},
+					},
+				},
+			},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "mytag",
+					},
+					Status: imagtagv1.TagStatus{
+						Generation: 3,
+						References: []imagtagv1.HashReference{
+							{Generation: 7},
+							{Generation: 6},
+							{Generation: 5},
+							{Generation: 4},
+							{
+								Generation:     3,
+								ImageReference: "centos:latest",
+							},
+						},
+					},
+				},
+			},
+			exp: []map[string]string{nil},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			corcli := corfake.NewSimpleClientset(tt.corObjects...)
+			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
+			seclis := corinf.Core().V1().Secrets().Lister()
+			replis := corinf.Apps().V1().ReplicaSets().Lister()
+			deplis := corinf.Apps().V1().Deployments().Lister()
+
+			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
+			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
+			taglis := taginf.Images().V1().Tags().Lister()
+
+			corinf.Start(ctx.Done())
+			taginf.Start(ctx.Done())
+			if !cache.WaitForCacheSync(
+				ctx.Done(),
+				corinf.Core().V1().Secrets().Informer().HasSynced,
+				corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
+				corinf.Apps().V1().Deployments().Informer().HasSynced,
+				taginf.Images().V1().Tags().Informer().HasSynced,
+			) {
+				t.Fatal("errors waiting for caches to sync")
+			}
+
+			syssvc := NewSysContext(seclis)
+			impsvc := NewImporter(syssvc)
+			svc := NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
+
+			svc.updateDeployments(ctx, tt.tag)
+
+			deps, err := deplis.List(labels.Everything())
+			if err != nil {
+				t.Errorf("error listing deployments: %s", err)
+			}
+
+			annotations := []map[string]string{}
+			for _, dep := range deps {
+				annotations = append(
+					annotations,
+					dep.Spec.Template.Annotations,
+				)
+			}
+
+			if !reflect.DeepEqual(tt.exp, annotations) {
+				t.Errorf("expecting %+v, received %+v", tt.exp, annotations)
 			}
 		})
 	}

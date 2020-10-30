@@ -70,12 +70,10 @@ func (t *Tag) ValidateTagGeneration(tag imagtagv1.Tag) error {
 	return fmt.Errorf("generation must be one of: %s", fmt.Sprint(validGens))
 }
 
-// CurrentReferenceForTag returns the image reference this tag is pointing to.
-// If we can't find the image tag by namespace and name an empty string is
-// returned instead. Image tag generation in status points to the current
-// generation, if this generation does not exist then we haven't imported it
-// yet, return an empty string and no error on this case.
-func (t *Tag) CurrentReferenceForTag(namespace, name string) (string, error) {
+// CurrentReferenceForTagByName returns the image reference this tag is pointing
+// to.  If we can't find the image tag by namespace and name an empty string is
+// returned instead.
+func (t *Tag) CurrentReferenceForTagByName(namespace, name string) (string, error) {
 	it, err := t.taglis.Tags(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -83,13 +81,7 @@ func (t *Tag) CurrentReferenceForTag(namespace, name string) (string, error) {
 		}
 		return "", err
 	}
-	for _, hashref := range it.Status.References {
-		if hashref.Generation != it.Status.Generation {
-			continue
-		}
-		return hashref.ImageReference, nil
-	}
-	return "", nil
+	return t.CurrentReferenceForTag(it), nil
 }
 
 // PatchForDeployment creates a patch to be applied on top of a deployment
@@ -101,7 +93,7 @@ func (t *Tag) PatchForDeployment(deploy v1.Deployment) ([]jsonpatch.JsonPatchOpe
 
 	newAnnotations := map[string]string{}
 	for _, c := range deploy.Spec.Template.Spec.Containers {
-		ref, err := t.CurrentReferenceForTag(deploy.Namespace, c.Image)
+		ref, err := t.CurrentReferenceForTagByName(deploy.Namespace, c.Image)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +162,7 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 	// TODO InitContainers, EphemeralContainers.
 	nconts := []corev1.Container{}
 	for _, c := range pod.Spec.Containers {
-		ref, err := t.CurrentReferenceForTag(pod.Namespace, c.Image)
+		ref, err := t.CurrentReferenceForTagByName(pod.Namespace, c.Image)
 		if err != nil {
 			return nil, err
 		}
@@ -256,6 +248,7 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 		}
 	}
 
+	// if we fail to update deployments we only log the error.
 	if err := t.updateDeployments(ctx, it); err != nil {
 		return fmt.Errorf("unable to update deployments: %w", err)
 	}
@@ -293,14 +286,18 @@ func (t *Tag) updateDeployments(ctx context.Context, it *imagtagv1.Tag) error {
 		if dep.Spec.Template.Annotations == nil {
 			dep.Spec.Template.Annotations = map[string]string{}
 		}
-		gen := fmt.Sprint(it.Status.Generation)
 
-		// pod is already using the right image tag
-		if dep.Spec.Template.Annotations[it.Name] == gen {
+		ref := t.CurrentReferenceForTag(it)
+		if ref == "" {
 			continue
 		}
 
-		dep.Spec.Template.Annotations[it.Name] = gen
+		// pod is already using the right image reference.
+		if dep.Spec.Template.Annotations[it.Name] == ref {
+			continue
+		}
+
+		dep.Spec.Template.Annotations[it.Name] = ref
 		if _, err := t.corcli.AppsV1().Deployments(dep.Namespace).Update(
 			ctx, dep, metav1.UpdateOptions{},
 		); err != nil {
@@ -316,4 +313,18 @@ func (t *Tag) updateDeployments(ctx context.Context, it *imagtagv1.Tag) error {
 // is a no-op.
 func (t *Tag) Delete(ctx context.Context, namespace, name string) error {
 	return nil
+}
+
+// CurrentReferenceForTag looks through provided tag and returns the ref
+// in use. Image tag generation in status points to the current generation,
+// if this generation does not exist then we haven't imported it yet,
+// return an empty string.
+func (t *Tag) CurrentReferenceForTag(it *imagtagv1.Tag) string {
+	for _, hashref := range it.Status.References {
+		if hashref.Generation != it.Status.Generation {
+			continue
+		}
+		return hashref.ImageReference
+	}
+	return ""
 }
