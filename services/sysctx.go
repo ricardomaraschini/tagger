@@ -17,22 +17,23 @@ import (
 // with things such as configured docker authentications or unqualified
 // registries configs.
 type SysContext struct {
-	sclister corelister.SecretLister
+	sclister              corelister.SecretLister
+	unqualifiedRegistries []string
 }
 
 // NewSysContext returns a new SysContext helper.
 func NewSysContext(lister corelister.SecretLister) *SysContext {
 	return &SysContext{
-		sclister: lister,
+		sclister:              lister,
+		unqualifiedRegistries: []string{"docker.io"},
 	}
 }
 
 // UnqualifiedRegistries returns the list of unqualified registries
 // configured on the system. XXX here we should return the cluster
-// wide configuration for unqualified registries, for now we hardcoded
-// docker.io for testing purposes.
+// wide configuration for unqualified registries.
 func (s *SysContext) UnqualifiedRegistries(ctx context.Context) []string {
-	return []string{"docker.io"}
+	return s.unqualifiedRegistries
 }
 
 // AuthsFor return configured authentications for the registry hosting

@@ -17,21 +17,13 @@ import (
 	imagtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
 )
 
-// ContextProvider provides context information for the import process. This exists to make
-// testing easier, you most likely would prefer to have a proper implementation of this on
-// SysContext at sysctx.go.
-type ContextProvider interface {
-	UnqualifiedRegistries(context.Context) []string
-	AuthsFor(context.Context, types.ImageReference, string) ([]*types.DockerAuthConfig, error)
-}
-
 // Importer wrap srvices for tag import related operations.
 type Importer struct {
-	syssvc ContextProvider
+	syssvc *SysContext
 }
 
 // NewImporter returns a handler for tag related services.
-func NewImporter(syssvc ContextProvider) *Importer {
+func NewImporter(syssvc *SysContext) *Importer {
 	return &Importer{
 		syssvc: syssvc,
 	}
