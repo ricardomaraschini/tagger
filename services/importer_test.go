@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	coreinf "k8s.io/client-go/informers"
+	corfake "k8s.io/client-go/kubernetes/fake"
+
 	imgtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
 )
 
@@ -75,7 +78,8 @@ func TestSplitRegistryDomain(t *testing.T) {
 func TestImportPath(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
-		sysctx ContextProvider
+		sysctx *SysContext
+		unqreg []string
 		tag    *imgtagv1.Tag
 		err    string
 	}{
@@ -94,10 +98,8 @@ func TestImportPath(t *testing.T) {
 			},
 		},
 		{
-			name: "happy path using unqualified registry",
-			sysctx: &SysContextMock{
-				unqualifiedRegistries: []string{"docker.io"},
-			},
+			name:   "happy path using unqualified registry",
+			unqreg: []string{"docker.io"},
 			tag: &imgtagv1.Tag{
 				Spec: imgtagv1.TagSpec{
 					From: "centos:latest",
@@ -122,11 +124,9 @@ func TestImportPath(t *testing.T) {
 			},
 		},
 		{
-			name: "non existent tag",
-			err:  "manifest unknown",
-			sysctx: &SysContextMock{
-				unqualifiedRegistries: []string{"docker.io"},
-			},
+			name:   "non existent tag",
+			err:    "manifest unknown",
+			unqreg: []string{"docker.io"},
 			tag: &imgtagv1.Tag{
 				Spec: imgtagv1.TagSpec{
 					From: "centos:idonotexisthopefully",
@@ -144,15 +144,15 @@ func TestImportPath(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			var sysctx ContextProvider
-
-			sysctx = &SysContextMock{}
-			if tt.sysctx != nil {
-				sysctx = tt.sysctx
-			}
-
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+
+			corcli := corfake.NewSimpleClientset()
+			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
+			seclis := corinf.Core().V1().Secrets().Lister()
+
+			sysctx := NewSysContext(seclis)
+			sysctx.unqualifiedRegistries = tt.unqreg
 
 			imp := NewImporter(sysctx)
 			_, err := imp.ImportTag(ctx, tt.tag, "default")
