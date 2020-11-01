@@ -248,7 +248,7 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 	alreadyImported := t.specTagImported(it)
 	if !alreadyImported {
 		klog.Infof("tag %s/%s needs import", it.Namespace, it.Name)
-		hashref, err := t.impsvc.ImportTag(ctx, it, it.Namespace)
+		hashref, err := t.impsvc.ImportTag(ctx, it)
 		if err != nil {
 			return fmt.Errorf("fail import %s/%s: %w", it.Namespace, it.Name, err)
 		}
