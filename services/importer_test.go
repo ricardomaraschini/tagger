@@ -66,10 +66,10 @@ func TestSplitRegistryDomain(t *testing.T) {
 			imp := NewImporter(nil)
 			reg, img := imp.SplitRegistryDomain(tt.input)
 			if reg != tt.reg {
-				t.Errorf("expecting reg %q, received %q", tt.reg, reg)
+				t.Errorf("expecting registry %q, received %q", tt.reg, reg)
 			}
 			if img != tt.img {
-				t.Errorf("expecting img %q, received %q", tt.img, img)
+				t.Errorf("expecting image %q, received %q", tt.img, img)
 			}
 		})
 	}
@@ -78,7 +78,6 @@ func TestSplitRegistryDomain(t *testing.T) {
 func TestImportPath(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
-		sysctx *SysContext
 		unqreg []string
 		tag    *imgtagv1.Tag
 		err    string
@@ -144,9 +143,6 @@ func TestImportPath(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
 			corcli := corfake.NewSimpleClientset()
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 			seclis := corinf.Core().V1().Secrets().Lister()
@@ -155,20 +151,14 @@ func TestImportPath(t *testing.T) {
 			sysctx.unqualifiedRegistries = tt.unqreg
 
 			imp := NewImporter(sysctx)
-			_, err := imp.ImportTag(ctx, tt.tag, "default")
+			_, err := imp.ImportTag(context.Background(), tt.tag, "default")
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error %s", err)
-					return
+				} else if !strings.Contains(err.Error(), tt.err) {
+					t.Errorf("unexpected error content %s", err)
 				}
-				if strings.Contains(err.Error(), tt.err) {
-					return
-				}
-				t.Errorf("unexpected error content %s", err)
-				return
-			}
-
-			if len(tt.err) > 0 {
+			} else if len(tt.err) > 0 {
 				t.Errorf("expecting error %s, nil received", tt.err)
 			}
 		})
