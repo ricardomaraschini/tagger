@@ -19,19 +19,19 @@ import (
 // tag imports in parallel, at a given time we can have at max "workers"
 // distinct image tags being processed.
 func NewTag(
-	inf imageinf.SharedInformerFactory, tagsvc *services.Tag, workers int,
+	taginf imageinf.SharedInformerFactory, tagsvc *services.Tag, workers int,
 ) *Tag {
 	tokens := make(chan bool, workers)
 	for i := 0; i < workers; i++ {
 		tokens <- true
 	}
 	ctrl := &Tag{
-		taglister: inf.Images().V1().Tags().Lister(),
+		taglister: taginf.Images().V1().Tags().Lister(),
 		queue:     workqueue.NewDelayingQueue(),
 		tagsvc:    tagsvc,
 		tokens:    tokens,
 	}
-	inf.Images().V1().Tags().Informer().AddEventHandler(ctrl.handlers())
+	taginf.Images().V1().Tags().Informer().AddEventHandler(ctrl.handlers())
 	return ctrl
 }
 
