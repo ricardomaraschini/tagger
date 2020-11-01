@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -34,6 +35,24 @@ func NewSysContext(lister corelister.SecretLister) *SysContext {
 // wide configuration for unqualified registries.
 func (s *SysContext) UnqualifiedRegistries(ctx context.Context) []string {
 	return s.unqualifiedRegistries
+}
+
+// CacheRegistryAddr returns the configured registry address used for
+// caching images during tags.
+func (s *SysContext) CacheRegistryAddr() string {
+	return os.Getenv("CACHE_REGISTRY_ADDRESS")
+}
+
+// CacheRegistryContext returns the context to be used when talking to
+// the the registry used for caching tags.
+func (s *SysContext) CacheRegistryContext(ctx context.Context) *types.SystemContext {
+	return &types.SystemContext{
+		DockerInsecureSkipTLSVerify: types.OptionalBoolTrue,
+		DockerAuthConfig: &types.DockerAuthConfig{
+			Username: os.Getenv("CACHE_REGISTRY_USERNAME"),
+			Password: os.Getenv("CACHE_REGISTRY_PASSWORD"),
+		},
+	}
 }
 
 // AuthsFor return configured authentications for the registry hosting

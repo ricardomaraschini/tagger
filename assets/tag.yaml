@@ -5,3 +5,4 @@ metadata:
   namespace: default
 spec:
   from: nginx:stable
+  cache: true

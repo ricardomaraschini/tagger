@@ -19,6 +19,7 @@ type Tag struct {
 // remote images.
 type TagSpec struct {
 	From       string `json:"from"`
+	Cache      bool   `json:"cache"`
 	Generation int64  `json:"generation"`
 }
 
