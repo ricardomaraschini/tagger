@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	imagesv1 "github.com/ricardomaraschini/it/imagetags/v1"
+	imagesv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

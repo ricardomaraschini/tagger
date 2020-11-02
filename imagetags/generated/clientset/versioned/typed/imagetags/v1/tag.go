@@ -22,8 +22,8 @@ import (
 	"context"
 	"time"
 
-	scheme "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/scheme"
-	v1 "github.com/ricardomaraschini/it/imagetags/v1"
+	scheme "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/scheme"
+	v1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
