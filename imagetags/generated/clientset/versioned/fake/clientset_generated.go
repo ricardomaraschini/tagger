@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned"
-	imagesv1 "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/typed/imagetags/v1"
-	fakeimagesv1 "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/typed/imagetags/v1/fake"
+	clientset "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
+	imagesv1 "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/typed/imagetags/v1"
+	fakeimagesv1 "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/typed/imagetags/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

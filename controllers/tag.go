@@ -10,9 +10,9 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	imageinf "github.com/ricardomaraschini/it/imagetags/generated/informers/externalversions"
-	imagelis "github.com/ricardomaraschini/it/imagetags/generated/listers/imagetags/v1"
-	"github.com/ricardomaraschini/it/services"
+	imageinf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
+	imagelis "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
+	"github.com/ricardomaraschini/tagger/services"
 )
 
 // NewTag returns a new controller for Image Tags. This controller runs image

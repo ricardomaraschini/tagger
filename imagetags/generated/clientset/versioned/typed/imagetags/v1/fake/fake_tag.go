@@ -21,7 +21,7 @@ package fake
 import (
 	"context"
 
-	imagetagsv1 "github.com/ricardomaraschini/it/imagetags/v1"
+	imagetagsv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

@@ -9,7 +9,7 @@ import (
 	coreinf "k8s.io/client-go/informers"
 	corfake "k8s.io/client-go/kubernetes/fake"
 
-	imgtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
+	imgtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
 func TestSplitRegistryDomain(t *testing.T) {

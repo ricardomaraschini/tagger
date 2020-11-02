@@ -1,6 +1,6 @@
 .PHONY: get-code-generator generate build clean
 
-PROJECT=github.com/ricardomaraschini/it
+PROJECT=github.com/ricardomaraschini/tagger
 GEN_OUTPUT=/tmp/$(PROJECT)/imagetags
 
 get-code-generator:
@@ -21,11 +21,11 @@ generate:
 	mv $(GEN_OUTPUT)/v1/* imagetags/v1/
 
 image:
-	podman build -t quay.io/rmarasch/it .
+	podman build -t quay.io/rmarasch/tagger .
 
 build:
-	go build -o it ./cmd/
+	go build -o tagger ./cmd/
 
 clean:
 	rm -rf _output
-	rm -rf it
+	rm -rf tagger 

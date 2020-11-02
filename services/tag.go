@@ -16,9 +16,9 @@ import (
 
 	"github.com/mattbaird/jsonpatch"
 
-	tagclient "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned"
-	tagliss "github.com/ricardomaraschini/it/imagetags/generated/listers/imagetags/v1"
-	imagtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
+	tagclient "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
+	tagliss "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
 // Tag gather all actions related to image tag objects.
