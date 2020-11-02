@@ -19,8 +19,8 @@ limitations under the License.
 package imagetags
 
 import (
-	v1 "github.com/ricardomaraschini/it/imagetags/generated/informers/externalversions/imagetags/v1"
-	internalinterfaces "github.com/ricardomaraschini/it/imagetags/generated/informers/externalversions/internalinterfaces"
+	v1 "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions/imagetags/v1"
+	internalinterfaces "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

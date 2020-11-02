@@ -17,7 +17,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
 
-	imagtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
 // Importer wrap srvices for tag import related operations.

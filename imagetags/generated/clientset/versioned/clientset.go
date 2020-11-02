@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	imagesv1 "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/typed/imagetags/v1"
+	imagesv1 "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/typed/imagetags/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

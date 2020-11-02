@@ -19,8 +19,8 @@ import (
 
 	"github.com/mattbaird/jsonpatch"
 
-	imgtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
-	"github.com/ricardomaraschini/it/services"
+	imgtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	"github.com/ricardomaraschini/tagger/services"
 )
 
 // WebHook handles Mutation requests from kubernetes api.

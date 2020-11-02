@@ -16,10 +16,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"github.com/ricardomaraschini/it/controllers"
-	itagcli "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned"
-	itaginf "github.com/ricardomaraschini/it/imagetags/generated/informers/externalversions"
-	"github.com/ricardomaraschini/it/services"
+	"github.com/ricardomaraschini/tagger/controllers"
+	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
+	itaginf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
+	"github.com/ricardomaraschini/tagger/services"
 )
 
 func main() {
@@ -34,13 +34,12 @@ func main() {
 		cancel()
 	}()
 
-	klog.Info(` image                           `)
-	klog.Info(` _|_  __,   __,  __,  _   ,_     `)
-	klog.Info(`  |  /  |  /  | /  | |/  /  |    `)
-	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/  `)
-	klog.Info(`             /|   /|             `)
-	klog.Info(`             \|   \|             `)
-	klog.Info(`starting image tag controller... `)
+	klog.Info(` _|_  __,   __,  __,  _   ,_       `)
+	klog.Info(`  |  /  |  /  | /  | |/  /  |      `)
+	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/ .  `)
+	klog.Info(`             /|   /|               `)
+	klog.Info(`             \|   \|               `)
+	klog.Info(`starting image tag controller...   `)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)

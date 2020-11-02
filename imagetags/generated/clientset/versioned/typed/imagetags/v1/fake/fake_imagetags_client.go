@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1 "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/typed/imagetags/v1"
+	v1 "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/typed/imagetags/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
