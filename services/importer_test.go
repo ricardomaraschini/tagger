@@ -146,12 +146,13 @@ func TestImportPath(t *testing.T) {
 			corcli := corfake.NewSimpleClientset()
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 			seclis := corinf.Core().V1().Secrets().Lister()
+			cmlist := corinf.Core().V1().ConfigMaps().Lister()
 
-			sysctx := NewSysContext(seclis)
+			sysctx := NewSysContext(cmlist, seclis)
 			sysctx.unqualifiedRegistries = tt.unqreg
 
 			imp := NewImporter(sysctx)
-			_, err := imp.ImportTag(context.Background(), tt.tag, "default")
+			_, err := imp.ImportTag(context.Background(), tt.tag)
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error %s", err)

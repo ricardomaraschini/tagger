@@ -1,0 +1,23 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tagger
+  labels:
+    app: tagger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tagger
+  template:
+    metadata:
+      labels:
+        app: tagger
+    spec:
+      serviceAccountName: tagger
+      containers:
+      - name: tagger
+        image: quay.io/rmarasch/it:latest
+        ports:
+        - containerPort: 8080

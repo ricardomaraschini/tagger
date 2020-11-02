@@ -20,6 +20,9 @@ generate:
 	mv $(GEN_OUTPUT)/generated imagetags 
 	mv $(GEN_OUTPUT)/v1/* imagetags/v1/
 
+image:
+	podman build -t quay.io/rmarasch/it .
+
 build:
 	go build -o it ./cmd/
 
