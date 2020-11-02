@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
@@ -10,22 +11,75 @@ import (
 	corelister "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 )
+
+// LocalRegistryHostingV1 describes a local registry that developer tools can
+// connect to. A local registry allows clients to load images into the local
+// cluster by pushing to this registry. This is a verbatim copy of what is
+// on the enhancement proposal in https://github.com/kubernetes/enhancements/
+// repo: keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+type LocalRegistryHostingV1 struct {
+	// Host documents the host (hostname and port) of the registry, as seen from
+	// outside the cluster.
+	//
+	// This is the registry host that tools outside the cluster should push images
+	// to.
+	Host string `yaml:"host,omitempty"`
+
+	// HostFromClusterNetwork documents the host (hostname and port) of the
+	// registry, as seen from networking inside the container pods.
+	//
+	// This is the registry host that tools running on pods inside the cluster
+	// should push images to. If not set, then tools inside the cluster should
+	// assume the local registry is not available to them.
+	HostFromClusterNetwork string `yaml:"hostFromClusterNetwork,omitempty"`
+
+	// HostFromContainerRuntime documents the host (hostname and port) of the
+	// registry, as seen from the cluster's container runtime.
+	//
+	// When tools apply Kubernetes objects to the cluster, this host should be
+	// used for image name fields. If not set, users of this field should use the
+	// value of Host instead.
+	//
+	// Note that it doesn't make sense semantically to define this field, but not
+	// define Host or HostFromClusterNetwork. That would imply a way to pull
+	// images without a way to push images.
+	HostFromContainerRuntime string `yaml:"hostFromContainerRuntime,omitempty"`
+
+	// Help contains a URL pointing to documentation for users on how to set
+	// up and configure a local registry.
+	//
+	// Tools can use this to nudge users to enable the registry. When possible,
+	// the writer should use as permanent a URL as possible to prevent drift
+	// (e.g., a version control SHA).
+	//
+	// When image pushes to a registry host specified in one of the other fields
+	// fail, the tool should display this help URL to the user. The help URL
+	// should contain instructions on how to diagnose broken or misconfigured
+	// registries.
+	Help string `yaml:"help,omitempty"`
+}
 
 // SysContext groups tasks related to system context/configuration, deal
 // with things such as configured docker authentications or unqualified
 // registries configs.
 type SysContext struct {
 	sclister              corelister.SecretLister
+	cmlister              corelister.ConfigMapLister
 	unqualifiedRegistries []string
 }
 
 // NewSysContext returns a new SysContext helper.
-func NewSysContext(lister corelister.SecretLister) *SysContext {
+func NewSysContext(
+	cmlister corelister.ConfigMapLister, sclister corelister.SecretLister,
+) *SysContext {
 	return &SysContext{
-		sclister:              lister,
+		sclister:              sclister,
+		cmlister:              cmlister,
 		unqualifiedRegistries: []string{"docker.io"},
 	}
 }
@@ -38,9 +92,37 @@ func (s *SysContext) UnqualifiedRegistries(ctx context.Context) []string {
 }
 
 // CacheRegistryAddr returns the configured registry address used for
-// caching images during tags.
-func (s *SysContext) CacheRegistryAddr() string {
-	return os.Getenv("CACHE_REGISTRY_ADDRESS")
+// caching images during tags. This is implemented to comply with
+// KEP at https://github.com/kubernetes/enhancements/ repository, see
+// keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+// We evaluate if CACHE_REGISTRY_ADDRESS environment variable is set
+// before moving on to the implementation following the KEP.
+func (s *SysContext) CacheRegistryAddr() (string, error) {
+	if addr := os.Getenv("CACHE_REGISTRY_ADDRESS"); len(addr) > 0 {
+		return addr, nil
+	}
+
+	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
+	if err != nil {
+		return "", err
+	}
+
+	dt, ok := cm.Data["localRegistryHosting.v1"]
+	if !ok {
+		return "", fmt.Errorf("no v1 local registry config found")
+	}
+
+	var cfg LocalRegistryHostingV1
+	if err := yaml.Unmarshal([]byte(dt), &cfg); err != nil {
+		return "", err
+	}
+
+	// XXX as soon as this moves on to its own container we most
+	// likely gonna return cfg.HostFromClusterNetwork. As for
+	// running this controller on a development machine it makes
+	// sense to return the address acessible from outside the
+	// cluster.
+	return cfg.Host, nil
 }
 
 // CacheRegistryContext returns the context to be used when talking to

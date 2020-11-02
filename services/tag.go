@@ -87,7 +87,7 @@ func (t *Tag) CurrentReferenceForTagByName(namespace, name string) (string, erro
 // CurrentReferenceForTag looks through provided tag and returns the ref
 // in use. Image tag generation in status points to the current generation,
 // if this generation does not exist then we haven't imported it yet,
-// return an empty string.
+// return an empty string instead.
 func (t *Tag) CurrentReferenceForTag(it *imagtagv1.Tag) string {
 	for _, hashref := range it.Status.References {
 		if hashref.Generation != it.Status.Generation {
@@ -247,11 +247,12 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 
 	alreadyImported := t.specTagImported(it)
 	if !alreadyImported {
-		klog.Infof("tag %s/%s needs import", it.Namespace, it.Name)
+		klog.Infof("tag %s/%s needs import, importing...", it.Namespace, it.Name)
 		hashref, err := t.impsvc.ImportTag(ctx, it)
 		if err != nil {
 			return fmt.Errorf("fail import %s/%s: %w", it.Namespace, it.Name, err)
 		}
+		klog.Infof("tag %s/%s imported.", it.Namespace, it.Name)
 		it.Status.References = t.prependHashReference(hashref, it.Status.References)
 	}
 
@@ -316,7 +317,7 @@ func (t *Tag) updateDeployments(ctx context.Context, it *imagtagv1.Tag) error {
 		); err != nil {
 			return err
 		}
-		klog.Infof("redeploying %s/%s", dep.Namespace, dep.Name)
+		klog.Infof("deployment %s/%s redeployed.", dep.Namespace, dep.Name)
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ import (
 )
 
 func TestUnqualifiedRegistries(t *testing.T) {
-	unq := NewSysContext(nil).UnqualifiedRegistries(context.Background())
+	unq := NewSysContext(nil, nil).UnqualifiedRegistries(context.Background())
 	if len(unq) != 1 {
 		t.Fatal("expecting only one unqualified registry")
 	}
@@ -167,17 +167,19 @@ func TestAuthsFor(t *testing.T) {
 			fakecli := fake.NewSimpleClientset(tt.objects...)
 			informer := coreinf.NewSharedInformerFactory(fakecli, time.Minute)
 			seclis := informer.Core().V1().Secrets().Lister()
+			cmlist := informer.Core().V1().ConfigMaps().Lister()
 			informer.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
 				informer.Core().V1().Secrets().Informer().HasSynced,
+				informer.Core().V1().ConfigMaps().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
 			ref, _ := reference.ParseDockerRef(tt.image)
 			imgref, _ := docker.NewReference(ref)
-			sysctx := NewSysContext(seclis)
+			sysctx := NewSysContext(cmlist, seclis)
 
 			auths, err := sysctx.AuthsFor(ctx, imgref, "default")
 			if err != nil {

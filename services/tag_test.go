@@ -814,6 +814,7 @@ func TestUpdate(t *testing.T) {
 
 			corcli := corfake.NewSimpleClientset(tt.corObjects...)
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
+			cmlist := corinf.Core().V1().ConfigMaps().Lister()
 			seclis := corinf.Core().V1().Secrets().Lister()
 			replis := corinf.Apps().V1().ReplicaSets().Lister()
 			deplis := corinf.Apps().V1().Deployments().Lister()
@@ -826,6 +827,7 @@ func TestUpdate(t *testing.T) {
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
+				corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 				corinf.Core().V1().Secrets().Informer().HasSynced,
 				corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
 				corinf.Apps().V1().Deployments().Informer().HasSynced,
@@ -834,7 +836,7 @@ func TestUpdate(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			syssvc := NewSysContext(seclis)
+			syssvc := NewSysContext(cmlist, seclis)
 			impsvc := NewImporter(syssvc)
 			svc := NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
 
@@ -1054,6 +1056,7 @@ func Test_updateDeployment(t *testing.T) {
 
 			corcli := corfake.NewSimpleClientset(tt.corObjects...)
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
+			cmlist := corinf.Core().V1().ConfigMaps().Lister()
 			seclis := corinf.Core().V1().Secrets().Lister()
 			replis := corinf.Apps().V1().ReplicaSets().Lister()
 			deplis := corinf.Apps().V1().Deployments().Lister()
@@ -1066,6 +1069,7 @@ func Test_updateDeployment(t *testing.T) {
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
+				corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 				corinf.Core().V1().Secrets().Informer().HasSynced,
 				corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
 				corinf.Apps().V1().Deployments().Informer().HasSynced,
@@ -1074,7 +1078,7 @@ func Test_updateDeployment(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			syssvc := NewSysContext(seclis)
+			syssvc := NewSysContext(cmlist, seclis)
 			impsvc := NewImporter(syssvc)
 			svc := NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
 

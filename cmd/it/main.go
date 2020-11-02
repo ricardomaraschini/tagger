@@ -34,20 +34,13 @@ func main() {
 		cancel()
 	}()
 
-	klog.Info(`     )               (    `)
-	klog.Info(`    / \  .-"""""-.  / \   `)
-	klog.Info(`   (   \/ __   __ \/   )  `)
-	klog.Info(`    )  ; / _\ /_ \ ;  (   `)
-	klog.Info(`   (   |  / \ / \  |   )  `)
-	klog.Info(`    \ (,  \0/_\0/  ,) /   `)
-	klog.Info(`     \_|   /   \   |_/    `)
-	klog.Info(`       | (_\___/_) |      `)
-	klog.Info(`       .\ \ -.- / /.      `)
-	klog.Info(`      {  \ '===' /  }     `)
-	klog.Info(`     {    '.___.'    }    `)
-	klog.Info(`      {             }     `)
-	klog.Info(`       '"="="="="="'      `)
-	klog.Info("starting image tag controller...")
+	klog.Info(` image                           `)
+	klog.Info(` _|_  __,   __,  __,  _   ,_     `)
+	klog.Info(`  |  /  |  /  | /  | |/  /  |    `)
+	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/  `)
+	klog.Info(`             /|   /|             `)
+	klog.Info(`             \|   \|             `)
+	klog.Info(`starting image tag controller... `)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
@@ -69,27 +62,29 @@ func main() {
 		log.Fatalf("unable to create core client: %v", err)
 	}
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
+	cnflis := corinf.Core().V1().ConfigMaps().Lister()
 	seclis := corinf.Core().V1().Secrets().Lister()
 	replis := corinf.Apps().V1().ReplicaSets().Lister()
 	deplis := corinf.Apps().V1().Deployments().Lister()
 
-	syssvc := services.NewSysContext(seclis)
+	syssvc := services.NewSysContext(cnflis, seclis)
 	impsvc := services.NewImporter(syssvc)
 	tagsvc := services.NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
 	itctrl := controllers.NewTag(taginf, tagsvc, 10)
 	whctrl := controllers.NewWebHook(tagsvc)
 
-	klog.Info("waiting for caches to sync ...")
 	// starts up all informers and waits for their cache to sync
 	// up, only then we start the operator i.e. start to process
 	// events from the queue. XXX This is cumbersome as we don't
 	// know exactly to which caches wait for sync, for now we hard
-	// coded here Secrets, ReplicaSets, Deployments and ImageStreams
-	// but later on this list may get way longer.
+	// coded here Secrets, ReplicaSets, Deployments, ImageStreams
+	// and ConfigMaps but later on this list may get way longer.
+	klog.Info("waiting for caches to sync ...")
 	corinf.Start(ctx.Done())
 	taginf.Start(ctx.Done())
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
+		corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 		corinf.Core().V1().Secrets().Informer().HasSynced,
 		corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
 		corinf.Apps().V1().Deployments().Informer().HasSynced,
@@ -97,7 +92,7 @@ func main() {
 	) {
 		klog.Fatal("caches not syncing")
 	}
-	klog.Info("caches synced.")
+	klog.Info("caches in sync, moving on.")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -108,7 +103,7 @@ func main() {
 		wg.Done()
 	}()
 
-	klog.Infof("starting to process queue events")
+	klog.Infof("processing queue events")
 	itctrl.Start(ctx)
 	wg.Wait()
 }
