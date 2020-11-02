@@ -85,8 +85,13 @@ func (i *Importer) cacheTag(
 		return "", err
 	}
 
+	regaddr, err := i.syssvc.CacheRegistryAddr()
+	if err != nil {
+		return "", err
+	}
+
 	// We cache images under registry/namespace/image-tag.
-	to := fmt.Sprintf("%s/%s/%s", i.syssvc.CacheRegistryAddr(), it.Namespace, it.Name)
+	to := fmt.Sprintf("%s/%s/%s", regaddr, it.Namespace, it.Name)
 	toRef, err := i.ImageRefForStringRef(to)
 	if err != nil {
 		return "", err
@@ -99,22 +104,18 @@ func (i *Importer) cacheTag(
 
 	manifest, err := imgcopy.Image(
 		ctx, polctx, toRef, fromRef, &imgcopy.Options{
-			SourceCtx:      srcCtx,
-			DestinationCtx: i.syssvc.CacheRegistryContext(ctx),
+			ImageListSelection: imgcopy.CopyAllImages,
+			SourceCtx:          srcCtx,
+			DestinationCtx:     i.syssvc.CacheRegistryContext(ctx),
 		},
 	)
 	if err != nil {
 		return "", err
 	}
 
-	cachedImageRef := fmt.Sprintf(
-		"%s/%s/%s@sha256:%x",
-		i.syssvc.CacheRegistryAddr(),
-		it.Namespace,
-		it.Name,
-		sha256.Sum256(manifest),
-	)
-	return cachedImageRef, nil
+	return fmt.Sprintf(
+		"%s/%s/%s@sha256:%x", regaddr, it.Namespace, it.Name, sha256.Sum256(manifest),
+	), nil
 }
 
 // ImportTag runs an import on provided Tag.
