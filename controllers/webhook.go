@@ -172,7 +172,7 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, _, err := wh.decoder.Decode(body, nil, reviewReq); err != nil {
-		klog.Errorf("cant decoding body: %s", err)
+		klog.Errorf("cant decode body: %s", err)
 		wh.responseError(w, reviewReq, err)
 		return
 	}
@@ -181,7 +181,7 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 	// should never happen.
 	objkind := reviewReq.Request.Kind.Kind
 	if objkind != "Pod" && objkind != "Deployment" {
-		klog.Errorf("received event for %s, authorizing", objkind)
+		klog.Errorf("strange event for a %s, authorizing", objkind)
 		wh.responseAuthorized(w, reviewReq)
 		return
 	}
@@ -212,13 +212,13 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 		patch, err = wh.tagsvc.PatchForDeployment(deploy)
 	}
 	if err != nil {
-		klog.Errorf("error patching object: %s", err)
+		klog.Errorf("error patching %s: %s", objkind, err)
 		wh.responseError(w, reviewReq, err)
 		return
 	}
 
-	var patchData []byte
 	var ptype *admnv1.PatchType
+	var patchData []byte
 	if patch != nil {
 		jpt := admnv1.PatchType("JSONPatch")
 		ptype = &jpt

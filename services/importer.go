@@ -2,15 +2,18 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
 
@@ -45,9 +48,79 @@ func (i *Importer) SplitRegistryDomain(imgPath string) (string, string) {
 	return imageSlices[0], imageSlices[1]
 }
 
+// ImageRefForStringRef parses provided string into a types.ImageReference.
+func (i *Importer) ImageRefForStringRef(ref string) (types.ImageReference, error) {
+	namedReference, err := reference.ParseDockerRef(ref)
+	if err != nil {
+		return nil, err
+	}
+	imgRef, err := docker.NewReference(namedReference)
+	if err != nil {
+		return nil, err
+	}
+	return imgRef, nil
+}
+
+// DefaultPolicyContext returns the default policy context. XXX this should
+// be reviewed.
+func (i *Importer) DefaultPolicyContext() (*signature.PolicyContext, error) {
+	defpol, err := signature.DefaultPolicy(nil)
+	if err != nil {
+		return nil, err
+	}
+	return signature.NewPolicyContext(defpol)
+}
+
+// cacheTag copies an image from one registry to another. The first is
+// the source registry, the latter is our caching registry. Returns the
+// cached image reference to be used.
+func (i *Importer) cacheTag(
+	ctx context.Context,
+	from string,
+	it *imagtagv1.Tag,
+	srcCtx *types.SystemContext,
+) (string, error) {
+	fromRef, err := i.ImageRefForStringRef(from)
+	if err != nil {
+		return "", err
+	}
+
+	regaddr, err := i.syssvc.CacheRegistryAddr()
+	if err != nil {
+		return "", err
+	}
+
+	// We cache images under registry/namespace/image-tag.
+	to := fmt.Sprintf("%s/%s/%s", regaddr, it.Namespace, it.Name)
+	toRef, err := i.ImageRefForStringRef(to)
+	if err != nil {
+		return "", err
+	}
+
+	polctx, err := i.DefaultPolicyContext()
+	if err != nil {
+		return "", err
+	}
+
+	manifest, err := imgcopy.Image(
+		ctx, polctx, toRef, fromRef, &imgcopy.Options{
+			ImageListSelection: imgcopy.CopyAllImages,
+			SourceCtx:          srcCtx,
+			DestinationCtx:     i.syssvc.CacheRegistryContext(ctx),
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf(
+		"%s/%s/%s@sha256:%x", regaddr, it.Namespace, it.Name, sha256.Sum256(manifest),
+	), nil
+}
+
 // ImportTag runs an import on provided Tag.
 func (i *Importer) ImportTag(
-	ctx context.Context, it *imagtagv1.Tag, namespace string,
+	ctx context.Context, it *imagtagv1.Tag,
 ) (imagtagv1.HashReference, error) {
 	var zero imagtagv1.HashReference
 	if it.Spec.From == "" {
@@ -79,7 +152,7 @@ func (i *Importer) ImportTag(
 			continue
 		}
 
-		auths, err := i.syssvc.AuthsFor(ctx, imgref, namespace)
+		auths, err := i.syssvc.AuthsFor(ctx, imgref, it.Namespace)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
@@ -114,6 +187,13 @@ func (i *Importer) ImportTag(
 			}
 
 			imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
+			if it.Spec.Cache {
+				imageref, err = i.cacheTag(ctx, imageref, it, sysctx)
+				if err != nil {
+					return zero, err
+				}
+			}
+
 			return imagtagv1.HashReference{
 				Generation:     it.Spec.Generation,
 				From:           it.Spec.From,
