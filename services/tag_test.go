@@ -18,9 +18,9 @@ import (
 
 	"github.com/mattbaird/jsonpatch"
 
-	tagfake "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/fake"
-	taginf "github.com/ricardomaraschini/it/imagetags/generated/informers/externalversions"
-	imagtagv1 "github.com/ricardomaraschini/it/imagetags/v1"
+	tagfake "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/fake"
+	taginf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
+	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
 func TestValidateTagGeneration(t *testing.T) {

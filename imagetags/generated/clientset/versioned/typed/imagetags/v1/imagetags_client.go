@@ -19,8 +19,8 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned/scheme"
-	v1 "github.com/ricardomaraschini/it/imagetags/v1"
+	"github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/scheme"
+	v1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 	rest "k8s.io/client-go/rest"
 )
 

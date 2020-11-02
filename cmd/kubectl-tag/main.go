@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
-	itagcli "github.com/ricardomaraschini/it/imagetags/generated/clientset/versioned"
+	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
 )
 
 func help() {
