@@ -116,8 +116,6 @@ func (wh *WebHook) tag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// we only mutate pods, if mutating webhook is properly configured this
-	// should never happen.
 	objkind := reviewReq.Request.Kind.Kind
 	if objkind != "Tag" {
 		klog.Errorf("received event for %s, authorizing", objkind)
