@@ -35,7 +35,8 @@ func NewDeployment(
 	}
 }
 
-// UpdateDeploymentsForTag updates all deployments using provided tag.
+// UpdateDeploymentsForTag updates all deployments using provided tag. Triggers
+// redeployment on deployments that have changed.
 func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
 	deploys, err := d.DeploymentsForTag(ctx, it)
 	if err != nil {
