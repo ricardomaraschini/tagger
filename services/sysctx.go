@@ -17,6 +17,14 @@ import (
 	"github.com/containers/image/v5/types"
 )
 
+// We use dockerAuthConfig to unmarshal a default docker configuration present on
+// secrets of type SecretTypeDockerConfigJson. XXX doesn't containers/image export
+// a similar structure? Of maybe even a function to parse a docker configuration
+// file?
+type dockerAuthConfig struct {
+	Auths map[string]types.DockerAuthConfig
+}
+
 // LocalRegistryHostingV1 describes a local registry that developer tools can
 // connect to. A local registry allows clients to load images into the local
 // cluster by pushing to this registry. This is a verbatim copy of what is
@@ -184,12 +192,4 @@ func (s *SysContext) AuthsFor(
 		dockerAuths = append(dockerAuths, &sec)
 	}
 	return dockerAuths, nil
-}
-
-// We use dockerAuthConfig to unmarshal a default docker configuration
-// present on secrets of type SecretTypeDockerConfigJson. XXX doesn't
-// containers/image export a similar structure? Of maybe even a function
-// to parse a docker configuration file?
-type dockerAuthConfig struct {
-	Auths map[string]types.DockerAuthConfig
 }
