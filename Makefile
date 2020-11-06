@@ -4,7 +4,7 @@ PROJECT=github.com/ricardomaraschini/tagger
 GEN_OUTPUT=/tmp/$(PROJECT)/imagetags
 
 get-code-generator:
-	rm -rf _output
+	rm -rf _output/code-generator
 	git clone --depth=1                                                     \
 		https://github.com/kubernetes/code-generator.git                \
 		_output/code-generator
@@ -24,8 +24,8 @@ image:
 	podman build -t quay.io/rmarasch/tagger .
 
 build:
-	go build -o tagger ./cmd/
+	go build -o _output/bin/tagger ./cmd/tagger
+	go build -o _output/bin/kubectl-tag ./cmd/kubectl-tag
 
 clean:
 	rm -rf _output
-	rm -rf tagger 
