@@ -147,7 +147,7 @@ func (s *SysContext) CacheRegistryAddresses() (string, string, error) {
 		return "", "", err
 	}
 
-	return cfg.HostFromClusterNetwork, cfg.HostFromClusterNetwork, nil
+	return cfg.HostFromClusterNetwork, cfg.HostFromContainerRuntime, nil
 }
 
 // CacheRegistryContext returns the context to be used when talking to
