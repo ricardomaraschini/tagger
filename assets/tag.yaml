@@ -1,7 +1,7 @@
 apiVersion: images.io/v1
 kind: Tag
 metadata:
-  name: myapp
+  name: mytag
 spec:
   from: docker.io/rmarasch/simple-web-server:v1
-  cache: true
+  cache: false

@@ -19,6 +19,6 @@ spec:
     spec:
       containers:
       - name: app
-        image: myapp
+        image: mytag
         ports:
         - containerPort: 80
