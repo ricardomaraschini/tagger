@@ -14,16 +14,8 @@ rules:
 - apiGroups: 
   - ""
   resources: 
-  - secrets
-  verbs:
-  - watch
-  - get
-  - list
-  - create
-- apiGroups: 
-  - ""
-  resources: 
   - configmaps
+  - secrets
   verbs:
   - watch
   - get
