@@ -99,38 +99,55 @@ func (s *SysContext) UnqualifiedRegistries(ctx context.Context) []string {
 	return s.unqualifiedRegistries
 }
 
-// CacheRegistryAddr returns the configured registry address used for
-// caching images during tags. This is implemented to comply with
-// KEP at https://github.com/kubernetes/enhancements/ repository, see
-// keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
-// We evaluate if CACHE_REGISTRY_ADDRESS environment variable is set
-// before moving on to the implementation following the KEP.
-func (s *SysContext) CacheRegistryAddr() (string, error) {
-	if addr := os.Getenv("CACHE_REGISTRY_ADDRESS"); len(addr) > 0 {
-		return addr, nil
-	}
-
+// parseCacheRegistryConfig reads configmap local-registry-hosting from kube-public
+// namespace, parses its content and returns the local registry configuration.
+func (s *SysContext) parseCacheRegistryConfig() (*LocalRegistryHostingV1, error) {
 	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	dt, ok := cm.Data["localRegistryHosting.v1"]
 	if !ok {
-		return "", fmt.Errorf("no v1 local registry config found")
+		return nil, fmt.Errorf("no v1 local registry config found")
+	}
+
+	cfg := &LocalRegistryHostingV1{}
+	if err := yaml.Unmarshal([]byte(dt), cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// CacheRegistryAddresses returns the configured registry address used
+// for caching images during tags. This is implemented to comply with
+// KEP at https://github.com/kubernetes/enhancements/ repository, see
+// keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+// We evaluate if CACHE_REGISTRY_ADDRESS environment variable is set
+// before moving on to the implementation following the KEP. This returns
+// one address for connections starting from within the cluster and another
+// for connections started from the cluster container runtime.
+func (s *SysContext) CacheRegistryAddresses() (string, string, error) {
+	if addr := os.Getenv("CACHE_REGISTRY_ADDRESS"); len(addr) > 0 {
+		return addr, addr, nil
+	}
+
+	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
+	if err != nil {
+		return "", "", err
+	}
+
+	dt, ok := cm.Data["localRegistryHosting.v1"]
+	if !ok {
+		return "", "", fmt.Errorf("no v1 local registry config found")
 	}
 
 	var cfg LocalRegistryHostingV1
 	if err := yaml.Unmarshal([]byte(dt), &cfg); err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	// XXX as soon as this moves on to its own container we most
-	// likely gonna return cfg.HostFromClusterNetwork. As for
-	// running this controller on a development machine it makes
-	// sense to return the address acessible from outside the
-	// cluster.
-	return cfg.Host, nil
+	return cfg.HostFromClusterNetwork, cfg.HostFromClusterNetwork, nil
 }
 
 // CacheRegistryContext returns the context to be used when talking to
