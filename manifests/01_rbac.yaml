@@ -29,6 +29,7 @@ rules:
   - watch
   - get
   - list
+  - update
 - apiGroups:
   - images.io
   resources:

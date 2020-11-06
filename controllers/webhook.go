@@ -9,15 +9,12 @@ import (
 	"time"
 
 	admnv1 "k8s.io/api/admission/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-
-	"github.com/mattbaird/jsonpatch"
 
 	imgtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 	"github.com/ricardomaraschini/tagger/services"
@@ -135,7 +132,8 @@ func (wh *WebHook) tag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := wh.tagsvc.ValidateTagGeneration(tag); err != nil {
+	tw := services.TagWrapper{Tag: &tag}
+	if err := tw.ValidateTagGeneration(); err != nil {
 		wh.responseError(w, reviewReq, err)
 		return
 	}
@@ -160,9 +158,8 @@ func (wh *WebHook) tag(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
-// deploy handles mutation requests made by kubernetes api with regards
-// to pods and deployments.
-func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
+// pod handles mutation requests made by kubernetes api with regards to pods.
+func (wh *WebHook) pod(w http.ResponseWriter, r *http.Request) {
 	reviewReq := &admnv1.AdmissionReview{}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -180,21 +177,14 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 	// we only mutate pods, if mutating webhook is properly configured this
 	// should never happen.
 	objkind := reviewReq.Request.Kind.Kind
-	if objkind != "Pod" && objkind != "Deployment" {
+	if objkind != "Pod" {
 		klog.Errorf("strange event for a %s, authorizing", objkind)
 		wh.responseAuthorized(w, reviewReq)
 		return
 	}
 
 	var pod corev1.Pod
-	var deploy appsv1.Deployment
-	switch objkind {
-	case "Pod":
-		err = json.Unmarshal(reviewReq.Request.Object.Raw, &pod)
-	case "Deployment":
-		err = json.Unmarshal(reviewReq.Request.Object.Raw, &deploy)
-	}
-	if err != nil {
+	if err := json.Unmarshal(reviewReq.Request.Object.Raw, &pod); err != nil {
 		klog.Errorf("error decoding raw object: %s", err)
 		wh.responseError(w, reviewReq, err)
 		return
@@ -202,15 +192,8 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 
 	// XXX namespaces come in empty, set it here.
 	pod.Namespace = reviewReq.Request.Namespace
-	deploy.Namespace = reviewReq.Request.Namespace
 
-	var patch []jsonpatch.JsonPatchOperation
-	switch objkind {
-	case "Pod":
-		patch, err = wh.tagsvc.PatchForPod(pod)
-	case "Deployment":
-		patch, err = wh.tagsvc.PatchForDeployment(deploy)
-	}
+	patch, err := wh.tagsvc.PatchForPod(pod)
 	if err != nil {
 		klog.Errorf("error patching %s: %s", objkind, err)
 		wh.responseError(w, reviewReq, err)
@@ -257,7 +240,7 @@ func (wh *WebHook) deploy(w http.ResponseWriter, r *http.Request) {
 // deploys (Deployments and Pods) are set to deploy() handler while
 // image tag resources are managed by tag() handler.
 func (wh *WebHook) Start(ctx context.Context) error {
-	http.HandleFunc("/deploy", wh.deploy)
+	http.HandleFunc("/pod", wh.pod)
 	http.HandleFunc("/tag", wh.tag)
 	server := &http.Server{
 		Addr: wh.bind,

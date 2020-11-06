@@ -19,6 +19,6 @@ spec:
     spec:
       containers:
       - name: app
-        image: webserver
+        image: myapp
         ports:
         - containerPort: 80
