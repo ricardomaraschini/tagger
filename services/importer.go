@@ -77,8 +77,8 @@ func (i *Importer) DefaultPolicyContext() (*signature.PolicyContext, error) {
 // cached image reference to be used.
 func (i *Importer) cacheTag(
 	ctx context.Context,
-	from string,
 	it *imagtagv1.Tag,
+	from string,
 	srcCtx *types.SystemContext,
 ) (string, error) {
 	fromRef, err := i.ImageRefForStringRef(from)
@@ -86,13 +86,13 @@ func (i *Importer) cacheTag(
 		return "", err
 	}
 
-	regaddr, err := i.syssvc.CacheRegistryAddr()
+	inregaddr, outregaddr, err := i.syssvc.CacheRegistryAddresses()
 	if err != nil {
 		return "", err
 	}
 
 	// We cache images under registry/namespace/image-tag.
-	to := fmt.Sprintf("%s/%s/%s", regaddr, it.Namespace, it.Name)
+	to := fmt.Sprintf("%s/%s/%s", inregaddr, it.Namespace, it.Name)
 	toRef, err := i.ImageRefForStringRef(to)
 	if err != nil {
 		return "", err
@@ -115,7 +115,7 @@ func (i *Importer) cacheTag(
 	}
 
 	return fmt.Sprintf(
-		"%s/%s/%s@sha256:%x", regaddr, it.Namespace, it.Name, sha256.Sum256(manifest),
+		"%s/%s/%s@sha256:%x", outregaddr, it.Namespace, it.Name, sha256.Sum256(manifest),
 	), nil
 }
 
@@ -189,7 +189,7 @@ func (i *Importer) ImportTag(
 
 			imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
 			if it.Spec.Cache {
-				imageref, err = i.cacheTag(ctx, imageref, it, sysctx)
+				imageref, err = i.cacheTag(ctx, it, imageref, sysctx)
 				if err != nil {
 					return zero, fmt.Errorf("unable to cache image: %w", err)
 				}
