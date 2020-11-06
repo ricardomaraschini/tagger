@@ -19,6 +19,16 @@ import (
 	"github.com/containers/image/v5/types"
 )
 
+func TestCreateSelfSignedCertificate(t *testing.T) {
+	key, crt, err := NewSysContext(nil, nil).CreateSelfSignedCertificate()
+	if err != nil {
+		t.Errorf("unable to create self signed certificate: %s", err)
+	}
+
+	t.Log(string(key))
+	t.Log(string(crt))
+}
+
 func TestUnqualifiedRegistries(t *testing.T) {
 	unq := NewSysContext(nil, nil).UnqualifiedRegistries(context.Background())
 	if len(unq) != 1 {

@@ -183,14 +183,14 @@ func (i *Importer) ImportTag(
 
 			dgst, err := manifest.Digest(manifestBlob)
 			if err != nil {
-				return zero, fmt.Errorf("error calculating manifest digest: %w", err)
+				return zero, fmt.Errorf("error calculating digest: %w", err)
 			}
 
 			imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
 			if it.Spec.Cache {
 				imageref, err = i.cacheTag(ctx, imageref, it, sysctx)
 				if err != nil {
-					return zero, err
+					return zero, fmt.Errorf("unable to cache image: %w", err)
 				}
 			}
 

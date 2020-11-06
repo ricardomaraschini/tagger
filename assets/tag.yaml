@@ -2,7 +2,6 @@ apiVersion: images.io/v1
 kind: Tag
 metadata:
   name: webserver
-  namespace: default
 spec:
   from: nginx:stable
-  cache: true
+  cache: false

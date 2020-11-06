@@ -2,7 +2,6 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  creationTimestamp: null
   name: tags.images.io
 spec:
   group: images.io
@@ -11,9 +10,12 @@ spec:
     listKind: TagList
     plural: tags
     singular: tag
-    shortNames:
-    - tg
   scope: Namespaced
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
   validation:
     openAPIV3Schema:
       type: object
@@ -43,8 +45,3 @@ spec:
                     type: string
                   imageReference:
                     type: string
-  version: v1
-  versions:
-  - name: v1
-    served: true
-    storage: true

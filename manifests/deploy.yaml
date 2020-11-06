@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tagger
+  namespace: tagger
   labels:
     app: tagger
 spec:
@@ -19,5 +20,13 @@ spec:
       containers:
       - name: tagger
         image: quay.io/rmarasch/tagger:latest
+        volumeMounts:
+          - mountPath: "/assets"
+            name: certs
+            readOnly: true
         ports:
         - containerPort: 8080
+      volumes:
+      - name: certs
+        secret:
+          secretName: certs
