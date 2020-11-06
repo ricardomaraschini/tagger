@@ -47,6 +47,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: local
+  namespace: registry
 spec:
   selector:
     app: registry
@@ -62,6 +63,6 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "registry:5000"
-    hostFromContainerRuntime: "local.registry:5000"
-    hostFromClusterNetwork: "local.registry:5000"
+    host: "local.registry.svc.cluster.local:5000"
+    hostFromContainerRuntime: "local.registry.svc.cluster.local:5000"
+    hostFromClusterNetwork: "local.registry.svc.cluster.local:5000"

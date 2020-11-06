@@ -100,7 +100,7 @@ func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 			if err := t.syncTag(namespace, name); err != nil {
 				klog.Errorf("error processing tag %s: %v", evt, err)
 				t.queue.Done(evt)
-				t.queue.AddAfter(evt, 5*time.Minute)
+				t.queue.AddAfter(evt, 10*time.Second)
 				return
 			}
 

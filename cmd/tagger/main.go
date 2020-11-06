@@ -52,7 +52,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to create image tag client: %v", err)
 	}
-	taginf := itaginf.NewSharedInformerFactory(tagcli, 10*time.Minute)
+	taginf := itaginf.NewSharedInformerFactory(tagcli, time.Minute)
 	taglis := taginf.Images().V1().Tags().Lister()
 
 	// creates core client, informer and lister.
@@ -66,11 +66,13 @@ func main() {
 	replis := corinf.Apps().V1().ReplicaSets().Lister()
 	deplis := corinf.Apps().V1().Deployments().Lister()
 
+	depsvc := services.NewDeployment(corcli, deplis, taglis)
 	syssvc := services.NewSysContext(cnflis, seclis)
 	impsvc := services.NewImporter(syssvc)
 	tagsvc := services.NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
 	itctrl := controllers.NewTag(taginf, tagsvc, 10)
 	whctrl := controllers.NewWebHook(tagsvc)
+	dpctrl := controllers.NewDeployment(corinf, depsvc)
 
 	// starts up all informers and waits for their cache to sync
 	// up, only then we start the operator i.e. start to process
@@ -94,15 +96,29 @@ func main() {
 	klog.Info("caches in sync, moving on.")
 
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 	go func() {
+		klog.Infof("starting webhooks handler")
 		if err := whctrl.Start(ctx); err != nil {
 			klog.Fatalf("http server error: %s", err)
 		}
 		wg.Done()
 	}()
 
-	klog.Infof("processing queue events")
-	itctrl.Start(ctx)
+	wg.Add(1)
+	go func() {
+		klog.Infof("starting deployment controller")
+		dpctrl.Start(ctx)
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		klog.Infof("starting tags controller")
+		itctrl.Start(ctx)
+		wg.Done()
+	}()
+
 	wg.Wait()
 }

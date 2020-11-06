@@ -11,7 +11,7 @@ webhooks:
     service:
       name: webhooks
       namespace: tagger
-      path: "/deploy"
+      path: "/pod"
     caBundle: |
       LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURtVENDQW9HZ0F3SUJBZ0lVY1k0bHh2Wkc1
       RlFhZjBtc1BSeTlpdlZNVVhrd0RRWUpLb1pJaHZjTkFRRUwKQlFBd1hERUxNQWtHQTFVRUJoTUNU
@@ -43,14 +43,6 @@ webhooks:
     - "v1"
     resources: 
     - pods
-    operations: 
-    - CREATE
-  - apiGroups:
-    - "apps"
-    apiVersions:
-    - "v1"
-    resources: 
-    - deployments
     operations: 
     - CREATE
 - name: tag.images.io

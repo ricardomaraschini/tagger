@@ -64,11 +64,12 @@ func (i *Importer) ImageRefForStringRef(ref string) (types.ImageReference, error
 // DefaultPolicyContext returns the default policy context. XXX this should
 // be reviewed.
 func (i *Importer) DefaultPolicyContext() (*signature.PolicyContext, error) {
-	defpol, err := signature.DefaultPolicy(nil)
-	if err != nil {
-		return nil, err
+	pol := &signature.Policy{
+		Default: signature.PolicyRequirements{
+			signature.NewPRInsecureAcceptAnything(),
+		},
 	}
-	return signature.NewPolicyContext(defpol)
+	return signature.NewPolicyContext(pol)
 }
 
 // cacheTag copies an image from one registry to another. The first is

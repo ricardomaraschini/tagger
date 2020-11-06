@@ -26,6 +26,9 @@ spec:
             readOnly: true
         ports:
         - containerPort: 8080
+        env:
+        - name: CACHE_REGISTRY_INSECURE
+          value: "true"
       volumes:
       - name: certs
         secret:
