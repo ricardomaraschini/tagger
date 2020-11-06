@@ -128,11 +128,16 @@ func (s *SysContext) CacheRegistryAddr() (string, error) {
 // CacheRegistryContext returns the context to be used when talking to
 // the the registry used for caching tags.
 func (s *SysContext) CacheRegistryContext(ctx context.Context) *types.SystemContext {
+	insecure := types.OptionalBoolFalse
+	if os.Getenv("CACHE_REGISTRY_INSECURE") != "" {
+		insecure = types.OptionalBoolTrue
+	}
 	return &types.SystemContext{
-		DockerInsecureSkipTLSVerify: types.OptionalBoolTrue,
+		DockerInsecureSkipTLSVerify: insecure,
 		DockerAuthConfig: &types.DockerAuthConfig{
-			Username: os.Getenv("CACHE_REGISTRY_USERNAME"),
-			Password: os.Getenv("CACHE_REGISTRY_PASSWORD"),
+			Username:      os.Getenv("CACHE_REGISTRY_USERNAME"),
+			Password:      os.Getenv("CACHE_REGISTRY_PASSWORD"),
+			IdentityToken: os.Getenv("CACHE_REGISTRY_TOKEN"),
 		},
 	}
 }
