@@ -15,6 +15,17 @@ import (
 	"github.com/ricardomaraschini/tagger/services"
 )
 
+// Tag controller handles events related to Tags. It starts and receives events
+// from the informer, calling appropriate functions on our concrete services
+// layer implementation.
+type Tag struct {
+	taglister imagelis.TagLister
+	queue     workqueue.DelayingInterface
+	tagsvc    *services.Tag
+	appctx    context.Context
+	tokens    chan bool
+}
+
 // NewTag returns a new controller for Image Tags. This controller runs image
 // tag imports in parallel, at a given time we can have at max "workers"
 // distinct image tags being processed.
@@ -35,15 +46,9 @@ func NewTag(
 	return ctrl
 }
 
-// Tag controller handles events related to Tags. It starts and receives events
-// from the informer, calling appropriate functions on our concrete services
-// layer implementation.
-type Tag struct {
-	taglister imagelis.TagLister
-	queue     workqueue.DelayingInterface
-	tagsvc    *services.Tag
-	appctx    context.Context
-	tokens    chan bool
+// Name returns a name identifier for this controller.
+func (t *Tag) Name() string {
+	return "tag"
 }
 
 // enqueueEvent generates a key using "namespace/name" for the event received
@@ -128,7 +133,7 @@ func (t *Tag) syncTag(namespace, name string) error {
 }
 
 // Start starts the controller's event loop.
-func (t *Tag) Start(ctx context.Context) {
+func (t *Tag) Start(ctx context.Context) error {
 	// appctx is the 'keep going' context, if it is cancelled
 	// everything we might be doing should stop.
 	t.appctx = ctx
@@ -142,4 +147,5 @@ func (t *Tag) Start(ctx context.Context) {
 
 	t.queue.ShutDown()
 	wg.Wait()
+	return nil
 }

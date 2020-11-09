@@ -43,6 +43,11 @@ func NewWebHook(tagsvc *services.Tag) *WebHook {
 	}
 }
 
+// Name returns a name identifier for this controller.
+func (wh *WebHook) Name() string {
+	return "webhook"
+}
+
 // responseError writes on the response an AdmissionReview with response status
 // set to an error. If AdmissionReview contains an UID that is inserted into
 // the reply.
