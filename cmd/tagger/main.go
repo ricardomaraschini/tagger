@@ -22,6 +22,13 @@ import (
 	"github.com/ricardomaraschini/tagger/services"
 )
 
+// Controller interface is implemented by all our controllers. Designs a
+// process or thread that can be started with a context.
+type Controller interface {
+	Start(ctx context.Context) error
+	Name() string
+}
+
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -75,11 +82,8 @@ func main() {
 	dpctrl := controllers.NewDeployment(corinf, depsvc)
 
 	// starts up all informers and waits for their cache to sync
-	// up, only then we start the operator i.e. start to process
-	// events from the queue. XXX This is cumbersome as we don't
-	// know exactly to which caches wait for sync, for now we hard
-	// coded here Secrets, ReplicaSets, Deployments, ImageStreams
-	// and ConfigMaps but later on this list may get way longer.
+	// up, only then we start the operators i.e. start to process
+	// events from the queue.
 	klog.Info("waiting for caches to sync ...")
 	corinf.Start(ctx.Done())
 	taginf.Start(ctx.Done())
@@ -96,29 +100,18 @@ func main() {
 	klog.Info("caches in sync, moving on.")
 
 	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		klog.Infof("starting webhooks handler")
-		if err := whctrl.Start(ctx); err != nil {
-			klog.Fatalf("http server error: %s", err)
-		}
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		klog.Infof("starting deployment controller")
-		dpctrl.Start(ctx)
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		klog.Infof("starting tags controller")
-		itctrl.Start(ctx)
-		wg.Done()
-	}()
-
+	ctrls := []Controller{whctrl, dpctrl, itctrl}
+	for _, ctrl := range ctrls {
+		wg.Add(1)
+		go func(c Controller) {
+			klog.Infof("starting controller %q", c.Name())
+			if err := c.Start(ctx); err != nil {
+				klog.Errorf("%q failed: %s", c.Name(), err)
+				return
+			}
+			klog.Infof("%q controller ended.", c.Name())
+			wg.Done()
+		}(ctrl)
+	}
 	wg.Wait()
 }

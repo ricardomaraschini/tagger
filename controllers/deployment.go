@@ -15,6 +15,14 @@ import (
 	"github.com/ricardomaraschini/tagger/services"
 )
 
+// Deployment controller handles events related to deployment creations.
+type Deployment struct {
+	deplister corelis.DeploymentLister
+	depsvc    *services.Deployment
+	queue     workqueue.DelayingInterface
+	appctx    context.Context
+}
+
 // NewDeployment returns a new controller for Deployments. This controller
 // keeps track of deployments being created and assure that they contain the
 // right annotations if they leverage tags.
@@ -30,12 +38,9 @@ func NewDeployment(
 	return ctrl
 }
 
-// Deployment controller handles events related to deployment creations.
-type Deployment struct {
-	deplister corelis.DeploymentLister
-	depsvc    *services.Deployment
-	queue     workqueue.DelayingInterface
-	appctx    context.Context
+// Name returns a name identifier for this controller.
+func (d *Deployment) Name() string {
+	return "deployment"
 }
 
 // enqueueEvent generates a key using "namespace/name" for the event received
@@ -108,7 +113,7 @@ func (d *Deployment) syncDeployment(namespace, name string) error {
 }
 
 // Start starts the controller's event loop.
-func (d *Deployment) Start(ctx context.Context) {
+func (d *Deployment) Start(ctx context.Context) error {
 	// appctx is the 'keep going' context, if it is cancelled
 	// everything we might be doing should stop.
 	d.appctx = ctx
@@ -122,4 +127,5 @@ func (d *Deployment) Start(ctx context.Context) {
 
 	d.queue.ShutDown()
 	wg.Wait()
+	return nil
 }
