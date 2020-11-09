@@ -54,11 +54,9 @@ func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.
 func (d *Deployment) DeploymentsForTag(
 	ctx context.Context, it *imagtagv1.Tag,
 ) ([]*appsv1.Deployment, error) {
-	var zero []*appsv1.Deployment
-
 	deploys, err := d.deplis.Deployments(it.Namespace).List(labels.Everything())
 	if err != nil {
-		return zero, err
+		return nil, err
 	}
 
 	var deps []*appsv1.Deployment
@@ -67,20 +65,13 @@ func (d *Deployment) DeploymentsForTag(
 			continue
 		}
 
-		usesTag := false
 		for _, cont := range dep.Spec.Template.Spec.Containers {
 			if cont.Image != it.Name {
 				continue
 			}
-			usesTag = true
+			deps = append(deps, dep)
 			break
 		}
-
-		if !usesTag {
-			continue
-		}
-
-		deps = append(deps, dep)
 	}
 	return deps, nil
 }
