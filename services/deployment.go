@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
-	"k8s.io/klog/v2"
 
 	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
@@ -57,7 +56,6 @@ func (d *Deployment) DeploymentsForTag(
 ) ([]*appsv1.Deployment, error) {
 	var zero []*appsv1.Deployment
 
-	klog.Infof("processing deployments for tag %s/%s", it.Namespace, it.Name)
 	deploys, err := d.deplis.Deployments(it.Namespace).List(labels.Everything())
 	if err != nil {
 		return zero, err
