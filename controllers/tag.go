@@ -124,7 +124,7 @@ func (t *Tag) syncTag(namespace, name string) error {
 	it, err := t.taglister.Tags(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return t.tagsvc.Delete(ctx, namespace, name)
+			return nil
 		}
 		return err
 	}
