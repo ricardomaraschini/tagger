@@ -1,129 +1,49 @@
 package main
 
-// XXX REFACTOR ME COMPLETELY
-
 import (
-	"context"
 	"fmt"
-	"log"
 	"os"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog/v2"
-
 	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
+	"github.com/spf13/cobra"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-func help() {
-	fmt.Println("help message")
-	os.Exit(1)
-}
-
-func downgradeTag(ctx context.Context, cli itagcli.Interface, name string) {
-	tag, err := cli.ImagesV1().Tags("default").Get(
-		ctx, name, metav1.GetOptions{},
-	)
-	if err != nil {
-		klog.Fatal(err)
-	}
-
-	expectedGen := tag.Spec.Generation - 1
-	found := false
-	for _, ref := range tag.Status.References {
-		if ref.Generation != expectedGen {
-			continue
-		}
-		found = true
-		break
-	}
-
-	if !found {
-		klog.Error("you are on the oldest generation")
-		return
-	}
-
-	tag.Spec.Generation = expectedGen
-	tag, err = cli.ImagesV1().Tags("default").Update(
-		ctx, tag, metav1.UpdateOptions{},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	klog.Infof("tag %s downgraded to generation %d", name, tag.Spec.Generation)
-}
-
-func upgradeTag(ctx context.Context, cli itagcli.Interface, name string) {
-	tag, err := cli.ImagesV1().Tags("default").Get(
-		ctx, name, metav1.GetOptions{},
-	)
-	if err != nil {
-		klog.Fatal(err)
-	}
-
-	tag.Spec.Generation++
-
-	tag, err = cli.ImagesV1().Tags("default").Update(
-		ctx, tag, metav1.UpdateOptions{},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	klog.Infof("tag %s upgrade to generation %d", name, tag.Spec.Generation)
-}
-
-func importTag(ctx context.Context, cli itagcli.Interface, name string) {
-	tag, err := cli.ImagesV1().Tags("default").Get(
-		ctx, name, metav1.GetOptions{},
-	)
-	if err != nil {
-		klog.Fatal(err)
-	}
-
-	nextGen := int64(0)
-	if len(tag.Status.References) > 0 {
-		nextGen = tag.Status.References[0].Generation + 1
-	}
-	tag.Spec.Generation = nextGen
-
-	tag, err = cli.ImagesV1().Tags("default").Update(
-		ctx, tag, metav1.UpdateOptions{},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	klog.Infof("tag %s import process started, generation %d", name, tag.Spec.Generation)
-}
-
 func main() {
-	ctx := context.Background()
-	if len(os.Args) != 3 {
-		help()
-	}
+	root := &cobra.Command{Use: "kubectl-tag"}
+	root.PersistentFlags().StringP(
+		"namespace", "n", "", "Namespace to use",
+	)
 
-	kubeconfig := os.Getenv("KUBECONFIG")
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	root.AddCommand(tagupgrade)
+	root.AddCommand(tagdowngrade)
+	root.AddCommand(tagimport)
+	if err := root.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+// imagesCli returns a client to access image tags through kubernetes api.
+func imagesCli() (*itagcli.Clientset, error) {
+	cfgpath := os.Getenv("KUBECONFIG")
+	config, err := clientcmd.BuildConfigFromFlags("", cfgpath)
 	if err != nil {
-		klog.Fatalf("unable to read kubeconfig: %v", err)
+		return nil, fmt.Errorf("error building config: %s", err)
+	}
+	return itagcli.NewForConfig(config)
+}
+
+// namespace returns the namespace provided through the --namespace/-n command
+// line flag or the default one as extracted from kube configuration.
+func namespace(c *cobra.Command) (string, error) {
+	nsflag := c.Flag("namespace")
+	if nsflag != nil && nsflag.Value.String() != "" {
+		return nsflag.Value.String(), nil
 	}
 
-	// creates image tag client, informer and lister.
-	tagcli, err := itagcli.NewForConfig(config)
+	cfg, err := clientcmd.NewDefaultClientConfigLoadingRules().Load()
 	if err != nil {
-		log.Fatalf("unable to create image tag client: %v", err)
+		return "", err
 	}
-
-	switch os.Args[1] {
-	case "upgrade":
-		upgradeTag(ctx, tagcli, os.Args[2])
-	case "downgrade":
-		downgradeTag(ctx, tagcli, os.Args[2])
-	case "import":
-		importTag(ctx, tagcli, os.Args[2])
-	default:
-		help()
-	}
+	return cfg.Contexts[cfg.CurrentContext].Namespace, nil
 }
