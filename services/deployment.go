@@ -97,20 +97,17 @@ func (d *Deployment) Update(ctx context.Context, dep *appsv1.Deployment) error {
 			}
 			return err
 		}
+		it = it.DeepCopy()
 
-		tw := TagWrapper{it}
-		ref := tw.CurrentReferenceForTag()
+		ref := TagWrapper{it}.CurrentReferenceForTag()
 		if ref == "" {
 			continue
 		}
 
-		// pod is already using the right image reference.
-		if dep.Spec.Template.Annotations[it.Name] == ref {
-			continue
+		if dep.Spec.Template.Annotations[it.Name] != ref {
+			dep.Spec.Template.Annotations[it.Name] = ref
+			changed = true
 		}
-
-		dep.Spec.Template.Annotations[it.Name] = ref
-		changed = true
 	}
 
 	if !changed {
