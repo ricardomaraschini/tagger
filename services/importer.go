@@ -54,11 +54,7 @@ func (i *Importer) ImageRefForStringRef(ref string) (types.ImageReference, error
 	if err != nil {
 		return nil, err
 	}
-	imgRef, err := docker.NewReference(namedReference)
-	if err != nil {
-		return nil, err
-	}
-	return imgRef, nil
+	return docker.NewReference(namedReference)
 }
 
 // DefaultPolicyContext returns the default policy context. XXX this should
