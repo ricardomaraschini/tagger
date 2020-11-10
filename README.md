@@ -1,4 +1,4 @@
-# Tagger
+![tagger logo](./assets/tagger.png)
 
 Tagger helps keeping references to external Docker images internally  to a Kubernetes cluster. It
 maps remote image `tags` into references by `hash` and keeps track of them.
