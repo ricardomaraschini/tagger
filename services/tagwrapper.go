@@ -15,7 +15,7 @@ type TagWrapper struct {
 // in use. Image tag generation in status points to the current generation,
 // if this generation does not exist then we haven't imported it yet,
 // return an empty string instead.
-func (w *TagWrapper) CurrentReferenceForTag() string {
+func (w TagWrapper) CurrentReferenceForTag() string {
 	for _, hashref := range w.Status.References {
 		if hashref.Generation != w.Status.Generation {
 			continue
@@ -27,7 +27,7 @@ func (w *TagWrapper) CurrentReferenceForTag() string {
 
 // SpecTagImported returs true if tag generation defined on spec has
 // already been imported.
-func (w *TagWrapper) SpecTagImported() bool {
+func (w TagWrapper) SpecTagImported() bool {
 	for _, hashref := range w.Status.References {
 		if hashref.Generation == w.Spec.Generation {
 			return true
@@ -39,7 +39,7 @@ func (w *TagWrapper) SpecTagImported() bool {
 // ValidateTagGeneration checks if tag's spec information is valid. Generation
 // may be set to any already imported generation or to a new one (last imported
 // generation + 1).
-func (w *TagWrapper) ValidateTagGeneration() error {
+func (w TagWrapper) ValidateTagGeneration() error {
 	validGens := []int64{0}
 	if len(w.Status.References) > 0 {
 		validGens = []int64{w.Status.References[0].Generation + 1}

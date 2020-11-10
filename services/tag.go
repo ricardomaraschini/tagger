@@ -61,8 +61,7 @@ func (t *Tag) CurrentReferenceForTagByName(namespace, name string) (string, erro
 		}
 		return "", err
 	}
-	tw := TagWrapper{it}
-	return tw.CurrentReferenceForTag(), nil
+	return TagWrapper{it}.CurrentReferenceForTag(), nil
 }
 
 // PatchForPod creates and returns a json patch to be applied on top of a pod
@@ -150,8 +149,7 @@ func (t *Tag) prependHashReference(
 func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 	var err error
 
-	tw := TagWrapper{it}
-	alreadyImported := tw.SpecTagImported()
+	alreadyImported := TagWrapper{it}.SpecTagImported()
 	if !alreadyImported {
 		klog.Infof("tag %s/%s needs import, importing...", it.Namespace, it.Name)
 		hashref, err := t.impsvc.ImportTag(ctx, it)
@@ -173,11 +171,4 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 	}
 
 	return t.depsvc.UpdateDeploymentsForTag(ctx, it)
-}
-
-// Delete manages an image tag deletion. XXX we might need this function
-// to clean up dangling objects associated with an tag but for now this
-// is a no-op.
-func (t *Tag) Delete(ctx context.Context, namespace, name string) error {
-	return nil
 }
