@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: "registry.ddns.net"
+    hostFromContainerRuntime: "registry.ddns.net"
+    hostFromClusterNetwork: "registry.ddns.net"
