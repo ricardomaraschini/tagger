@@ -3,5 +3,5 @@ kind: Tag
 metadata:
   name: mytag
 spec:
-  from: docker.io/rmarasch/simple-web-server:v1
+  from: nginx:stable
   cache: false
