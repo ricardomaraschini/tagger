@@ -49,6 +49,7 @@ metadata:
   name: local
   namespace: registry
 spec:
+  type: ClusterIP
   selector:
     app: registry
   ports:
@@ -63,6 +64,6 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "local.registry.svc.cluster.local:5000"
-    hostFromContainerRuntime: "local.registry.svc.cluster.local:5000"
-    hostFromClusterNetwork: "local.registry.svc.cluster.local:5000"
+    host: "local.registry.svc:5000"
+    hostFromContainerRuntime: "local.registry.svc:5000"
+    hostFromClusterNetwork: "local.registry.svc:5000"
