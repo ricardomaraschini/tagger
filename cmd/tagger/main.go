@@ -104,13 +104,13 @@ func main() {
 	for _, ctrl := range ctrls {
 		wg.Add(1)
 		go func(c Controller) {
+			defer wg.Done()
 			klog.Infof("starting controller %q", c.Name())
 			if err := c.Start(ctx); err != nil {
 				klog.Errorf("%q failed: %s", c.Name(), err)
 				return
 			}
 			klog.Infof("%q controller ended.", c.Name())
-			wg.Done()
 		}(ctrl)
 	}
 	wg.Wait()
