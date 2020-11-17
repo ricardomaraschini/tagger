@@ -4,8 +4,8 @@ PROJECT=github.com/ricardomaraschini/tagger
 GEN_OUTPUT=/tmp/$(PROJECT)/imagetags
 
 build:
-	go build -o _output/bin/tagger ./cmd/tagger
-	go build -o _output/bin/kubectl-tag ./cmd/kubectl-tag
+	go build -mod vendor -o _output/bin/tagger ./cmd/tagger
+	go build -mod vendor -o _output/bin/kubectl-tag ./cmd/kubectl-tag
 
 get-code-generator:
 	rm -rf _output/code-generator
