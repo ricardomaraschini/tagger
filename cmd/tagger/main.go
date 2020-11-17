@@ -41,12 +41,12 @@ func main() {
 		cancel()
 	}()
 
-	klog.Info(` _|_  __,   __,  __,  _   ,_       `)
-	klog.Info(`  |  /  |  /  | /  | |/  /  |      `)
-	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/ .  `)
-	klog.Info(`             /|   /|               `)
-	klog.Info(`             \|   \|               `)
-	klog.Info(`starting image tag controller...   `)
+	klog.Info(` _|_  __,   __,  __,  _   ,_    `)
+	klog.Info(`  |  /  |  /  | /  | |/  /  |   `)
+	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/ `)
+	klog.Info(`             /|   /|            `)
+	klog.Info(`             \|   \|            `)
+	klog.Info(`starting image tag controller...`)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
@@ -78,7 +78,9 @@ func main() {
 	impsvc := services.NewImporter(syssvc)
 	tagsvc := services.NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
 	itctrl := controllers.NewTag(taginf, tagsvc, 10)
-	whctrl := controllers.NewWebHook(tagsvc)
+	mtctrl := controllers.NewMutatingWebHook(tagsvc)
+	qyctrl := controllers.NewQuayWebHook(tagsvc)
+	dkctrl := controllers.NewDockerWebHook(tagsvc)
 	dpctrl := controllers.NewDeployment(corinf, depsvc)
 
 	// starts up all informers and waits for their cache to sync
@@ -100,12 +102,12 @@ func main() {
 	klog.Info("caches in sync, moving on.")
 
 	var wg sync.WaitGroup
-	ctrls := []Controller{whctrl, dpctrl, itctrl}
+	ctrls := []Controller{mtctrl, qyctrl, dkctrl, dpctrl, itctrl}
 	for _, ctrl := range ctrls {
 		wg.Add(1)
 		go func(c Controller) {
 			defer wg.Done()
-			klog.Infof("starting controller %q", c.Name())
+			klog.Infof("starting controller for %q", c.Name())
 			if err := c.Start(ctx); err != nil {
 				klog.Errorf("%q failed: %s", c.Name(), err)
 				return

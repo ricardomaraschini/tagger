@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/klog/v2"
@@ -171,4 +172,42 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 	}
 
 	return t.depsvc.UpdateDeploymentsForTag(ctx, it)
+}
+
+// NewGenerationForImageRef looks through all image tags we have and creates a
+// new generation in all of those who point to the provided image path. Image
+// path looks like "quay.io/repo/image:tag". TODO add unqualified registries
+// support and consider also empty as "latest".
+func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) error {
+	tags, err := t.taglis.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+
+	for _, tag := range tags {
+		if tag.Spec.From != imgpath {
+			continue
+		}
+
+		// tag has not been imported yet, it makes no sense to create
+		// a new generation for it.
+		if len(tag.Status.References) == 0 {
+			continue
+		}
+
+		lastImport := tag.Status.References[0]
+		if lastImport.Generation != tag.Spec.Generation {
+			// we still have a pending import for this image
+			continue
+		}
+
+		tag.Spec.Generation++
+		if _, err := t.tagcli.ImagesV1().Tags(tag.Namespace).Update(
+			ctx, tag, metav1.UpdateOptions{},
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
