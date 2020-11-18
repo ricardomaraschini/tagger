@@ -25,6 +25,13 @@ to have a image registry running internal to the cluster and ask `tagger` to cac
 By doing so a copy of the remote image is going to be made into the internal registry and all
 deployments leveraging such image will automatically pass to use the cached copy.
 
+### Webhooks from quay.io and Docker hub
+
+After the `tagger` deployment two internal services will be created, one for Quay and one for
+Docker. These services can then be exposed externally if you want to accept webhooks coming in
+from either quay.io or docker.io. Support for these webhooks is still under development but it
+should work for most of the use cases.
+
 ### Use
 
 A brief hands on presentation
