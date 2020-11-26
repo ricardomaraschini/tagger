@@ -1,0 +1,10 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: quay.io/rmarasch/tagger-base-image:latest
+    working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
+    steps:
+      - checkout
+      - run: apt install -y libgpgme-dev
+      - run: go test -mod vendor -v ./...
