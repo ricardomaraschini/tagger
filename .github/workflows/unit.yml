@@ -1,0 +1,22 @@
+name: unit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/rmarasch/tagger-base-image:latest
+    steps:
+
+    - name: check out code
+      uses: actions/checkout@v2
+
+    - name: test
+      run: go test -mod vendor -v ./...
