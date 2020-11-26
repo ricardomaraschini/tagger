@@ -1,4 +1,4 @@
-name: Go
+name: go
 
 on:
   push:
@@ -9,20 +9,23 @@ on:
 jobs:
 
   build:
-    name: Build
+    name: build
     runs-on: ubuntu-latest
     container:
       image: quay.io/rmarasch/tagger-base-image:latest
     steps:
 
-    - name: Check out code into the Go module directory
+    - name: check out code
       uses: actions/checkout@v2
 
-    - name: Build tagger
-      run: go build -mod vendor -v ./cmd/tagger
+    - name: linter
+      run: golint -set_exit_status ./cmd/... ./controllers/... ./services/...
 
-    - name: Build kubectl-tag
-      run: go build -mod vendor -v ./cmd/kubectl-tag
+    - name: build tagger
+      run: go build -mod vendor ./cmd/tagger
 
-    - name: Test
+    - name: build kubectl-tag
+      run: go build -mod vendor ./cmd/kubectl-tag
+
+    - name: test
       run: go test -mod vendor -v ./...
