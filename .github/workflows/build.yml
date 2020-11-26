@@ -1,4 +1,4 @@
-name: ci
+name: build
 
 on:
   push:
@@ -18,14 +18,8 @@ jobs:
     - name: check out code
       uses: actions/checkout@v2
 
-    - name: linter
-      run: golint -set_exit_status ./cmd/... ./controllers/... ./services/...
-
     - name: build tagger
       run: go build -mod vendor ./cmd/tagger
 
     - name: build kubectl-tag
       run: go build -mod vendor ./cmd/kubectl-tag
-
-    - name: test
-      run: go test -mod vendor -v ./...
