@@ -11,21 +11,18 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/rmarasch/tagger-base-image:latest
     steps:
-
-    - name: Set up Go 1.x
-      uses: actions/setup-go@v2
-      with:
-        go-version: ^1.15
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
     - name: Build tagger
-      run: go build -v ./cmd/tagger
+      run: go build -mod vendor -v ./cmd/tagger
 
     - name: Build kubectl-tag
-      run: go build -v ./cmd/kubectl-tag
+      run: go build -mod vendor -v ./cmd/kubectl-tag
 
     - name: Test
-      run: go test -v ./...
+      run: go test -mod vendor -v ./...
