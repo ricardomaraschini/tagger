@@ -26,12 +26,13 @@ func (w TagWrapper) CurrentReferenceForTag() string {
 }
 
 // SpecTagImported returs true if tag generation defined on spec has
-// already been imported.
+// already been imported (exists in status.References).
 func (w TagWrapper) SpecTagImported() bool {
 	for _, hashref := range w.Status.References {
-		if hashref.Generation == w.Spec.Generation {
-			return true
+		if hashref.Generation != w.Spec.Generation {
+			continue
 		}
+		return true
 	}
 	return false
 }

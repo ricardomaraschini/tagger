@@ -177,7 +177,7 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 // NewGenerationForImageRef looks through all image tags we have and creates a
 // new generation in all of those who point to the provided image path. Image
 // path looks like "quay.io/repo/image:tag". TODO add unqualified registries
-// support and consider also empty as "latest".
+// support and consider also empty tag as "latest".
 func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) error {
 	tags, err := t.taglis.List(labels.Everything())
 	if err != nil {

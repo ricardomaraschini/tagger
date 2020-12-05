@@ -132,21 +132,10 @@ func (s *SysContext) CacheRegistryAddresses() (string, string, error) {
 		return addr, addr, nil
 	}
 
-	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
+	cfg, err := s.parseCacheRegistryConfig()
 	if err != nil {
 		return "", "", err
 	}
-
-	dt, ok := cm.Data["localRegistryHosting.v1"]
-	if !ok {
-		return "", "", fmt.Errorf("no v1 local registry config found")
-	}
-
-	var cfg LocalRegistryHostingV1
-	if err := yaml.Unmarshal([]byte(dt), &cfg); err != nil {
-		return "", "", err
-	}
-
 	return cfg.HostFromClusterNetwork, cfg.HostFromContainerRuntime, nil
 }
 

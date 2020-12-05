@@ -97,7 +97,6 @@ func (d *Deployment) Update(ctx context.Context, dep *appsv1.Deployment) error {
 			}
 			return err
 		}
-		it = it.DeepCopy()
 
 		ref := TagWrapper{it}.CurrentReferenceForTag()
 		if ref == "" {
