@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
-	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/spf13/cobra"
+
+	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
 )
 
 func main() {
