@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"k8s.io/klog/v2"
-
-	"github.com/ricardomaraschini/tagger/services"
 )
 
 // DockerRequestPayload is sent by docker hub whenever a new push happen to a
@@ -24,14 +22,28 @@ type DockerRequestPayload struct {
 	} `json:"repository"`
 }
 
+// valid validates the docker payload.
+func (d *DockerRequestPayload) valid() bool {
+	if d.PushData.Tag == "" {
+		return false
+	}
+	if d.Repository.Name == "" {
+		return false
+	}
+	if d.Repository.Namespace == "" {
+		return false
+	}
+	return true
+}
+
 // DockerWebHook handles docker.io requests.
 type DockerWebHook struct {
 	bind   string
-	tagsvc *services.Tag
+	tagsvc TagGenerationUpdater
 }
 
 // NewDockerWebHook returns a web hook handler for docker.io webhooks.
-func NewDockerWebHook(tagsvc *services.Tag) *DockerWebHook {
+func NewDockerWebHook(tagsvc TagGenerationUpdater) *DockerWebHook {
 	return &DockerWebHook{
 		bind:   ":8082",
 		tagsvc: tagsvc,
@@ -52,6 +64,12 @@ func (d *DockerWebHook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !payload.valid() {
+		klog.Errorf("invalid docker payload: %+v", payload)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
 	imgpath := fmt.Sprintf(
 		"docker.io/%s/%s:%s",
 		payload.Repository.Namespace,
@@ -61,7 +79,11 @@ func (d *DockerWebHook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	klog.Infof("received update for image: %s", imgpath)
 	if err := d.tagsvc.NewGenerationForImageRef(r.Context(), imgpath); err != nil {
 		klog.Errorf("error updating tag %s by reference: %s", imgpath, err)
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(
+			w,
+			http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
