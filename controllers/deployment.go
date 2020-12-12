@@ -5,20 +5,26 @@ import (
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	coreinf "k8s.io/client-go/informers"
-	corelis "k8s.io/client-go/listers/apps/v1"
+	appslis "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	"github.com/ricardomaraschini/tagger/services"
 )
+
+// DeploymentUpdater abstraction exists to make testing easier. You most likely
+// wanna see Deployment struct under services/deployment.go for a concrete
+// implementation of this.
+type DeploymentUpdater interface {
+	Update(context.Context, *appsv1.Deployment) error
+}
 
 // Deployment controller handles events related to deployment creations.
 type Deployment struct {
-	deplister corelis.DeploymentLister
-	depsvc    *services.Deployment
+	deplister appslis.DeploymentLister
+	depsvc    DeploymentUpdater
 	queue     workqueue.DelayingInterface
 	appctx    context.Context
 }
@@ -27,7 +33,7 @@ type Deployment struct {
 // keeps track of deployments being created and assure that they contain the
 // right annotations if they leverage tags.
 func NewDeployment(
-	inf coreinf.SharedInformerFactory, depsvc *services.Deployment,
+	inf coreinf.SharedInformerFactory, depsvc DeploymentUpdater,
 ) *Deployment {
 	ctrl := &Deployment{
 		deplister: inf.Apps().V1().Deployments().Lister(),
@@ -99,8 +105,12 @@ func (d *Deployment) eventProcessor(wg *sync.WaitGroup) {
 	}
 }
 
-// syncDeployment process an event for a deployment.
+// syncDeployment process an event for a deployment. We allow one minute
+// per Deployment update.
 func (d *Deployment) syncDeployment(namespace, name string) error {
+	ctx, cancel := context.WithTimeout(d.appctx, time.Minute)
+	defer cancel()
+
 	dep, err := d.deplister.Deployments(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -109,7 +119,7 @@ func (d *Deployment) syncDeployment(namespace, name string) error {
 		return err
 	}
 	dep = dep.DeepCopy()
-	return d.depsvc.Update(d.appctx, dep)
+	return d.depsvc.Update(ctx, dep)
 }
 
 // Start starts the controller's event loop.
