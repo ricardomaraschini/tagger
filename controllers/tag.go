@@ -12,8 +12,14 @@ import (
 
 	imageinf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
 	imagelis "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
-	"github.com/ricardomaraschini/tagger/services"
+	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
+
+// TagUpdater abstraction exists to make testing easier. You most likely wanna
+// see Tag struct under services/tag.go for a concrete implementation of this.
+type TagUpdater interface {
+	Update(context.Context, *imagtagv1.Tag) error
+}
 
 // Tag controller handles events related to Tags. It starts and receives events
 // from the informer, calling appropriate functions on our concrete services
@@ -21,7 +27,7 @@ import (
 type Tag struct {
 	taglister imagelis.TagLister
 	queue     workqueue.DelayingInterface
-	tagsvc    *services.Tag
+	tagsvc    TagUpdater
 	appctx    context.Context
 	tokens    chan bool
 }
@@ -30,7 +36,7 @@ type Tag struct {
 // tag imports in parallel, at a given time we can have at max "workers"
 // distinct image tags being processed.
 func NewTag(
-	taginf imageinf.SharedInformerFactory, tagsvc *services.Tag, workers int,
+	taginf imageinf.SharedInformerFactory, tagsvc TagUpdater, workers int,
 ) *Tag {
 	tokens := make(chan bool, workers)
 	for i := 0; i < workers; i++ {
