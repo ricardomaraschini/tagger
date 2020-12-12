@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 type tagupdater struct {
@@ -37,6 +38,9 @@ func TestQuayWebHooks(t *testing.T) {
 			t.Errorf("error reported by srv.Start: %s", err)
 		}
 	}()
+
+	// give it some time for the http server to be online.
+	time.Sleep(time.Second)
 
 	for _, tt := range []struct {
 		name       string
