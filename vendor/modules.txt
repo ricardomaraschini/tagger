@@ -574,6 +574,7 @@ k8s.io/kube-openapi/pkg/util/proto
 ## explicit
 k8s.io/utils/buffer
 k8s.io/utils/integer
+k8s.io/utils/pointer
 k8s.io/utils/trace
 # sigs.k8s.io/structured-merge-diff/v4 v4.0.1
 sigs.k8s.io/structured-merge-diff/v4/value

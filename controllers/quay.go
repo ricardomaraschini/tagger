@@ -8,9 +8,14 @@ import (
 	"time"
 
 	"k8s.io/klog/v2"
-
-	"github.com/ricardomaraschini/tagger/services"
 )
+
+// TagGenerationUpdater exists to make tests easier. You may be wondering where
+// this is implemented. Please see Tag struct in services/tag.go for a concrete
+// implementation.
+type TagGenerationUpdater interface {
+	NewGenerationForImageRef(context.Context, string) error
+}
 
 // QuayRequestPayload holds the information sent by remote quay.io servers
 // when a new push has happened to one of images.
@@ -26,11 +31,11 @@ type QuayRequestPayload struct {
 // QuayWebHook handles quay.io requests.
 type QuayWebHook struct {
 	bind   string
-	tagsvc *services.Tag
+	tagsvc TagGenerationUpdater
 }
 
 // NewQuayWebHook returns a web hook handler for quay webhooks.
-func NewQuayWebHook(tagsvc *services.Tag) *QuayWebHook {
+func NewQuayWebHook(tagsvc TagGenerationUpdater) *QuayWebHook {
 	return &QuayWebHook{
 		bind:   ":8081",
 		tagsvc: tagsvc,
@@ -56,7 +61,11 @@ func (q *QuayWebHook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		imgpath := fmt.Sprintf("%s:%s", payload.DockerURL, tag)
 		if err := q.tagsvc.NewGenerationForImageRef(r.Context(), imgpath); err != nil {
 			klog.Errorf("error updating tag %s by reference: %s", imgpath, err)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			http.Error(
+				w,
+				http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError,
+			)
 			return
 		}
 	}
