@@ -19,6 +19,6 @@ spec:
     spec:
       containers:
       - name: app
-        image: mytag
+        image: simple-web-server
         ports:
-        - containerPort: 80
+        - containerPort: 8080
