@@ -38,15 +38,11 @@ type Tag struct {
 func NewTag(
 	taginf imageinf.SharedInformerFactory, tagsvc TagUpdater, workers int,
 ) *Tag {
-	tokens := make(chan bool, workers)
-	for i := 0; i < workers; i++ {
-		tokens <- true
-	}
 	ctrl := &Tag{
 		taglister: taginf.Images().V1().Tags().Lister(),
 		queue:     workqueue.NewDelayingQueue(),
 		tagsvc:    tagsvc,
-		tokens:    tokens,
+		tokens:    make(chan bool, workers),
 	}
 	taginf.Images().V1().Tags().Informer().AddEventHandler(ctrl.handlers())
 	return ctrl
@@ -94,10 +90,10 @@ func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 			return
 		}
 
-		<-t.tokens
+		t.tokens <- true
 		go func() {
 			defer func() {
-				t.tokens <- true
+				<-t.tokens
 			}()
 
 			namespace, name, err := cache.SplitMetaNamespaceKey(evt.(string))
