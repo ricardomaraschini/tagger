@@ -26,7 +26,7 @@ type TagUpdater interface {
 // layer implementation.
 type Tag struct {
 	taglister imagelis.TagLister
-	queue     workqueue.DelayingInterface
+	queue     workqueue.RateLimitingInterface
 	tagsvc    TagUpdater
 	appctx    context.Context
 	tokens    chan bool
@@ -38,9 +38,10 @@ type Tag struct {
 func NewTag(
 	taginf imageinf.SharedInformerFactory, tagsvc TagUpdater, workers int,
 ) *Tag {
+	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
 	ctrl := &Tag{
 		taglister: taginf.Images().V1().Tags().Lister(),
-		queue:     workqueue.NewDelayingQueue(),
+		queue:     workqueue.NewRateLimitingQueue(ratelimit),
 		tagsvc:    tagsvc,
 		tokens:    make(chan bool, workers),
 	}
@@ -61,7 +62,7 @@ func (t *Tag) enqueueEvent(o interface{}) {
 		klog.Errorf("fail to enqueue event: %v : %s", o, err)
 		return
 	}
-	t.queue.Add(key)
+	t.queue.AddRateLimited(key)
 }
 
 // handlers return a event handler that will be called by the informer
@@ -107,12 +108,13 @@ func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 			if err := t.syncTag(namespace, name); err != nil {
 				klog.Errorf("error processing tag %s: %v", evt, err)
 				t.queue.Done(evt)
-				t.queue.AddAfter(evt, 10*time.Second)
+				t.queue.AddRateLimited(evt)
 				return
 			}
 
 			klog.Infof("event for tag %s processed", evt)
 			t.queue.Done(evt)
+			t.queue.Forget(evt)
 		}()
 	}
 }

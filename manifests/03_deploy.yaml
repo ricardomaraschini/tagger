@@ -19,7 +19,7 @@ spec:
       serviceAccountName: tagger
       containers:
       - name: tagger
-        image: quay.io/rmarasch/tagger:latest
+        image: quay.io/rmarasch/tagger:dev
         volumeMounts:
           - mountPath: "/assets"
             name: certs

@@ -4,4 +4,4 @@ metadata:
   name: simple-web-server
 spec:
   from: docker.io/rmarasch/simple-web-server:latest
-  cache: true
+  cache: false
