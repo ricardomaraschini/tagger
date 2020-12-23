@@ -94,7 +94,7 @@ func TestTagCreated(t *testing.T) {
 	}
 
 	// give some room for the event to be dispatched towards the controller.
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 
 	if !reflect.DeepEqual(tag, svc.get("namespace/atag")) {
 		t.Errorf("expected %+v, found %+v", tag, svc.db["namespace/atag"])
@@ -153,7 +153,7 @@ func TestTagUpdated(t *testing.T) {
 	}
 
 	// give some room for the event to be dispatched towards the controller.
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 
 	if !reflect.DeepEqual(tag, svc.get("namespace/atag")) {
 		t.Errorf("expected %+v, found %+v", tag, svc.db["namespace/atag"])
@@ -167,7 +167,7 @@ func TestTagUpdated(t *testing.T) {
 	}
 
 	// give some room for the event to be dispatched towards the controller.
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 
 	if !reflect.DeepEqual(tag, svc.get("namespace/atag")) {
 		t.Errorf("expected %+v, found %+v", tag, svc.db["namespace/atag"])
@@ -229,7 +229,7 @@ func TestTagParallel(t *testing.T) {
 	}
 
 	// give some room for the event to be dispatched towards the controller.
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 
 	if svc.len() != 5 {
 		t.Errorf("5 parallel processes expected: %d", len(svc.db))
@@ -284,7 +284,7 @@ func TestTagDeleted(t *testing.T) {
 	}
 
 	// give some room for the event to be dispatched towards the controller.
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 
 	if !reflect.DeepEqual(tag, svc.get("namespace/atag")) {
 		t.Errorf("expected %+v, found %+v", tag, svc.db["namespace/atag"])
@@ -297,7 +297,7 @@ func TestTagDeleted(t *testing.T) {
 	}
 
 	// give some room for the event to be dispatched towards the controller.
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 
 	if svc.calls != 1 {
 		t.Errorf("expected 1 call, %d calls made", svc.calls)
