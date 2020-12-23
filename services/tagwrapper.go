@@ -3,6 +3,8 @@ package services
 import (
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
@@ -55,4 +57,35 @@ func (w TagWrapper) ValidateTagGeneration() error {
 		return nil
 	}
 	return fmt.Errorf("generation must be one of: %s", fmt.Sprint(validGens))
+}
+
+// PrependHashReference prepends ref into tag's HashReference slice. The resulting
+// slice contains at most 5 references.
+func (w TagWrapper) PrependHashReference(ref imagtagv1.HashReference) {
+	newRefs := []imagtagv1.HashReference{ref}
+	newRefs = append(newRefs, w.Status.References...)
+	// TODO make this value (5) configurable.
+	if len(newRefs) > 5 {
+		newRefs = newRefs[:5]
+	}
+	w.Status.References = newRefs
+}
+
+// RegisterImportFailure updates the last import attempt struct in Tag status, setting
+// it as not succeeded and with the proper error message.
+func (w TagWrapper) RegisterImportFailure(err error) {
+	w.Status.LastImportAttempt = imagtagv1.ImportAttempt{
+		When:    metav1.Now(),
+		Succeed: false,
+		Reason:  err.Error(),
+	}
+}
+
+// RegisterImportSuccess updates the last import attempt struct in Tag status, setting
+// it as succeeded.
+func (w TagWrapper) RegisterImportSuccess() {
+	w.Status.LastImportAttempt = imagtagv1.ImportAttempt{
+		When:    metav1.Now(),
+		Succeed: true,
+	}
 }

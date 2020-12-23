@@ -328,65 +328,6 @@ func TestPatchForPod(t *testing.T) {
 	}
 }
 
-func Test_prependHashReference(t *testing.T) {
-	for _, tt := range []struct {
-		name      string
-		current   []imagtagv1.HashReference
-		reference imagtagv1.HashReference
-		expected  []imagtagv1.HashReference
-	}{
-		{
-			name:    "nil current generations slice",
-			current: nil,
-			reference: imagtagv1.HashReference{
-				Generation: 1,
-			},
-			expected: []imagtagv1.HashReference{
-				{Generation: 1},
-			},
-		},
-		{
-			name:    "empty current generations slice",
-			current: []imagtagv1.HashReference{},
-			reference: imagtagv1.HashReference{
-				Generation: 1,
-			},
-			expected: []imagtagv1.HashReference{
-				{Generation: 1},
-			},
-		},
-		{
-			name: "full current generations slice",
-			current: []imagtagv1.HashReference{
-				{Generation: 4},
-				{Generation: 3},
-				{Generation: 2},
-				{Generation: 1},
-				{Generation: 0},
-			},
-			reference: imagtagv1.HashReference{
-				Generation: 5,
-			},
-			expected: []imagtagv1.HashReference{
-				{Generation: 5},
-				{Generation: 4},
-				{Generation: 3},
-				{Generation: 2},
-				{Generation: 1},
-			},
-		},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := NewTag(nil, nil, nil, nil, nil, nil)
-			res := svc.prependHashReference(tt.reference, tt.current)
-			if reflect.DeepEqual(res, tt.expected) {
-				return
-			}
-			t.Errorf("expected %+v, %+v received", tt.expected, res)
-		})
-	}
-}
-
 func TestUpdate(t *testing.T) {
 	for _, tt := range []struct {
 		name       string
@@ -394,10 +335,13 @@ func TestUpdate(t *testing.T) {
 		err        string
 		corObjects []runtime.Object
 		tagObjects []runtime.Object
+		succeed    bool
+		importErr  string
 	}{
 		{
-			name: "empty tag",
-			err:  "empty tag reference",
+			name:    "empty tag",
+			err:     "empty tag reference",
+			succeed: false,
 			tag: &imagtagv1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
@@ -406,21 +350,23 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			name: "import of non existing tag",
-			err:  "not found",
+			name:    "import of non existing tag",
+			err:     "manifest unknown",
+			succeed: false,
 			tag: &imagtagv1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 					Name:      "new-tag",
 				},
 				Spec: imagtagv1.TagSpec{
-					From:       "centos:latest",
+					From:       "centos:xyz123xyz",
 					Generation: 0,
 				},
 			},
 		},
 		{
-			name: "first import (happy path)",
+			name:    "first import (happy path)",
+			succeed: true,
 			tag: &imagtagv1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
@@ -487,6 +433,19 @@ func TestUpdate(t *testing.T) {
 			} else if len(tt.err) > 0 {
 				t.Errorf("expecting error %q, nil received instead", tt.err)
 			}
+
+			succeed := tt.tag.Status.LastImportAttempt.Succeed
+			if succeed != tt.succeed {
+				t.Errorf("wrong succeed(%v), received %v", tt.succeed, succeed)
+			}
+
+			if !tt.succeed {
+				reason := tt.tag.Status.LastImportAttempt.Reason
+				if !strings.Contains(reason, tt.err) {
+					t.Errorf("unexpected failure reason: %q", reason)
+				}
+			}
+
 		})
 	}
 }

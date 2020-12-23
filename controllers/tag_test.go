@@ -43,6 +43,12 @@ func (t *tagsvc) get(idx string) *imagtagv1.Tag {
 	return t.db[idx]
 }
 
+func (t *tagsvc) len() int {
+	t.Lock()
+	defer t.Unlock()
+	return len(t.db)
+}
+
 func TestTagCreated(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
@@ -225,7 +231,7 @@ func TestTagParallel(t *testing.T) {
 	// give some room for the event to be dispatched towards the controller.
 	time.Sleep(time.Second)
 
-	if len(svc.db) != 5 {
+	if svc.len() != 5 {
 		t.Errorf("5 parallel processes expected: %d", len(svc.db))
 	}
 

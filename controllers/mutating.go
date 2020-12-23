@@ -16,22 +16,31 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
+	"github.com/mattbaird/jsonpatch"
+
 	imgtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 	"github.com/ricardomaraschini/tagger/services"
 )
+
+// PodPatcher creates a patch for a pod resource, possibly overwritting
+// tag references by their concrete location. You might want to look at
+// the concrete implementation of this at services/tag.go.
+type PodPatcher interface {
+	PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error)
+}
 
 // MutatingWebHook handles Mutation requests from kubernetes api.
 type MutatingWebHook struct {
 	key     string
 	cert    string
 	bind    string
-	tagsvc  *services.Tag
+	tagsvc  PodPatcher
 	decoder runtime.Decoder
 }
 
 // NewMutatingWebHook returns a web hook handler for kubernetes api mutation
 // requests.
-func NewMutatingWebHook(tagsvc *services.Tag) *MutatingWebHook {
+func NewMutatingWebHook(tagsvc PodPatcher) *MutatingWebHook {
 	runtimeScheme := runtime.NewScheme()
 	codecs := serializer.NewCodecFactory(runtimeScheme)
 	return &MutatingWebHook{
@@ -193,7 +202,7 @@ func (m *MutatingWebHook) pod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// XXX namespaces come in empty, set it here.
+	// XXX namespace comes in empty, set it here.
 	pod.Namespace = reviewReq.Request.Namespace
 
 	patch, err := m.tagsvc.PatchForPod(pod)

@@ -1,6 +1,8 @@
 package v1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -25,8 +27,18 @@ type TagSpec struct {
 
 // TagStatus is the current status for an image tag.
 type TagStatus struct {
-	Generation int64           `json:"generation"`
-	References []HashReference `json:"references"`
+	Generation        int64           `json:"generation"`
+	References        []HashReference `json:"references"`
+	LastImportAttempt ImportAttempt   `json:"lastImportAttempt"`
+}
+
+// ImportAttempt holds data about an import cycle. Keeps track if it
+// was successful, when it happens and if not successful what was the
+// error reported (on reason).
+type ImportAttempt struct {
+	When    metav1.Time `json:"when"`
+	Succeed bool        `json:"succeed"`
+	Reason  string      `json:"reason,omitempty"`
 }
 
 // HashReference is an reference to a image hash in a given generation.
