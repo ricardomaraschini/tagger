@@ -1,11 +1,75 @@
 package services
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
+
+func TestPrependHashReference(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		current   []imagtagv1.HashReference
+		reference imagtagv1.HashReference
+		expected  []imagtagv1.HashReference
+	}{
+		{
+			name:    "nil current generations slice",
+			current: nil,
+			reference: imagtagv1.HashReference{
+				Generation: 1,
+			},
+			expected: []imagtagv1.HashReference{
+				{Generation: 1},
+			},
+		},
+		{
+			name:    "empty current generations slice",
+			current: []imagtagv1.HashReference{},
+			reference: imagtagv1.HashReference{
+				Generation: 1,
+			},
+			expected: []imagtagv1.HashReference{
+				{Generation: 1},
+			},
+		},
+		{
+			name: "full current generations slice",
+			current: []imagtagv1.HashReference{
+				{Generation: 4},
+				{Generation: 3},
+				{Generation: 2},
+				{Generation: 1},
+				{Generation: 0},
+			},
+			reference: imagtagv1.HashReference{
+				Generation: 5,
+			},
+			expected: []imagtagv1.HashReference{
+				{Generation: 5},
+				{Generation: 4},
+				{Generation: 3},
+				{Generation: 2},
+				{Generation: 1},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tag := &imagtagv1.Tag{
+				Status: imagtagv1.TagStatus{
+					References: tt.current,
+				},
+			}
+			TagWrapper{tag}.PrependHashReference(tt.reference)
+			if reflect.DeepEqual(tag.Status.References, tt.expected) {
+				return
+			}
+			t.Errorf("expected %+v, %+v received", tt.expected, tag.Status.References)
+		})
+	}
+}
 
 func TestSpecTagImported(t *testing.T) {
 	for _, tt := range []struct {

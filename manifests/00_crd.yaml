@@ -27,6 +27,8 @@ spec:
               type: string
             generation:
               type: integer
+            cache:
+              type: boolean
         status:
           type: object
           properties:
@@ -34,6 +36,7 @@ spec:
               type: integer
             references:
               type: array
+              nullable: true
               items:
                 type: object
                 properties:
@@ -45,3 +48,12 @@ spec:
                     type: string
                   imageReference:
                     type: string
+            lastImportAttempt:
+              type: object
+              properties:
+                when:
+                  type: string
+                succeed:
+                  type: boolean
+                reason:
+                  type: string
