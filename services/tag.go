@@ -129,36 +129,35 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 	return patch, nil
 }
 
-// prependHashReference prepends ref into refs. The resulting slice
-// contains at most 5 references.
-func (t *Tag) prependHashReference(
-	ref imagtagv1.HashReference,
-	refs []imagtagv1.HashReference,
-) []imagtagv1.HashReference {
-	newRefs := []imagtagv1.HashReference{ref}
-	newRefs = append(newRefs, refs...)
-	// TODO make this value (5) configurable.
-	if len(newRefs) > 5 {
-		newRefs = newRefs[:5]
-	}
-	return newRefs
-}
-
 // Update manages image tag updates, assuring we have the tag imported.
 // Beware that we change Tag in place before updating it on api server,
 // i.e. use DeepCopy() before passing the image tag in.
 func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 	var err error
+	var hashref imagtagv1.HashReference
 
-	alreadyImported := TagWrapper{it}.SpecTagImported()
+	tw := TagWrapper{it}
+	alreadyImported := tw.SpecTagImported()
 	if !alreadyImported {
 		klog.Infof("tag %s/%s needs import, importing...", it.Namespace, it.Name)
-		hashref, err := t.impsvc.ImportTag(ctx, it)
+
+		hashref, err = t.impsvc.ImportTag(ctx, it)
 		if err != nil {
+			// if we fail to import the tag we need to record the failure on tag's
+			// status and update it. If we fail to update the tag we only log,
+			// returning the original error.
+			tw.RegisterImportFailure(err)
+			if _, err := t.tagcli.ImagesV1().Tags(it.Namespace).Update(
+				ctx, it, metav1.UpdateOptions{},
+			); err != nil {
+				klog.Errorf("error updating tag status: %s", err)
+			}
 			return fmt.Errorf("fail import %s/%s: %w", it.Namespace, it.Name, err)
 		}
+		tw.RegisterImportSuccess()
+		tw.PrependHashReference(hashref)
+
 		klog.Infof("tag %s/%s imported.", it.Namespace, it.Name)
-		it.Status.References = t.prependHashReference(hashref, it.Status.References)
 	}
 
 	genMismatch := it.Spec.Generation != it.Status.Generation
