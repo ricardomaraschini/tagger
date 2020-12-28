@@ -37,7 +37,7 @@ Docker. These services can then be exposed externally if you want to accept webh
 from either quay.io or docker.io. Support for these webhooks is still under development but it
 should work for most of the use cases.
 
-### Use
+### How to use
 
 Tag _custom resource definition_ represents an image tag in a remote registry. For instance a
 tag called `myapp-devel` can be created to keep track of `quay.io/company/myapp:latest`. Tags
@@ -138,13 +138,39 @@ can also be informed of the internal registry location through environment varia
 | CACHE_REGISTRY_PASSWORD | The password to be used by tagger                              |
 | CACHE_REGISTRY_INSECURE | Allows tagger to access insecure registry if set to `true`     |
 
+Cached tags are stored in a repository with the namespace name used for the tag, for example
+a tag in the `development` namespace will be cached to `internal.regisry/development/tag`
+repository in the registry.
 
 #### Importing images from private registries
 
-Tagger supports private registries imports, one needs to define a secret with the registry
-credentials on the same namespace where the tag lives. This secret must be of type
-`kubernetes.io/dockerconfigjson`. You can find more information on these secrets by acessing
+Tagger supports imports from private registries, for that to work one needs to define a secret
+with the registry credentials on the same namespace where the tag lives. This secret must be of
+type `kubernetes.io/dockerconfigjson`. You can find more information on these secrets at
 https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+
+### Configuring webhooks for docker.io and quay.io
+
+One can also configure webhooks on quay.io or docker.io to point to tagger, thus allowing 
+automatic imports to happen everytime a new version of the image is pushed to the registry.
+
+Upon deployment tagger will create two services, one for each of docker.io and quay.io, you
+can then expose these services aexternally through a load balancer and properly configure the
+webhooks in the chosen registry.
+
+For quay.io you just need to configure a notification, please follow
+https://docs.quay.io/guides/notifications.html for further information.
+
+Bare in mind that a tag that wants to leverage webhooks must point its `from` property to
+the full registry path as tagger doesn't take into account unqualified registry searches.
+For example, a tag that wants to use docker.io webhooks should have its `from` property set to
+`docker.io/repository/image:tag` instead of only `repository/image:tag`.
+
+Everytime tagger receives a push notification it will create a new `generation` for the tag thus
+trigerring first a new tag import and later Deployment automatic rollouts. With this feature
+properly configured everytime an image is pushed to the registry all Deployments leveraging it
+will be automatically updated. One can also issue a `kubectl tag downgrade <tagname>` to 
+rollback to the previous image.
 
 
 ### Disclaimer
