@@ -99,11 +99,13 @@ Follows a brief hands on presentation of this feature:
 
 ### Tag structure
 
-| property        | description                                                                 |
-| --------------- | --------------------------------------------------------------------------- |
-| spec.from       | Indicates the source of the image (from where Tagger should import it)      |
-| spec.generation | Points to the desired generation for the Tag, more on this below            |
-| spec.cache      | Informs if a Tag should be mirrored to another registry, more on this below |
+On a Tag `.spec` property these fiels are valid:
+
+| property   | description                                                                 |
+| -----------| --------------------------------------------------------------------------- |
+| from       | Indicates the source of the image (from where Tagger should import it)      |
+| generation | Points to the desired generation for the Tag, more on this below            |
+| cache      | Informs if a Tag should be mirrored to another registry, more on this below |
 
 #### Tag generation
 
@@ -136,7 +138,7 @@ as authentication thus should not be used in production. Tagger can also be info
 internal registry location by means of environment variables, as follow:
 
 
-| Variable                | Description                                                    |
+| Name                    | Description                                                    |
 | ----------------------- | -------------------------------------------------------------- |
 | CACHE_REGISTRY_ADDRESS  | The internal registry URL                                      |
 | CACHE_REGISTRY_USERNAME | Username Tagger should use when acessing the internal registry |
@@ -153,6 +155,26 @@ Tagger supports imports from private registries, for that to work one needs to d
 with the registry credentials on the same namespace where the Tag lives. This secret must be of
 type `kubernetes.io/dockerconfigjson`. You can find more information about these secrets at
 https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+
+### Tag status
+
+Follow below the properties found on a Tag `.status` property and their meaning:
+
+| Name              | Description                                                                |
+| ----------------- | -------------------------------------------------------------------------- |
+| generation        | The current generation. Deployments using the Tag will use this generation |
+| references        | A list of all imported references (aka generations)                        |
+| lastImportAttempt | Information about the last import attempt for the Tag                      |
+
+The property `.status.references` is an array of imported generations, Tagger currently holds
+up to five generations, every item on the array is composed by the following properties:
+
+| Name           | Description                                                                   |
+| -------------- | ----------------------------------------------------------------------------- |
+| generation     | Indicate to which generation the reference belongs to                         |
+| from           | Keeps a reference from where the reference got imported                       |
+| importedAt     | Date and time of the import                                                   |
+| imageReference | Where this reference points to (by hash), may point to the internal registry  |
 
 ### Configuring webhooks for docker.io and quay.io
 
