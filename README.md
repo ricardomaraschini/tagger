@@ -63,7 +63,7 @@ use the Tag name (i.e. `image: myapp-devel`) in a Kubernetes Deployment and Tagg
 automatically populate the pods with the right image location and hash. A deployment, leveraging
 a Tag looks like this:
 
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
