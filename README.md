@@ -45,7 +45,7 @@ Tagger leverages a _custom resource definition_ called Tag. A Tag represents an 
 remote registry. For instance a Tag called `myapp-devel` may be created to keep track of image
 `quay.io/company/myapp:latest`. A Tag _custom resource_ layout looks like:
 
-```
+```yaml
 apiVersion: images.io/v1
 kind: Tag
 metadata:
