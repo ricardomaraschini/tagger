@@ -20,16 +20,17 @@ Tagger takes advantage of this registry feature and creates references to image 
 their "fixed point in time" hashes. For instance an image `centos:latest` can be referred by
 its hash as well, such as `centos@sha256:012345...`.
 
-Every time one Tags an image `Tagger` creates a new generation for that image, making it easier
+Every time one Tags an image Tagger creates a new generation for that image, making it easier
 to downgrade to previously tagged versions in case of issues with the new generation. It also
 allows users to mirror these images to an internal registry.
 
 ### Caching images locally
 
 Tagger allow administrators to Tag and cache images locally within the cluster. You just need
-to have a image registry running in the cluster and ask `Tagger` to do the cache.  By doing so
-a copy of the remote image is going to be made into the internal registry (aka mirroring) and
-all deployments leveraging such image will automatically start to use the cached copy.
+to have a image registry running in the cluster (or anywhere else) and ask `Tagger` to do the
+cache.  By doing so a copy of the remote image is going to be made into the internal registry
+(aka mirroring) and all deployments leveraging such image will automatically start to use the
+cached copy.
 
 ### Webhooks from quay.io and Docker hub
 
