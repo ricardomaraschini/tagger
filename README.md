@@ -1,4 +1,4 @@
-![Tagger logo](./assets/Tagger.png)
+![Tagger logo](./assets/tagger.png)
 
 ![lint](https://github.com/ricardomaraschini/Tagger/workflows/lint/badge.svg?branch=main)
 ![unit](https://github.com/ricardomaraschini/Tagger/workflows/unit/badge.svg?branch=main)
