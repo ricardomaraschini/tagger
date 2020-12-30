@@ -4,6 +4,7 @@
 ![unit](https://github.com/ricardomaraschini/Tagger/workflows/unit/badge.svg?branch=main)
 ![build](https://github.com/ricardomaraschini/Tagger/workflows/build/badge.svg?branch=main)
 
+<div style="text-align: justify">
 Tagger keeps references to externally hosted Docker images internally in a Kubernetes cluster
 by mapping their `tags` (such as `latest`) into their references by `hash`. Allow Kubernetes
 administrators to mirror these images internally if needed and provides integration with
@@ -239,3 +240,4 @@ $ kubectl delete -f ./manifests/04_webhook.yaml
 ```
 
 I am still working on a workaround for this caveat.
+</div>
