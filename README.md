@@ -4,12 +4,10 @@
 ![unit](https://github.com/ricardomaraschini/Tagger/workflows/unit/badge.svg?branch=main)
 ![build](https://github.com/ricardomaraschini/Tagger/workflows/build/badge.svg?branch=main)
 
-<div style="text-align: justify">
 Tagger keeps references to externally hosted Docker images internally in a Kubernetes cluster
 by mapping their `tags` (such as `latest`) into their references by `hash`. Allow Kubernetes
 administrators to mirror these images internally if needed and provides integration with
 docker and quay webhooks.
-</div>
 
 ### About
 
