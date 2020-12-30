@@ -101,11 +101,11 @@ Follows a brief hands on presentation of this feature:
 
 On a Tag `.spec` property these fiels are valid:
 
-| property   | description                                                                 |
-| -----------| --------------------------------------------------------------------------- |
-| from       | Indicates the source of the image (from where Tagger should import it)      |
-| generation | Points to the desired generation for the Tag, more on this below            |
-| cache      | Informs if a Tag should be mirrored to another registry, more on this below |
+| Property   | Description                                                                       |
+| ---------- | --------------------------------------------------------------------------------- |
+| from       | Indicates the source of the image (from where Tagger should import it)            |
+| generation | Points to the desired generation for the Tag, more on this below                  |
+| cache      | Informs if a Tag should be mirrored to another registry, more on this below       |
 
 #### Tag generation
 
@@ -138,12 +138,12 @@ as authentication thus should not be used in production. Tagger can also be info
 internal registry location by means of environment variables, as follow:
 
 
-| Name                    | Description                                                    |
-| ----------------------- | -------------------------------------------------------------- |
-| CACHE_REGISTRY_ADDRESS  | The internal registry URL                                      |
-| CACHE_REGISTRY_USERNAME | Username Tagger should use when acessing the internal registry |
-| CACHE_REGISTRY_PASSWORD | The password to be used by Tagger                              |
-| CACHE_REGISTRY_INSECURE | Allows Tagger to access insecure registry if set to `true`     |
+| Name                    | Description                                                          |
+| ----------------------- | -------------------------------------------------------------------- |
+| CACHE_REGISTRY_ADDRESS  | The internal registry URL                                            |
+| CACHE_REGISTRY_USERNAME | Username Tagger should use when acessing the internal registry       |
+| CACHE_REGISTRY_PASSWORD | The password to be used by Tagger                                    |
+| CACHE_REGISTRY_INSECURE | Allows Tagger to access insecure registry if set to `true`           |
 
 Cached Tags are stored in a repository with the namespace name used for the Tag, for example
 a Tag living in the `development` namespace will be cached in `internal.regisry/development/`
@@ -164,7 +164,7 @@ Follow below the properties found on a Tag `.status` property and their meaning:
 | ----------------- | -------------------------------------------------------------------------- |
 | generation        | The current generation. Deployments using the Tag will use this generation |
 | references        | A list of all imported references (aka generations)                        |
-| lastImportAttempt | Information about the last import attempt for the Tag                      |
+| lastImportAttempt | Information about the last import attempt for the Tag, see below           |
 
 The property `.status.references` is an array of imported generations, Tagger currently holds
 up to five generations, every item on the array is composed by the following properties:
@@ -175,6 +175,14 @@ up to five generations, every item on the array is composed by the following pro
 | from           | Keeps a reference from where the reference got imported                       |
 | importedAt     | Date and time of the import                                                   |
 | imageReference | Where this reference points to (by hash), may point to the internal registry  |
+
+You can also find information about the last import attempt for a Tag
+
+| Name    | Description                                                                          |
+| ------- | ------------------------------------------------------------------------------------ |
+| when    | Date and time of last import attempt                                                 |
+| succeed | A boolean indicating if the last import was successful                               |
+| reason  | In case of failure (succeed = false), what was the error                             |
 
 ### Configuring webhooks for docker.io and quay.io
 
@@ -222,8 +230,9 @@ $ kubectl create -f ./manifests/04_webhook.yaml
 
 ### Notes on updating Tagger
 
-Tagger creates an Admission webhook that intercepts new pod creations, if you need to update
-Tagger you first need to remove the webhook:
+Tagger creates a [Mutating Webhook](https://bit.ly/2WSlvH0) that intercepts new pod creations, if
+you need to update Tagger you first need to remove this webhook otherwise new pods are not going
+to be created.
 
 ```
 $ kubectl delete -f ./manifests/04_webhook.yaml
