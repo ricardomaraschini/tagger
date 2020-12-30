@@ -24,6 +24,11 @@ Every time one Tags an image Tagger creates a new generation for that image, mak
 to downgrade to previously tagged versions in case of issues with the new generation. It also
 allows users to mirror these images to an internal registry.
 
+### TLDR
+
+I have recorder a presentation on the features implemented by Tagger. You can find it at
+https://youtu.be/CBbfZqLDL3o
+
 ### Caching images locally
 
 Tagger allow administrators to Tag and cache images locally within the cluster. You just need
