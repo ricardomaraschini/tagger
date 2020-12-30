@@ -9,6 +9,11 @@ by mapping their `tags` (such as `latest`) into their references by `hash`. Allo
 administrators to mirror these images internally if needed and provides integration with
 docker and quay webhooks.
 
+### TLDR
+
+I have recorded a presentation (hands on) about the features implemented by Tagger. You can
+find it at https://youtu.be/CBbfZqLDL3o, check it out.
+
 ### About
 
 Images in remote repositories are tagged using a string (e.g. `latest`), these tags are not
@@ -23,11 +28,6 @@ its hash as well, such as `centos@sha256:012345...`.
 Every time one Tags an image Tagger creates a new generation for that image, making it easier
 to downgrade to previously tagged versions in case of issues with the new generation. It also
 allows users to mirror these images to an internal registry.
-
-### TLDR
-
-I have recorded a presentation on the features implemented by Tagger. You can find it at
-https://youtu.be/CBbfZqLDL3o
 
 ### Caching images locally
 
@@ -96,11 +96,6 @@ Two things are different here, the first one is a special annotation (`image-tag
 this annotation informs Tagger that this Deployment leverages Tags and need to be processed.
 The second difference here is the `image` property for the container, if it points to a Tag
 it is going to be translated properly, both Tag and Deployment belong in the same namespace.
-
-Follows a brief hands on presentation of this feature:
-
-[![asciicast](https://asciinema.org/a/372131.png)](https://asciinema.org/a/372131)
-
 
 ### Tag structure
 
