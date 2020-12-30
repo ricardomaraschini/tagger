@@ -9,6 +9,7 @@ Tagger keeps references to externally hosted Docker images internally in a Kuber
 by mapping their `tags` (such as `latest`) into their references by `hash`. Allow Kubernetes
 administrators to mirror these images internally if needed and provides integration with
 docker and quay webhooks.
+</div>
 
 ### About
 
@@ -240,4 +241,3 @@ $ kubectl delete -f ./manifests/04_webhook.yaml
 ```
 
 I am still working on a workaround for this caveat.
-</div>
