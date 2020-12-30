@@ -26,7 +26,7 @@ allows users to mirror these images to an internal registry.
 
 ### TLDR
 
-I have recorder a presentation on the features implemented by Tagger. You can find it at
+I have recorded a presentation on the features implemented by Tagger. You can find it at
 https://youtu.be/CBbfZqLDL3o
 
 ### Caching images locally
