@@ -209,3 +209,68 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 
 	return nil
 }
+
+// Upgrade increments the expected (spec) generation for a tag. This function updates
+// the object through the kubernetes api.
+func (t *Tag) Upgrade(
+	ctx context.Context, namespace string, name string,
+) (*imagtagv1.Tag, error) {
+	it, err := t.tagcli.ImagesV1().Tags(namespace).Get(
+		ctx, name, metav1.GetOptions{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	it.Spec.Generation++
+
+	return t.tagcli.ImagesV1().Tags(namespace).Update(
+		ctx, it, metav1.UpdateOptions{},
+	)
+}
+
+// Downgrade increments the expected (spec) generation for a tag. This function
+// updates the object through the kubernetes api.
+func (t *Tag) Downgrade(
+	ctx context.Context, namespace string, name string,
+) (*imagtagv1.Tag, error) {
+	it, err := t.tagcli.ImagesV1().Tags(namespace).Get(
+		context.Background(), name, metav1.GetOptions{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	it.Spec.Generation--
+	if !it.SpecTagImported() {
+		return nil, fmt.Errorf("unable to downgrade, currently at oldest generation")
+	}
+
+	return t.tagcli.ImagesV1().Tags(namespace).Update(
+		context.Background(), it, metav1.UpdateOptions{},
+	)
+}
+
+// NextGeneration creates a new generation for a tag. The new generation is set
+// to 'last import generation + 1'. If no generation was imported then the next
+// generation is zero.
+func (t *Tag) NextGeneration(
+	ctx context.Context, namespace string, name string,
+) (*imagtagv1.Tag, error) {
+	tag, err := t.tagcli.ImagesV1().Tags(namespace).Get(
+		ctx, name, metav1.GetOptions{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	nextGen := int64(0)
+	if len(tag.Status.References) > 0 {
+		nextGen = tag.Status.References[0].Generation + 1
+	}
+	tag.Spec.Generation = nextGen
+
+	return t.tagcli.ImagesV1().Tags(namespace).Update(
+		ctx, tag, metav1.UpdateOptions{},
+	)
+}
