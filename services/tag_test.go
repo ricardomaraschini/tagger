@@ -651,3 +651,87 @@ func TestNewGenerationForImageRef(t *testing.T) {
 		})
 	}
 }
+
+func TestUpgrade(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		tagName      string
+		tagNamespace string
+		expgen       int64
+		err          string
+		tagObjects   []runtime.Object
+	}{
+		{
+			name:         "no tags",
+			tagName:      "atag",
+			tagNamespace: "atagnamespace",
+			err:          "not found",
+		},
+		{
+			name:         "tag pending import",
+			tagName:      "atag",
+			tagNamespace: "atagnamespace",
+			err:          "pending tag import",
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "atag",
+						Namespace: "atagnamespace",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+					},
+				},
+			},
+		},
+		{
+			name:         "happy path",
+			tagName:      "atag",
+			tagNamespace: "atagnamespace",
+			expgen:       3,
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "atag",
+						Namespace: "atagnamespace",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 2,
+							},
+						},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
+
+			svc := NewTag(nil, tagcli, nil, nil, nil, nil, nil)
+			it, err := svc.Upgrade(ctx, tt.tagNamespace, tt.tagName)
+			if err != nil {
+				if len(tt.err) == 0 {
+					t.Errorf("unexpected error: %s", err)
+				} else if !strings.Contains(err.Error(), tt.err) {
+					t.Errorf("expecting %q, %q received instead", tt.err, err)
+				}
+			} else if len(tt.err) > 0 {
+				t.Errorf("expecting error %q, nil received instead", tt.err)
+			}
+
+			if len(tt.err) == 0 {
+				if it.Spec.Generation != tt.expgen {
+					t.Errorf("unexpected gen: %v", it.Spec.Generation)
+				}
+			}
+		})
+	}
+}
