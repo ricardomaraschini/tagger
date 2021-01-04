@@ -74,9 +74,7 @@ func main() {
 	deplis := corinf.Apps().V1().Deployments().Lister()
 
 	depsvc := services.NewDeployment(corcli, deplis, taglis)
-	syssvc := services.NewSysContext(cnflis, seclis)
-	impsvc := services.NewImporter(syssvc)
-	tagsvc := services.NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
+	tagsvc := services.NewTag(corcli, tagcli, taglis, replis, deplis, cnflis, seclis)
 	itctrl := controllers.NewTag(taginf, tagsvc, 10)
 	mtctrl := controllers.NewMutatingWebHook(tagsvc)
 	qyctrl := controllers.NewQuayWebHook(tagsvc)

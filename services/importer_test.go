@@ -63,7 +63,7 @@ func TestSplitRegistryDomain(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			imp := NewImporter(nil)
+			imp := NewImporter(nil, nil)
 			reg, img := imp.SplitRegistryDomain(tt.input)
 			if reg != tt.reg {
 				t.Errorf("expecting registry %q, received %q", tt.reg, reg)
@@ -148,10 +148,11 @@ func TestImportPath(t *testing.T) {
 			seclis := corinf.Core().V1().Secrets().Lister()
 			cmlist := corinf.Core().V1().ConfigMaps().Lister()
 
-			sysctx := NewSysContext(cmlist, seclis)
-			sysctx.unqualifiedRegistries = tt.unqreg
+			//sysctx := NewSysContext(cmlist, seclis)
+			//sysctx.unqualifiedRegistries = tt.unqreg
 
-			imp := NewImporter(sysctx)
+			imp := NewImporter(cmlist, seclis)
+			imp.syssvc.unqualifiedRegistries = tt.unqreg
 			_, err := imp.ImportTag(context.Background(), tt.tag)
 			if err != nil {
 				if len(tt.err) == 0 {
