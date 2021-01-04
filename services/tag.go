@@ -222,8 +222,11 @@ func (t *Tag) Upgrade(
 		return nil, err
 	}
 
-	it.Spec.Generation++
+	if !it.SpecTagImported() {
+		return nil, fmt.Errorf("pending tag import")
+	}
 
+	it.Spec.Generation++
 	return t.tagcli.ImagesV1().Tags(namespace).Update(
 		ctx, it, metav1.UpdateOptions{},
 	)
