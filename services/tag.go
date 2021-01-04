@@ -62,7 +62,7 @@ func (t *Tag) CurrentReferenceForTagByName(namespace, name string) (string, erro
 		}
 		return "", err
 	}
-	return TagWrapper{it}.CurrentReferenceForTag(), nil
+	return it.CurrentReferenceForTag(), nil
 }
 
 // PatchForPod creates and returns a json patch to be applied on top of a pod
@@ -136,8 +136,7 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 	var err error
 	var hashref imagtagv1.HashReference
 
-	tw := TagWrapper{it}
-	alreadyImported := tw.SpecTagImported()
+	alreadyImported := it.SpecTagImported()
 	if !alreadyImported {
 		klog.Infof("tag %s/%s needs import, importing...", it.Namespace, it.Name)
 
@@ -146,7 +145,7 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 			// if we fail to import the tag we need to record the failure on tag's
 			// status and update it. If we fail to update the tag we only log,
 			// returning the original error.
-			tw.RegisterImportFailure(err)
+			it.RegisterImportFailure(err)
 			if _, err := t.tagcli.ImagesV1().Tags(it.Namespace).Update(
 				ctx, it, metav1.UpdateOptions{},
 			); err != nil {
@@ -154,8 +153,8 @@ func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
 			}
 			return fmt.Errorf("fail import %s/%s: %w", it.Namespace, it.Name, err)
 		}
-		tw.RegisterImportSuccess()
-		tw.PrependHashReference(hashref)
+		it.RegisterImportSuccess()
+		it.PrependHashReference(hashref)
 
 		klog.Infof("tag %s/%s imported.", it.Namespace, it.Name)
 	}
