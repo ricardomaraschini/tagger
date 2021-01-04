@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
+	corelister "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/mattbaird/jsonpatch"
@@ -37,14 +38,15 @@ func NewTag(
 	taglis taglist.TagLister,
 	replis aplist.ReplicaSetLister,
 	deplis aplist.DeploymentLister,
-	impsvc *Importer,
+	cmlister corelister.ConfigMapLister,
+	sclister corelister.SecretLister,
 ) *Tag {
 	return &Tag{
 		tagcli: tagcli,
 		taglis: taglis,
 		replis: replis,
 		deplis: deplis,
-		impsvc: impsvc,
+		impsvc: NewImporter(cmlister, sclister),
 		depsvc: NewDeployment(corcli, deplis, taglis),
 	}
 }

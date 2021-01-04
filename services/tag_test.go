@@ -107,7 +107,7 @@ func TestCurrentReferenceForTagByName(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			svc := NewTag(nil, nil, taglis, nil, nil, nil)
+			svc := NewTag(nil, nil, taglis, nil, nil, nil, nil)
 			ref, err := svc.CurrentReferenceForTagByName("default", tt.itname)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -309,7 +309,7 @@ func TestPatchForPod(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			svc := NewTag(nil, nil, taglis, rslist, nil, nil)
+			svc := NewTag(nil, nil, taglis, rslist, nil, nil, nil)
 			patch, err := svc.PatchForPod(tt.pod)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -419,9 +419,7 @@ func TestUpdate(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			syssvc := NewSysContext(cmlist, seclis)
-			impsvc := NewImporter(syssvc)
-			svc := NewTag(corcli, tagcli, taglis, replis, deplis, impsvc)
+			svc := NewTag(corcli, tagcli, taglis, replis, deplis, cmlist, seclis)
 
 			err := svc.Update(ctx, tt.tag)
 			if err != nil {
