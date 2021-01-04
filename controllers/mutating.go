@@ -19,7 +19,6 @@ import (
 	"github.com/mattbaird/jsonpatch"
 
 	imgtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
-	"github.com/ricardomaraschini/tagger/services"
 )
 
 // PodPatcher creates a patch for a pod resource, possibly overwritting
@@ -144,8 +143,7 @@ func (m *MutatingWebHook) tag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tw := services.TagWrapper{Tag: &tag}
-	if err := tw.ValidateTagGeneration(); err != nil {
+	if err := tag.ValidateTagGeneration(); err != nil {
 		m.responseError(w, reviewReq, err)
 		return
 	}

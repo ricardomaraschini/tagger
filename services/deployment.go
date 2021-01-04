@@ -98,7 +98,7 @@ func (d *Deployment) Update(ctx context.Context, dep *appsv1.Deployment) error {
 			return err
 		}
 
-		ref := TagWrapper{it}.CurrentReferenceForTag()
+		ref := it.CurrentReferenceForTag()
 		if ref == "" {
 			continue
 		}
