@@ -447,3 +447,207 @@ func TestUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestNewGenerationForImageRef(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		imgpath    string
+		expgens    []int64
+		err        string
+		tagObjects []runtime.Object
+	}{
+		{
+			name:    "no tags",
+			imgpath: "quay.io/repo/image:latest",
+		},
+		{
+			name:    "tag not imported yet",
+			imgpath: "quay.io/repo/image:latest",
+			expgens: []int64{2},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "namespace",
+						Name:      "name",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+						From:       "quay.io/repo/image:latest",
+					},
+				},
+			},
+		},
+		{
+			name:    "happy path",
+			imgpath: "quay.io/repo/image:latest",
+			expgens: []int64{3},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "namespace",
+						Name:      "name",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+						From:       "quay.io/repo/image:latest",
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 2,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "tags in different namespaces",
+			imgpath: "quay.io/repo/image:latest",
+			expgens: []int64{3, 4},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "a_namespace",
+						Name:      "a_name",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+						From:       "quay.io/repo/image:latest",
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 2,
+							},
+						},
+					},
+				},
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "b_namespace",
+						Name:      "b_name",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 3,
+						From:       "quay.io/repo/image:latest",
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 3,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "tag not using imgpath",
+			imgpath: "quay.io/repo/image:latest",
+			expgens: []int64{2, 4},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "a_namespace",
+						Name:      "a_name",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+						From:       "quay.io/repo2/image:latest",
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 2,
+							},
+						},
+					},
+				},
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "b_namespace",
+						Name:      "b_name",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 3,
+						From:       "quay.io/repo/image:latest",
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 3,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "tag generation not imported yet",
+			imgpath: "quay.io/repo/image:latest",
+			expgens: []int64{2},
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "a_namespace",
+						Name:      "a_name",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+						From:       "quay.io/repo/image:latest",
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 1,
+							},
+						},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
+			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
+			taglis := taginf.Images().V1().Tags().Lister()
+
+			taginf.Start(ctx.Done())
+			if !cache.WaitForCacheSync(
+				ctx.Done(),
+				taginf.Images().V1().Tags().Informer().HasSynced,
+			) {
+				t.Fatal("errors waiting for caches to sync")
+			}
+
+			tag := NewTag(nil, tagcli, taglis, nil, nil, nil, nil)
+			err := tag.NewGenerationForImageRef(ctx, tt.imgpath)
+			if err != nil {
+				if len(tt.err) == 0 {
+					t.Errorf("unexpected error: %s", err)
+				} else if !strings.Contains(err.Error(), tt.err) {
+					t.Errorf("expecting %q, %q received instead", tt.err, err)
+				}
+			} else if len(tt.err) > 0 {
+				t.Errorf("expecting error %q, nil received instead", tt.err)
+			}
+
+			for i, obj := range tt.tagObjects {
+				tag := obj.(*imagtagv1.Tag)
+				if tag, err = tagcli.ImagesV1().Tags(tag.Namespace).Get(
+					ctx, tag.Name, metav1.GetOptions{},
+				); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				if !reflect.DeepEqual(tag.Spec.Generation, tt.expgens[i]) {
+					t.Errorf("unexpected gen for %+v", tag)
+				}
+			}
+		})
+	}
+}
