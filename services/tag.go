@@ -22,7 +22,6 @@ import (
 
 // Tag gather all actions related to image tag objects.
 type Tag struct {
-	corcli corecli.Interface
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
 	replis aplist.ReplicaSetLister
@@ -41,7 +40,6 @@ func NewTag(
 	impsvc *Importer,
 ) *Tag {
 	return &Tag{
-		corcli: corcli,
 		tagcli: tagcli,
 		taglis: taglis,
 		replis: replis,
