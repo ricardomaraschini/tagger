@@ -251,10 +251,10 @@ func (t *Tag) Downgrade(
 	)
 }
 
-// NextGeneration creates a new generation for a tag. The new generation is set
+// NewGeneration creates a new generation for a tag. The new generation is set
 // to 'last import generation + 1'. If no generation was imported then the next
 // generation is zero.
-func (t *Tag) NextGeneration(
+func (t *Tag) NewGeneration(
 	ctx context.Context, namespace string, name string,
 ) (*imagtagv1.Tag, error) {
 	tag, err := t.tagcli.ImagesV1().Tags(namespace).Get(
