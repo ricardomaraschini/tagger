@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -15,6 +17,83 @@ type Tag struct {
 
 	Status TagStatus `json:"status,omitempty"`
 	Spec   TagSpec   `json:"spec,omitempty"`
+}
+
+// CurrentReferenceForTag looks through provided tag and returns the ref
+// in use. Image tag generation in status points to the current generation,
+// if this generation does not exist then we haven't imported it yet,
+// return an empty string instead.
+func (t *Tag) CurrentReferenceForTag() string {
+	for _, hashref := range t.Status.References {
+		if hashref.Generation != t.Status.Generation {
+			continue
+		}
+		return hashref.ImageReference
+	}
+	return ""
+}
+
+// SpecTagImported returs true if tag generation defined on spec has
+// already been imported (exists in status.References).
+func (t *Tag) SpecTagImported() bool {
+	for _, hashref := range t.Status.References {
+		if hashref.Generation != t.Spec.Generation {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// ValidateTagGeneration checks if tag's spec information is valid. Generation
+// may be set to any already imported generation or to a new one (last imported
+// generation + 1).
+func (t *Tag) ValidateTagGeneration() error {
+	validGens := []int64{0}
+	if len(t.Status.References) > 0 {
+		validGens = []int64{t.Status.References[0].Generation + 1}
+		for _, ref := range t.Status.References {
+			validGens = append(validGens, ref.Generation)
+		}
+	}
+	for _, gen := range validGens {
+		if gen != t.Spec.Generation {
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("generation must be one of: %s", fmt.Sprint(validGens))
+}
+
+// PrependHashReference prepends ref into tag's HashReference slice. The resulting
+// slice contains at most 5 references.
+func (t *Tag) PrependHashReference(ref HashReference) {
+	newRefs := []HashReference{ref}
+	newRefs = append(newRefs, t.Status.References...)
+	// TODO make this value (5) configurable.
+	if len(newRefs) > 5 {
+		newRefs = newRefs[:5]
+	}
+	t.Status.References = newRefs
+}
+
+// RegisterImportFailure updates the last import attempt struct in Tag status, setting
+// it as not succeeded and with the proper error message.
+func (t *Tag) RegisterImportFailure(err error) {
+	t.Status.LastImportAttempt = ImportAttempt{
+		When:    metav1.Now(),
+		Succeed: false,
+		Reason:  err.Error(),
+	}
+}
+
+// RegisterImportSuccess updates the last import attempt struct in Tag status, setting
+// it as succeeded.
+func (t *Tag) RegisterImportSuccess() {
+	t.Status.LastImportAttempt = ImportAttempt{
+		When:    metav1.Now(),
+		Succeed: true,
+	}
 }
 
 // TagSpec represents the user intention with regards to tagging
