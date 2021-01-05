@@ -26,7 +26,7 @@ func init() {
 				Help:    "Duration of a tag import",
 				Buckets: []float64{1, 2, 3, 5, 8, 10, 30, 60, 90, 120, 150, 180},
 			},
-			[]string{"cache", "nocache"},
+			[]string{"cached"},
 		),
 	}
 	prometheus.MustRegister(
@@ -63,9 +63,9 @@ func (m *Metric) ReportImportSuccess() {
 
 // ReportImportTime registers a new import duration on a prometheus metric.
 func (m *Metric) ReportImportTime(dur time.Duration, cached bool) {
-	lbl := "nocache"
+	cachedstr := "no"
 	if cached {
-		lbl = "cache"
+		cachedstr = "yes"
 	}
-	m.impdura.WithLabelValues(lbl).Observe(dur.Seconds())
+	m.impdura.WithLabelValues(cachedstr).Observe(dur.Seconds())
 }
