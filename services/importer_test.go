@@ -63,7 +63,9 @@ func TestSplitRegistryDomain(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			imp := &Importer{}
+			imp := &Importer{
+				metric: GetMetrics(),
+			}
 			reg, img := imp.SplitRegistryDomain(tt.input)
 			if reg != tt.reg {
 				t.Errorf("expecting registry %q, received %q", tt.reg, reg)
@@ -148,6 +150,7 @@ func TestImportPath(t *testing.T) {
 
 			imp := &Importer{
 				syssvc: NewSysContext(corinf),
+				metric: GetMetrics(),
 			}
 			imp.syssvc.unqualifiedRegistries = tt.unqreg
 			_, err := imp.ImportTag(context.Background(), tt.tag)
