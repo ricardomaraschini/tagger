@@ -29,7 +29,11 @@ func init() {
 			[]string{"cache", "nocache"},
 		),
 	}
-	prometheus.MustRegister(metric.impfail)
+	prometheus.MustRegister(
+		metric.impfail,
+		metric.impsucc,
+		metric.impdura,
+	)
 }
 
 // metric holds a singleton of a Metric instance.
