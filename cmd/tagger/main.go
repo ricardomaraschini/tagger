@@ -54,27 +54,22 @@ func main() {
 		klog.Fatalf("unable to read kubeconfig: %v", err)
 	}
 
-	// creates image tag client, informer and lister.
+	// creates tag client and informer.
 	tagcli, err := itagcli.NewForConfig(config)
 	if err != nil {
 		log.Fatalf("unable to create image tag client: %v", err)
 	}
 	taginf := itaginf.NewSharedInformerFactory(tagcli, time.Minute)
-	taglis := taginf.Images().V1().Tags().Lister()
 
-	// creates core client, informer and lister.
+	// creates core client and informer.
 	corcli, err := corecli.NewForConfig(config)
 	if err != nil {
 		log.Fatalf("unable to create core client: %v", err)
 	}
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
-	cnflis := corinf.Core().V1().ConfigMaps().Lister()
-	seclis := corinf.Core().V1().Secrets().Lister()
-	replis := corinf.Apps().V1().ReplicaSets().Lister()
-	deplis := corinf.Apps().V1().Deployments().Lister()
 
-	depsvc := services.NewDeployment(corcli, deplis, taglis)
-	tagsvc := services.NewTag(corcli, tagcli, taglis, replis, deplis, cnflis, seclis)
+	depsvc := services.NewDeployment(corcli, corinf, taginf)
+	tagsvc := services.NewTag(corcli, corinf, tagcli, taginf)
 	itctrl := controllers.NewTag(taginf, tagsvc, 10)
 	mtctrl := controllers.NewMutatingWebHook(tagsvc)
 	qyctrl := controllers.NewQuayWebHook(tagsvc)

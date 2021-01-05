@@ -27,7 +27,7 @@ var tagupgrade = &cobra.Command{
 			return err
 		}
 
-		svc := services.NewTag(nil, cli, nil, nil, nil, nil, nil)
+		svc := services.NewTag(nil, nil, cli, nil)
 		it, err := svc.Upgrade(context.Background(), ns, args[0])
 		if err != nil {
 			return err

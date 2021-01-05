@@ -8,6 +8,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/informers"
 	corelister "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
@@ -82,12 +83,10 @@ type SysContext struct {
 }
 
 // NewSysContext returns a new SysContext helper.
-func NewSysContext(
-	cmlister corelister.ConfigMapLister, sclister corelister.SecretLister,
-) *SysContext {
+func NewSysContext(corinf informers.SharedInformerFactory) *SysContext {
 	return &SysContext{
-		sclister:              sclister,
-		cmlister:              cmlister,
+		sclister:              corinf.Core().V1().Secrets().Lister(),
+		cmlister:              corinf.Core().V1().ConfigMaps().Lister(),
 		unqualifiedRegistries: []string{"docker.io"},
 	}
 }

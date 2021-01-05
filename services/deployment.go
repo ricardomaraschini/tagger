@@ -7,9 +7,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/informers"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
 
+	"github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
 	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
@@ -24,13 +26,13 @@ type Deployment struct {
 // NewDeployment returns a handler for all deployment related services.
 func NewDeployment(
 	corcli corecli.Interface,
-	deplis aplist.DeploymentLister,
-	taglis taglist.TagLister,
+	corinf informers.SharedInformerFactory,
+	taginf externalversions.SharedInformerFactory,
 ) *Deployment {
 	return &Deployment{
 		corcli: corcli,
-		deplis: deplis,
-		taglis: taglis,
+		deplis: corinf.Apps().V1().Deployments().Lister(),
+		taglis: taginf.Images().V1().Tags().Lister(),
 	}
 }
 

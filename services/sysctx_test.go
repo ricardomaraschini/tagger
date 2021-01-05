@@ -19,16 +19,6 @@ import (
 	"github.com/containers/image/v5/types"
 )
 
-func TestUnqualifiedRegistries(t *testing.T) {
-	unq := NewSysContext(nil, nil).UnqualifiedRegistries(context.Background())
-	if len(unq) != 1 {
-		t.Fatal("expecting only one unqualified registry")
-	}
-	if unq[0] != "docker.io" {
-		t.Fatalf("expecting registry docker.io, received %s instead", unq[0])
-	}
-}
-
 func TestAuthsFor(t *testing.T) {
 	auths, _ := json.Marshal(
 		dockerAuthConfig{
@@ -166,8 +156,9 @@ func TestAuthsFor(t *testing.T) {
 
 			fakecli := fake.NewSimpleClientset(tt.objects...)
 			informer := coreinf.NewSharedInformerFactory(fakecli, time.Minute)
-			seclis := informer.Core().V1().Secrets().Lister()
-			cmlist := informer.Core().V1().ConfigMaps().Lister()
+
+			sysctx := NewSysContext(informer)
+
 			informer.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
@@ -179,7 +170,6 @@ func TestAuthsFor(t *testing.T) {
 
 			ref, _ := reference.ParseDockerRef(tt.image)
 			imgref, _ := docker.NewReference(ref)
-			sysctx := NewSysContext(cmlist, seclis)
 
 			auths, err := sysctx.AuthsFor(ctx, imgref, "default")
 			if err != nil {
