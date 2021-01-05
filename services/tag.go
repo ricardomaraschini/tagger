@@ -9,14 +9,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/informers"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
-	corelister "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/mattbaird/jsonpatch"
 
 	tagclient "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
+	taginform "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
 	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
@@ -34,20 +35,20 @@ type Tag struct {
 // NewTag returns a handler for all image tag related services.
 func NewTag(
 	corcli corecli.Interface,
+	corinf informers.SharedInformerFactory,
 	tagcli tagclient.Interface,
-	taglis taglist.TagLister,
-	replis aplist.ReplicaSetLister,
-	deplis aplist.DeploymentLister,
-	cmlister corelister.ConfigMapLister,
-	sclister corelister.SecretLister,
+	taginf taginform.SharedInformerFactory,
 ) *Tag {
+	replis := corinf.Apps().V1().ReplicaSets().Lister()
+	deplis := corinf.Apps().V1().Deployments().Lister()
+	taglis := taginf.Images().V1().Tags().Lister()
 	return &Tag{
 		tagcli: tagcli,
 		taglis: taglis,
 		replis: replis,
 		deplis: deplis,
-		impsvc: NewImporter(cmlister, sclister),
-		depsvc: NewDeployment(corcli, deplis, taglis),
+		impsvc: NewImporter(corinf),
+		depsvc: NewDeployment(corcli, corinf, taginf),
 	}
 }
 

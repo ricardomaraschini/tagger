@@ -107,7 +107,7 @@ func TestCurrentReferenceForTagByName(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			svc := NewTag(nil, nil, taglis, nil, nil, nil, nil)
+			svc := &Tag{taglis: taglis}
 			ref, err := svc.CurrentReferenceForTagByName("default", tt.itname)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -297,7 +297,7 @@ func TestPatchForPod(t *testing.T) {
 
 			corcli := corfake.NewSimpleClientset(tt.replicas...)
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
-			rslist := corinf.Apps().V1().ReplicaSets().Lister()
+			replis := corinf.Apps().V1().ReplicaSets().Lister()
 
 			taginf.Start(ctx.Done())
 			corinf.Start(ctx.Done())
@@ -309,7 +309,10 @@ func TestPatchForPod(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			svc := NewTag(nil, nil, taglis, rslist, nil, nil, nil)
+			svc := &Tag{
+				taglis: taglis,
+				replis: replis,
+			}
 			patch, err := svc.PatchForPod(tt.pod)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -397,14 +400,11 @@ func TestUpdate(t *testing.T) {
 
 			corcli := corfake.NewSimpleClientset(tt.corObjects...)
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
-			cmlist := corinf.Core().V1().ConfigMaps().Lister()
-			seclis := corinf.Core().V1().Secrets().Lister()
-			replis := corinf.Apps().V1().ReplicaSets().Lister()
-			deplis := corinf.Apps().V1().Deployments().Lister()
 
 			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
 			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
-			taglis := taginf.Images().V1().Tags().Lister()
+
+			svc := NewTag(corcli, corinf, tagcli, taginf)
 
 			corinf.Start(ctx.Done())
 			taginf.Start(ctx.Done())
@@ -418,8 +418,6 @@ func TestUpdate(t *testing.T) {
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}
-
-			svc := NewTag(corcli, tagcli, taglis, replis, deplis, cmlist, seclis)
 
 			err := svc.Update(ctx, tt.tag)
 			if err != nil {
@@ -624,7 +622,10 @@ func TestNewGenerationForImageRef(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			tag := NewTag(nil, tagcli, taglis, nil, nil, nil, nil)
+			tag := &Tag{
+				tagcli: tagcli,
+				taglis: taglis,
+			}
 			err := tag.NewGenerationForImageRef(ctx, tt.imgpath)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -715,7 +716,7 @@ func TestUpgrade(t *testing.T) {
 
 			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
 
-			svc := NewTag(nil, tagcli, nil, nil, nil, nil, nil)
+			svc := &Tag{tagcli: tagcli}
 			it, err := svc.Upgrade(ctx, tt.tagNamespace, tt.tagName)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -802,7 +803,7 @@ func TestDowngrade(t *testing.T) {
 
 			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
 
-			svc := NewTag(nil, tagcli, nil, nil, nil, nil, nil)
+			svc := &Tag{tagcli: tagcli}
 			it, err := svc.Downgrade(ctx, tt.tagNamespace, tt.tagName)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -889,7 +890,7 @@ func TestNewGeneration(t *testing.T) {
 
 			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
 
-			svc := NewTag(nil, tagcli, nil, nil, nil, nil, nil)
+			svc := &Tag{tagcli: tagcli}
 			it, err := svc.NewGeneration(ctx, tt.tagNamespace, tt.tagName)
 			if err != nil {
 				if len(tt.err) == 0 {
