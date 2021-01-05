@@ -8,7 +8,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corelister "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/informers"
 
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/docker"
@@ -27,11 +27,9 @@ type Importer struct {
 }
 
 // NewImporter returns a handler for tag related services.
-func NewImporter(
-	cmlister corelister.ConfigMapLister, sclister corelister.SecretLister,
-) *Importer {
+func NewImporter(corinf informers.SharedInformerFactory) *Importer {
 	return &Importer{
-		syssvc: NewSysContext(cmlister, sclister),
+		syssvc: NewSysContext(corinf),
 	}
 }
 
