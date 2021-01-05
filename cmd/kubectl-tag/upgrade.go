@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"github.com/ricardomaraschini/tagger/services"
 	"github.com/spf13/cobra"
 )
 
@@ -28,22 +27,13 @@ var tagupgrade = &cobra.Command{
 			return err
 		}
 
-		tag, err := cli.ImagesV1().Tags(ns).Get(
-			context.Background(), args[0], metav1.GetOptions{},
-		)
+		svc := services.NewTag(nil, cli, nil, nil, nil, nil, nil)
+		it, err := svc.Upgrade(context.Background(), ns, args[0])
 		if err != nil {
 			return err
 		}
 
-		tag.Spec.Generation++
-
-		if tag, err = cli.ImagesV1().Tags(ns).Update(
-			context.Background(), tag, metav1.UpdateOptions{},
-		); err != nil {
-			log.Fatalf("error updating tag: %s", err)
-		}
-
-		log.Printf("tag %s upgraded (gen %d)", args[0], tag.Spec.Generation)
+		log.Printf("tag %s upgraded (gen %d)", args[0], it.Spec.Generation)
 		return nil
 	},
 }
