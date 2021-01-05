@@ -24,12 +24,14 @@ import (
 // Importer wrap srvices for tag import related operations.
 type Importer struct {
 	syssvc *SysContext
+	metric *Metric
 }
 
 // NewImporter returns a handler for tag related services.
 func NewImporter(corinf informers.SharedInformerFactory) *Importer {
 	return &Importer{
 		syssvc: NewSysContext(corinf),
+		metric: GetMetrics(),
 	}
 }
 
@@ -120,8 +122,11 @@ func (i *Importer) cacheTag(
 func (i *Importer) ImportTag(
 	ctx context.Context, it *imagtagv1.Tag,
 ) (imagtagv1.HashReference, error) {
+	start := time.Now()
+
 	var zero imagtagv1.HashReference
 	if it.Spec.From == "" {
+		i.metric.ReportImportFailure()
 		return zero, fmt.Errorf("empty tag reference")
 	}
 
@@ -132,6 +137,7 @@ func (i *Importer) ImportTag(
 		registries = []string{regDomain}
 	}
 	if len(registries) == 0 {
+		i.metric.ReportImportFailure()
 		return zero, fmt.Errorf("no registry candidates found")
 	}
 
@@ -181,6 +187,7 @@ func (i *Importer) ImportTag(
 
 			dgst, err := manifest.Digest(manifestBlob)
 			if err != nil {
+				i.metric.ReportImportFailure()
 				return zero, fmt.Errorf("error calculating digest: %w", err)
 			}
 
@@ -188,9 +195,13 @@ func (i *Importer) ImportTag(
 			if it.Spec.Cache {
 				imageref, err = i.cacheTag(ctx, it, imageref, sysctx)
 				if err != nil {
+					i.metric.ReportImportFailure()
 					return zero, fmt.Errorf("unable to cache image: %w", err)
 				}
 			}
+
+			i.metric.ReportImportSuccess()
+			i.metric.ReportImportTime(time.Since(start), it.Spec.Cache)
 
 			return imagtagv1.HashReference{
 				Generation:     it.Spec.Generation,
