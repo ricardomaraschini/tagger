@@ -75,6 +75,7 @@ func main() {
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)
 	dpctrl := controllers.NewDeployment(corinf, depsvc)
+	moctrl := controllers.NewMetric()
 
 	// starts up all informers and waits for their cache to sync
 	// up, only then we start the operators i.e. start to process
@@ -95,7 +96,7 @@ func main() {
 	klog.Info("caches in sync, moving on.")
 
 	var wg sync.WaitGroup
-	ctrls := []Controller{mtctrl, qyctrl, dkctrl, dpctrl, itctrl}
+	ctrls := []Controller{mtctrl, qyctrl, dkctrl, dpctrl, itctrl, moctrl}
 	for _, ctrl := range ctrls {
 		wg.Add(1)
 		go func(c Controller) {
