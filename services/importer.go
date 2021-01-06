@@ -31,7 +31,7 @@ type Importer struct {
 func NewImporter(corinf informers.SharedInformerFactory) *Importer {
 	return &Importer{
 		syssvc: NewSysContext(corinf),
-		metric: GetMetrics(),
+		metric: NewMetrics(),
 	}
 }
 
@@ -201,7 +201,7 @@ func (i *Importer) ImportTag(
 			}
 
 			i.metric.ReportImportSuccess()
-			i.metric.ReportImportTime(time.Since(start), it.Spec.Cache)
+			i.metric.ReportImportDuration(time.Since(start), it.Spec.Cache)
 
 			return imagtagv1.HashReference{
 				Generation:     it.Spec.Generation,

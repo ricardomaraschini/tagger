@@ -15,6 +15,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+type mtrsvc struct{}
+
+func (m mtrsvc) ReportWorker(bool) {}
+
 type tagsvc struct {
 	sync.Mutex
 	db    map[string]*imagtagv1.Tag
@@ -56,7 +60,8 @@ func TestTagCreated(t *testing.T) {
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{}
 
-	ctrl := NewTag(taginf, svc, 1)
+	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(
@@ -115,7 +120,8 @@ func TestTagUpdated(t *testing.T) {
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{}
 
-	ctrl := NewTag(taginf, svc, 1)
+	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(
@@ -190,7 +196,8 @@ func TestTagParallel(t *testing.T) {
 		delay: 3 * time.Second,
 	}
 
-	ctrl := NewTag(taginf, svc, 5)
+	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl.tokens = make(chan bool, 5)
 	taginf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(
@@ -246,7 +253,8 @@ func TestTagDeleted(t *testing.T) {
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{}
 
-	ctrl := NewTag(taginf, svc, 1)
+	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(

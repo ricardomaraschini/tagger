@@ -70,7 +70,8 @@ func main() {
 
 	depsvc := services.NewDeployment(corcli, corinf, taginf)
 	tagsvc := services.NewTag(corcli, corinf, tagcli, taginf)
-	itctrl := controllers.NewTag(taginf, tagsvc, 10)
+	mtrsvc := services.NewMetrics()
+	itctrl := controllers.NewTag(taginf, tagsvc, mtrsvc)
 	mtctrl := controllers.NewMutatingWebHook(tagsvc)
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)

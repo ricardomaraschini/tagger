@@ -21,6 +21,12 @@ type TagUpdater interface {
 	Update(context.Context, *imagtagv1.Tag) error
 }
 
+// MetricReporter abstraction exists to make tests easier. You might be looking
+// for its concrete implementation on services/metrics.go.
+type MetricReporter interface {
+	ReportWorker(bool)
+}
+
 // Tag controller handles events related to Tags. It starts and receives events
 // from the informer, calling appropriate functions on our concrete services
 // layer implementation.
@@ -28,6 +34,7 @@ type Tag struct {
 	taglister imagelis.TagLister
 	queue     workqueue.RateLimitingInterface
 	tagsvc    TagUpdater
+	mtrsvc    MetricReporter
 	appctx    context.Context
 	tokens    chan bool
 }
@@ -36,14 +43,17 @@ type Tag struct {
 // tag imports in parallel, at a given time we can have at max "workers"
 // distinct image tags being processed.
 func NewTag(
-	taginf imageinf.SharedInformerFactory, tagsvc TagUpdater, workers int,
+	taginf imageinf.SharedInformerFactory,
+	tagsvc TagUpdater,
+	mtrsvc MetricReporter,
 ) *Tag {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
 	ctrl := &Tag{
 		taglister: taginf.Images().V1().Tags().Lister(),
 		queue:     workqueue.NewRateLimitingQueue(ratelimit),
 		tagsvc:    tagsvc,
-		tokens:    make(chan bool, workers),
+		mtrsvc:    mtrsvc,
+		tokens:    make(chan bool, 10),
 	}
 	taginf.Images().V1().Tags().Informer().AddEventHandler(ctrl.handlers())
 	return ctrl
@@ -95,7 +105,9 @@ func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 		go func() {
 			defer func() {
 				<-t.tokens
+				t.mtrsvc.ReportWorker(false)
 			}()
+			t.mtrsvc.ReportWorker(true)
 
 			namespace, name, err := cache.SplitMetaNamespaceKey(evt.(string))
 			if err != nil {
