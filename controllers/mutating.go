@@ -250,10 +250,12 @@ func (m *MutatingWebHook) pod(w http.ResponseWriter, r *http.Request) {
 // deploys (Deployments and Pods) are set to deploy() handler while
 // image tag resources are managed by tag() handler.
 func (m *MutatingWebHook) Start(ctx context.Context) error {
-	http.HandleFunc("/pod", m.pod)
-	http.HandleFunc("/tag", m.tag)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/pod", m.pod)
+	mux.HandleFunc("/tag", m.tag)
 	server := &http.Server{
-		Addr: m.bind,
+		Addr:    m.bind,
+		Handler: mux,
 	}
 
 	go func() {
