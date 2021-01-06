@@ -64,7 +64,7 @@ func TestSplitRegistryDomain(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			imp := &Importer{
-				metric: GetMetrics(),
+				metric: NewMetrics(),
 			}
 			reg, img := imp.SplitRegistryDomain(tt.input)
 			if reg != tt.reg {
@@ -150,7 +150,7 @@ func TestImportPath(t *testing.T) {
 
 			imp := &Importer{
 				syssvc: NewSysContext(corinf),
-				metric: GetMetrics(),
+				metric: NewMetrics(),
 			}
 			imp.syssvc.unqualifiedRegistries = tt.unqreg
 			_, err := imp.ImportTag(context.Background(), tt.tag)

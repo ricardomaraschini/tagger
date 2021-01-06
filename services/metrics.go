@@ -28,11 +28,16 @@ func init() {
 			},
 			[]string{"cached"},
 		),
+		actwrkr: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "tag_current_active_workers",
+			Help: "Current number of active tag processing workers",
+		}),
 	}
 	prometheus.MustRegister(
 		metric.impfail,
 		metric.impsucc,
 		metric.impdura,
+		metric.actwrkr,
 	)
 }
 
@@ -44,10 +49,11 @@ type Metric struct {
 	impfail prometheus.Counter
 	impsucc prometheus.Counter
 	impdura *prometheus.HistogramVec
+	actwrkr prometheus.Gauge
 }
 
-// GetMetrics returns a singleton instance of Metric struct.
-func GetMetrics() *Metric {
+// NewMetrics returns a singleton instance of Metric struct.
+func NewMetrics() *Metric {
 	return metric
 }
 
@@ -61,11 +67,21 @@ func (m *Metric) ReportImportSuccess() {
 	m.impsucc.Inc()
 }
 
-// ReportImportTime registers a new import duration on a prometheus metric.
-func (m *Metric) ReportImportTime(dur time.Duration, cached bool) {
+// ReportImportDuration registers a new import duration on a prometheus metric.
+func (m *Metric) ReportImportDuration(dur time.Duration, cached bool) {
 	cachedstr := "no"
 	if cached {
 		cachedstr = "yes"
 	}
 	m.impdura.WithLabelValues(cachedstr).Observe(dur.Seconds())
+}
+
+// ReportWorker registers work activivy state. If active is true it means a running
+// worker is running, false means a worker finished its job.
+func (m *Metric) ReportWorker(active bool) {
+	if active {
+		m.actwrkr.Inc()
+		return
+	}
+	m.actwrkr.Dec()
 }
