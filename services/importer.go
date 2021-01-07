@@ -27,7 +27,10 @@ type Importer struct {
 	metric *Metric
 }
 
-// NewImporter returns a handler for tag related services.
+// NewImporter returns a handler for tag related services. I have chosen to go
+// with a lazy approach here, you can pass or omit (nil) the argument, it is
+// up to the caller to decide what is needed for each specific case. So far this
+// is the best approach, I still plan to review this.
 func NewImporter(corinf informers.SharedInformerFactory) *Importer {
 	return &Importer{
 		syssvc: NewSysContext(corinf),

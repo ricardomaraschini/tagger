@@ -32,16 +32,29 @@ type Tag struct {
 	depsvc *Deployment
 }
 
-// NewTag returns a handler for all image tag related services.
+// NewTag returns a handler for all image tag related services. I have chosen to
+// go with a lazy approach here, you can pass or omit (nil) any parameter, it is
+// up to the caller to decide what is needed for each specific case. So far this
+// is the best approach, I still plan to review this.
 func NewTag(
 	corcli corecli.Interface,
 	corinf informers.SharedInformerFactory,
 	tagcli tagclient.Interface,
 	taginf taginform.SharedInformerFactory,
 ) *Tag {
-	replis := corinf.Apps().V1().ReplicaSets().Lister()
-	deplis := corinf.Apps().V1().Deployments().Lister()
-	taglis := taginf.Images().V1().Tags().Lister()
+	var replis aplist.ReplicaSetLister
+	var deplis aplist.DeploymentLister
+	var taglis taglist.TagLister
+
+	if corinf != nil {
+		replis = corinf.Apps().V1().ReplicaSets().Lister()
+		deplis = corinf.Apps().V1().Deployments().Lister()
+	}
+
+	if taginf != nil {
+		taglis = taginf.Images().V1().Tags().Lister()
+	}
+
 	return &Tag{
 		tagcli: tagcli,
 		taglis: taglis,
@@ -194,13 +207,12 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 			continue
 		}
 
-		lastImport := tag.Status.References[0]
-		if lastImport.Generation != tag.Spec.Generation {
+		if !tag.SpecTagImported() {
 			// we still have a pending import for this image
 			continue
 		}
 
-		tag.Spec.Generation++
+		tag.Spec.Generation = tag.Status.References[0].Generation + 1
 		if _, err := t.tagcli.ImagesV1().Tags(tag.Namespace).Update(
 			ctx, tag, metav1.UpdateOptions{},
 		); err != nil {

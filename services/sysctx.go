@@ -84,9 +84,16 @@ type SysContext struct {
 
 // NewSysContext returns a new SysContext helper.
 func NewSysContext(corinf informers.SharedInformerFactory) *SysContext {
+	var sclister corelister.SecretLister
+	var cmlister corelister.ConfigMapLister
+	if corinf != nil {
+		sclister = corinf.Core().V1().Secrets().Lister()
+		cmlister = corinf.Core().V1().ConfigMaps().Lister()
+	}
+
 	return &SysContext{
-		sclister:              corinf.Core().V1().Secrets().Lister(),
-		cmlister:              corinf.Core().V1().ConfigMaps().Lister(),
+		sclister:              sclister,
+		cmlister:              cmlister,
 		unqualifiedRegistries: []string{"docker.io"},
 	}
 }
