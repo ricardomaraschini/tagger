@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ricardomaraschini/tagger/services"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +16,7 @@ var tagdowngrade = &cobra.Command{
 			return fmt.Errorf("provide an image tag")
 		}
 
-		cli, err := imagesCli()
+		svc, err := CreateTagService()
 		if err != nil {
 			return err
 		}
@@ -27,7 +26,6 @@ var tagdowngrade = &cobra.Command{
 			return err
 		}
 
-		svc := services.NewTag(nil, nil, cli, nil)
 		it, err := svc.Downgrade(context.Background(), ns, args[0])
 		if err != nil {
 			return err

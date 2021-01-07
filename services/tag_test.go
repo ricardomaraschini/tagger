@@ -883,6 +883,40 @@ func TestNewGeneration(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:         "fast forward",
+			tagName:      "atag",
+			tagNamespace: "atagnamespace",
+			expgen:       5,
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "atag",
+						Namespace: "atagnamespace",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 1,
+					},
+					Status: imagtagv1.TagStatus{
+						Generation: 1,
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 4,
+							},
+							{
+								Generation: 3,
+							},
+							{
+								Generation: 2,
+							},
+							{
+								Generation: 1,
+							},
+						},
+					},
+				},
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

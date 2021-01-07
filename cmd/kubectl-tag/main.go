@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
+	"github.com/ricardomaraschini/tagger/services"
 )
 
 func main() {
@@ -25,14 +26,21 @@ func main() {
 	}
 }
 
-// imagesCli returns a client to access image tags through kubernetes api.
-func imagesCli() (*itagcli.Clientset, error) {
+// CreateTagService creates and returns a services.Tag struct.
+func CreateTagService() (*services.Tag, error) {
 	cfgpath := os.Getenv("KUBECONFIG")
+
 	config, err := clientcmd.BuildConfigFromFlags("", cfgpath)
 	if err != nil {
 		return nil, fmt.Errorf("error building config: %s", err)
 	}
-	return itagcli.NewForConfig(config)
+
+	tagcli, err := itagcli.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return services.NewTag(nil, nil, tagcli, nil), nil
 }
 
 // namespace returns the namespace provided through the --namespace/-n command

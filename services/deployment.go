@@ -23,16 +23,28 @@ type Deployment struct {
 	taglis taglist.TagLister
 }
 
-// NewDeployment returns a handler for all deployment related services.
+// NewDeployment returns a handler for all deployment related services. I have
+// chosen to go with a lazy approach here, you can pass or omit (nil) the arguments,
+// it is up to the caller to decide what is needed for each specific case. So far
+// this is the best approach, I still plan to review this.
 func NewDeployment(
 	corcli corecli.Interface,
 	corinf informers.SharedInformerFactory,
 	taginf externalversions.SharedInformerFactory,
 ) *Deployment {
+	var deplis aplist.DeploymentLister
+	var taglis taglist.TagLister
+	if corinf != nil {
+		deplis = corinf.Apps().V1().Deployments().Lister()
+	}
+	if taginf != nil {
+		taglis = taginf.Images().V1().Tags().Lister()
+	}
+
 	return &Deployment{
 		corcli: corcli,
-		deplis: corinf.Apps().V1().Deployments().Lister(),
-		taglis: taginf.Images().V1().Tags().Lister(),
+		deplis: deplis,
+		taglis: taglis,
 	}
 }
 
