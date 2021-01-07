@@ -227,15 +227,3 @@ $ kubectl create -f ./manifests/02_secret.yaml
 $ kubectl create -f ./manifests/03_deploy.yaml
 $ kubectl create -f ./manifests/04_webhook.yaml
 ```
-
-### Notes on updating Tagger
-
-Tagger creates a [Mutating Webhook](https://bit.ly/2WSlvH0) that intercepts new pod creations, if
-you need to update Tagger you first need to remove this webhook otherwise new pods are not going
-to be created.
-
-```
-$ kubectl delete -f ./manifests/04_webhook.yaml
-```
-
-I am still working on a workaround for this caveat.
