@@ -250,7 +250,7 @@ func TestDeploymentsForTag(t *testing.T) {
 	}
 }
 
-func TestDeploymentUpdate(t *testing.T) {
+func TestDeploymentSync(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
 		deploy *appsv1.Deployment
@@ -467,7 +467,7 @@ func TestDeploymentUpdate(t *testing.T) {
 				corcli: corcli,
 			}
 
-			if err := svc.Update(ctx, tt.deploy); err != nil {
+			if err := svc.Sync(ctx, tt.deploy); err != nil {
 				t.Errorf("error should be nil, not %q", err.Error())
 			}
 

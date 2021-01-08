@@ -14,11 +14,11 @@ import (
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
-// TagGetterUpdater abstraction exists to make testing easier. You most likely
+// TagGetterSyncer abstraction exists to make testing easier. You most likely
 // wanna see Tag struct under services/tag.go for a concrete implementation of
 // this.
-type TagGetterUpdater interface {
-	Update(context.Context, *imagtagv1.Tag) error
+type TagGetterSyncer interface {
+	Sync(context.Context, *imagtagv1.Tag) error
 	Get(context.Context, string, string) (*imagtagv1.Tag, error)
 }
 
@@ -33,7 +33,7 @@ type MetricReporter interface {
 // layer implementation.
 type Tag struct {
 	queue  workqueue.RateLimitingInterface
-	tagsvc TagGetterUpdater
+	tagsvc TagGetterSyncer
 	mtrsvc MetricReporter
 	appctx context.Context
 	tokens chan bool
@@ -44,7 +44,7 @@ type Tag struct {
 // distinct image tags being processed.
 func NewTag(
 	taginf imageinf.SharedInformerFactory,
-	tagsvc TagGetterUpdater,
+	tagsvc TagGetterSyncer,
 	mtrsvc MetricReporter,
 ) *Tag {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
@@ -144,7 +144,7 @@ func (t *Tag) syncTag(namespace, name string) error {
 		return err
 	}
 	it = it.DeepCopy()
-	return t.tagsvc.Update(ctx, it)
+	return t.tagsvc.Sync(ctx, it)
 }
 
 // Start starts the controller's event loop.

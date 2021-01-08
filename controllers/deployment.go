@@ -8,37 +8,35 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	coreinf "k8s.io/client-go/informers"
-	appslis "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 )
 
-// DeploymentUpdater abstraction exists to make testing easier. You most likely
-// wanna see Deployment struct under services/deployment.go for a concrete
-// implementation of this.
-type DeploymentUpdater interface {
-	Update(context.Context, *appsv1.Deployment) error
+// DeploymentGetterSyncer abstraction exists to make testing easier. You
+// most likely wanna see Deployment struct under services/deployment.go
+// for a concrete implementation of this.
+type DeploymentGetterSyncer interface {
+	Sync(context.Context, *appsv1.Deployment) error
+	Get(context.Context, string, string) (*appsv1.Deployment, error)
 }
 
 // Deployment controller handles events related to deployment creations.
 type Deployment struct {
-	deplister appslis.DeploymentLister
-	depsvc    DeploymentUpdater
-	queue     workqueue.DelayingInterface
-	appctx    context.Context
+	depsvc DeploymentGetterSyncer
+	queue  workqueue.DelayingInterface
+	appctx context.Context
 }
 
 // NewDeployment returns a new controller for Deployments. This controller
 // keeps track of deployments being created and assure that they contain the
 // right annotations if they leverage tags.
 func NewDeployment(
-	inf coreinf.SharedInformerFactory, depsvc DeploymentUpdater,
+	inf coreinf.SharedInformerFactory, depsvc DeploymentGetterSyncer,
 ) *Deployment {
 	ctrl := &Deployment{
-		deplister: inf.Apps().V1().Deployments().Lister(),
-		queue:     workqueue.NewDelayingQueue(),
-		depsvc:    depsvc,
+		queue:  workqueue.NewDelayingQueue(),
+		depsvc: depsvc,
 	}
 	inf.Apps().V1().Deployments().Informer().AddEventHandler(ctrl.handlers())
 	return ctrl
@@ -111,7 +109,7 @@ func (d *Deployment) syncDeployment(namespace, name string) error {
 	ctx, cancel := context.WithTimeout(d.appctx, time.Minute)
 	defer cancel()
 
-	dep, err := d.deplister.Deployments(namespace).Get(name)
+	dep, err := d.depsvc.Get(ctx, namespace, name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -119,7 +117,7 @@ func (d *Deployment) syncDeployment(namespace, name string) error {
 		return err
 	}
 	dep = dep.DeepCopy()
-	return d.depsvc.Update(ctx, dep)
+	return d.depsvc.Sync(ctx, dep)
 }
 
 // Start starts the controller's event loop.
