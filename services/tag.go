@@ -143,10 +143,10 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 	return patch, nil
 }
 
-// Update manages image tag updates, assuring we have the tag imported.
+// Sync manages image tag updates, assuring we have the tag imported.
 // Beware that we change Tag in place before updating it on api server,
 // i.e. use DeepCopy() before passing the image tag in.
-func (t *Tag) Update(ctx context.Context, it *imagtagv1.Tag) error {
+func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 	var err error
 	var hashref imagtagv1.HashReference
 

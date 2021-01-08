@@ -56,7 +56,7 @@ func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.
 		return err
 	}
 	for _, dep := range deploys {
-		if err := d.Update(ctx, dep); err != nil {
+		if err := d.Sync(ctx, dep); err != nil {
 			return err
 		}
 	}
@@ -90,10 +90,10 @@ func (d *Deployment) DeploymentsForTag(
 	return deps, nil
 }
 
-// Update verifies if the provided deployment leverages tags, if affirmative it
+// Sync verifies if the provided deployment leverages tags, if affirmative it
 // creates an annotation into its template pointing to reference pointed by the
 // tag. TODO add other containers here as well.
-func (d *Deployment) Update(ctx context.Context, dep *appsv1.Deployment) error {
+func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	if _, ok := dep.Annotations["image-tag"]; !ok {
 		return nil
 	}
@@ -133,4 +133,13 @@ func (d *Deployment) Update(ctx context.Context, dep *appsv1.Deployment) error {
 		return err
 	}
 	return nil
+}
+
+// Get returns a deployment by namespace/name pair.
+func (d *Deployment) Get(ctx context.Context, ns, name string) (*appsv1.Deployment, error) {
+	dep, err := d.deplis.Deployments(ns).Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return dep.DeepCopy(), nil
 }

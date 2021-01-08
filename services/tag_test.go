@@ -331,7 +331,7 @@ func TestPatchForPod(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
+func TestSync(t *testing.T) {
 	for _, tt := range []struct {
 		name       string
 		tag        *imagtagv1.Tag
@@ -419,7 +419,7 @@ func TestUpdate(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			err := svc.Update(ctx, tt.tag)
+			err := svc.Sync(ctx, tt.tag)
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error: %s", err)

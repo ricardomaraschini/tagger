@@ -18,11 +18,12 @@ import (
 
 type depsvc struct {
 	sync.Mutex
-	db    map[string]*appsv1.Deployment
-	calls int
+	db     map[string]*appsv1.Deployment
+	calls  int
+	corcli *fake.Clientset
 }
 
-func (d *depsvc) Update(ctx context.Context, dep *appsv1.Deployment) error {
+func (d *depsvc) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	d.Lock()
 	defer d.Unlock()
 
@@ -33,6 +34,12 @@ func (d *depsvc) Update(ctx context.Context, dep *appsv1.Deployment) error {
 	d.db[idx] = dep.DeepCopy()
 	d.calls++
 	return nil
+}
+
+func (d *depsvc) Get(ctx context.Context, ns, name string) (*appsv1.Deployment, error) {
+	return d.corcli.AppsV1().Deployments(ns).Get(
+		ctx, name, metav1.GetOptions{},
+	)
 }
 
 func (d *depsvc) get(idx string) *appsv1.Deployment {
@@ -46,7 +53,9 @@ func TestDeploymentCreated(t *testing.T) {
 
 	corcli := fake.NewSimpleClientset()
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
-	svc := &depsvc{}
+	svc := &depsvc{
+		corcli: corcli,
+	}
 
 	ctrl := NewDeployment(corinf, svc)
 	corinf.Start(ctx.Done())
@@ -95,12 +104,14 @@ func TestDeploymentCreated(t *testing.T) {
 	wg.Wait()
 }
 
-func TestDeploymentUpdated(t *testing.T) {
+func TestDeploymentSync(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
 	corcli := fake.NewSimpleClientset()
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
-	svc := &depsvc{}
+	svc := &depsvc{
+		corcli: corcli,
+	}
 
 	ctrl := NewDeployment(corinf, svc)
 	corinf.Start(ctx.Done())

@@ -27,7 +27,7 @@ type tagsvc struct {
 	tagcli *tagfake.Clientset
 }
 
-func (t *tagsvc) Update(ctx context.Context, tag *imagtagv1.Tag) error {
+func (t *tagsvc) Sync(ctx context.Context, tag *imagtagv1.Tag) error {
 	t.Lock()
 
 	if t.db == nil {
