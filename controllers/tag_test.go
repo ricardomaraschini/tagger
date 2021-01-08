@@ -21,9 +21,10 @@ func (m mtrsvc) ReportWorker(bool) {}
 
 type tagsvc struct {
 	sync.Mutex
-	db    map[string]*imagtagv1.Tag
-	calls int
-	delay time.Duration
+	db     map[string]*imagtagv1.Tag
+	calls  int
+	delay  time.Duration
+	tagcli *tagfake.Clientset
 }
 
 func (t *tagsvc) Update(ctx context.Context, tag *imagtagv1.Tag) error {
@@ -39,6 +40,10 @@ func (t *tagsvc) Update(ctx context.Context, tag *imagtagv1.Tag) error {
 	t.Unlock()
 	time.Sleep(t.delay)
 	return nil
+}
+
+func (t *tagsvc) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
+	return t.tagcli.ImagesV1().Tags(ns).Get(ctx, name, metav1.GetOptions{})
 }
 
 func (t *tagsvc) get(idx string) *imagtagv1.Tag {
@@ -58,7 +63,9 @@ func TestTagCreated(t *testing.T) {
 
 	tagcli := tagfake.NewSimpleClientset()
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
-	svc := &tagsvc{}
+	svc := &tagsvc{
+		tagcli: tagcli,
+	}
 
 	ctrl := NewTag(taginf, svc, mtrsvc{})
 	ctrl.tokens = make(chan bool, 1)
@@ -118,7 +125,9 @@ func TestTagUpdated(t *testing.T) {
 
 	tagcli := tagfake.NewSimpleClientset()
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
-	svc := &tagsvc{}
+	svc := &tagsvc{
+		tagcli: tagcli,
+	}
 
 	ctrl := NewTag(taginf, svc, mtrsvc{})
 	ctrl.tokens = make(chan bool, 1)
@@ -193,7 +202,8 @@ func TestTagParallel(t *testing.T) {
 	tagcli := tagfake.NewSimpleClientset()
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{
-		delay: 3 * time.Second,
+		delay:  3 * time.Second,
+		tagcli: tagcli,
 	}
 
 	ctrl := NewTag(taginf, svc, mtrsvc{})
@@ -251,7 +261,9 @@ func TestTagDeleted(t *testing.T) {
 
 	tagcli := tagfake.NewSimpleClientset()
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
-	svc := &tagsvc{}
+	svc := &tagsvc{
+		tagcli: tagcli,
+	}
 
 	ctrl := NewTag(taginf, svc, mtrsvc{})
 	ctrl.tokens = make(chan bool, 1)

@@ -290,3 +290,12 @@ func (t *Tag) NewGeneration(
 		ctx, tag, metav1.UpdateOptions{},
 	)
 }
+
+// Get returns a tag by namespace and name pair.
+func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
+	tag, err := t.taglis.Tags(ns).Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return tag.DeepCopy(), nil
+}

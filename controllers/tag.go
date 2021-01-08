@@ -11,14 +11,15 @@ import (
 	"k8s.io/klog/v2"
 
 	imageinf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	imagelis "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
-// TagUpdater abstraction exists to make testing easier. You most likely wanna
-// see Tag struct under services/tag.go for a concrete implementation of this.
-type TagUpdater interface {
+// TagGetterUpdater abstraction exists to make testing easier. You most likely
+// wanna see Tag struct under services/tag.go for a concrete implementation of
+// this.
+type TagGetterUpdater interface {
 	Update(context.Context, *imagtagv1.Tag) error
+	Get(context.Context, string, string) (*imagtagv1.Tag, error)
 }
 
 // MetricReporter abstraction exists to make tests easier. You might be looking
@@ -31,12 +32,11 @@ type MetricReporter interface {
 // from the informer, calling appropriate functions on our concrete services
 // layer implementation.
 type Tag struct {
-	taglister imagelis.TagLister
-	queue     workqueue.RateLimitingInterface
-	tagsvc    TagUpdater
-	mtrsvc    MetricReporter
-	appctx    context.Context
-	tokens    chan bool
+	queue  workqueue.RateLimitingInterface
+	tagsvc TagGetterUpdater
+	mtrsvc MetricReporter
+	appctx context.Context
+	tokens chan bool
 }
 
 // NewTag returns a new controller for Image Tags. This controller runs image
@@ -44,16 +44,15 @@ type Tag struct {
 // distinct image tags being processed.
 func NewTag(
 	taginf imageinf.SharedInformerFactory,
-	tagsvc TagUpdater,
+	tagsvc TagGetterUpdater,
 	mtrsvc MetricReporter,
 ) *Tag {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
 	ctrl := &Tag{
-		taglister: taginf.Images().V1().Tags().Lister(),
-		queue:     workqueue.NewRateLimitingQueue(ratelimit),
-		tagsvc:    tagsvc,
-		mtrsvc:    mtrsvc,
-		tokens:    make(chan bool, 10),
+		queue:  workqueue.NewRateLimitingQueue(ratelimit),
+		tagsvc: tagsvc,
+		mtrsvc: mtrsvc,
+		tokens: make(chan bool, 10),
 	}
 	taginf.Images().V1().Tags().Informer().AddEventHandler(ctrl.handlers())
 	return ctrl
@@ -137,7 +136,7 @@ func (t *Tag) syncTag(namespace, name string) error {
 	ctx, cancel := context.WithTimeout(t.appctx, 3*time.Minute)
 	defer cancel()
 
-	it, err := t.taglister.Tags(namespace).Get(name)
+	it, err := t.tagsvc.Get(ctx, namespace, name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
