@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/cache"
+
 	tagfake "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/fake"
 	taginformer "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
 )
 
 type mtrsvc struct{}
@@ -25,6 +26,7 @@ type tagsvc struct {
 	calls  int
 	delay  time.Duration
 	tagcli *tagfake.Clientset
+	taginf taginformer.SharedInformerFactory
 }
 
 func (t *tagsvc) Sync(ctx context.Context, tag *imagtagv1.Tag) error {
@@ -58,16 +60,21 @@ func (t *tagsvc) len() int {
 	return len(t.db)
 }
 
+func (t *tagsvc) AddEventHandler(handler cache.ResourceEventHandler) {
+	t.taginf.Images().V1().Tags().Informer().AddEventHandler(handler)
+}
+
 func TestTagCreated(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
 	tagcli := tagfake.NewSimpleClientset()
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{
+		taginf: taginf,
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl := NewTag(svc, mtrsvc{})
 	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 
@@ -126,10 +133,11 @@ func TestTagUpdated(t *testing.T) {
 	tagcli := tagfake.NewSimpleClientset()
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{
+		taginf: taginf,
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl := NewTag(svc, mtrsvc{})
 	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 
@@ -203,10 +211,11 @@ func TestTagParallel(t *testing.T) {
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{
 		delay:  3 * time.Second,
+		taginf: taginf,
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl := NewTag(svc, mtrsvc{})
 	ctrl.tokens = make(chan bool, 5)
 	taginf.Start(ctx.Done())
 
@@ -262,10 +271,11 @@ func TestTagDeleted(t *testing.T) {
 	tagcli := tagfake.NewSimpleClientset()
 	taginf := taginformer.NewSharedInformerFactory(tagcli, time.Minute)
 	svc := &tagsvc{
+		taginf: taginf,
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(taginf, svc, mtrsvc{})
+	ctrl := NewTag(svc, mtrsvc{})
 	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 

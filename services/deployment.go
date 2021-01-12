@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/informers"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
 	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
@@ -19,6 +20,7 @@ import (
 // Deployment gather all actions related to deployment objects.
 type Deployment struct {
 	corcli corecli.Interface
+	corinf informers.SharedInformerFactory
 	deplis aplist.DeploymentLister
 	taglis taglist.TagLister
 }
@@ -43,6 +45,7 @@ func NewDeployment(
 
 	return &Deployment{
 		corcli: corcli,
+		corinf: corinf,
 		deplis: deplis,
 		taglis: taglis,
 	}
@@ -142,4 +145,9 @@ func (d *Deployment) Get(ctx context.Context, ns, name string) (*appsv1.Deployme
 		return nil, err
 	}
 	return dep.DeepCopy(), nil
+}
+
+// AddEventHandler adds a handler to Deployment related events.
+func (d *Deployment) AddEventHandler(handler cache.ResourceEventHandler) {
+	d.corinf.Apps().V1().Deployments().Informer().AddEventHandler(handler)
 }
