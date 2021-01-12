@@ -68,14 +68,17 @@ func main() {
 	}
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 
+	// create our service layer
 	depsvc := services.NewDeployment(corcli, corinf, taginf)
 	tagsvc := services.NewTag(corcli, corinf, tagcli, taginf)
 	mtrsvc := services.NewMetrics()
-	itctrl := controllers.NewTag(taginf, tagsvc, mtrsvc)
+
+	// create controller layer
+	itctrl := controllers.NewTag(tagsvc, mtrsvc)
 	mtctrl := controllers.NewMutatingWebHook(tagsvc)
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)
-	dpctrl := controllers.NewDeployment(corinf, depsvc)
+	dpctrl := controllers.NewDeployment(depsvc)
 	moctrl := controllers.NewMetric()
 
 	// starts up all informers and waits for their cache to sync
