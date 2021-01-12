@@ -10,16 +10,15 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	imageinf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
-// TagGetterSyncer abstraction exists to make testing easier. You most likely
-// wanna see Tag struct under services/tag.go for a concrete implementation of
-// this.
-type TagGetterSyncer interface {
+// TagSyncer abstraction exists to make testing easier. You most likely wanna
+// see Tag struct under services/tag.go for a concrete implementation of this.
+type TagSyncer interface {
 	Sync(context.Context, *imagtagv1.Tag) error
 	Get(context.Context, string, string) (*imagtagv1.Tag, error)
+	AddEventHandler(cache.ResourceEventHandler)
 }
 
 // MetricReporter abstraction exists to make tests easier. You might be looking
@@ -33,7 +32,7 @@ type MetricReporter interface {
 // layer implementation.
 type Tag struct {
 	queue  workqueue.RateLimitingInterface
-	tagsvc TagGetterSyncer
+	tagsvc TagSyncer
 	mtrsvc MetricReporter
 	appctx context.Context
 	tokens chan bool
@@ -43,8 +42,7 @@ type Tag struct {
 // tag imports in parallel, at a given time we can have at max "workers"
 // distinct image tags being processed.
 func NewTag(
-	taginf imageinf.SharedInformerFactory,
-	tagsvc TagGetterSyncer,
+	tagsvc TagSyncer,
 	mtrsvc MetricReporter,
 ) *Tag {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
@@ -54,7 +52,7 @@ func NewTag(
 		mtrsvc: mtrsvc,
 		tokens: make(chan bool, 10),
 	}
-	taginf.Images().V1().Tags().Informer().AddEventHandler(ctrl.handlers())
+	tagsvc.AddEventHandler(ctrl.handlers())
 	return ctrl
 }
 
