@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/informers"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	"github.com/mattbaird/jsonpatch"
@@ -26,6 +27,7 @@ import (
 type Tag struct {
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
+	taginf taginform.SharedInformerFactory
 	replis aplist.ReplicaSetLister
 	deplis aplist.DeploymentLister
 	impsvc *Importer
@@ -56,6 +58,7 @@ func NewTag(
 	}
 
 	return &Tag{
+		taginf: taginf,
 		tagcli: tagcli,
 		taglis: taglis,
 		replis: replis,
@@ -298,4 +301,9 @@ func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) 
 		return nil, err
 	}
 	return tag.DeepCopy(), nil
+}
+
+// AddEventHandler adds a handler to tag related events.
+func (t *Tag) AddEventHandler(handler cache.ResourceEventHandler) {
+	t.taginf.Images().V1().Tags().Informer().AddEventHandler(handler)
 }

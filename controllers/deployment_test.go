@@ -10,6 +10,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 	coreinf "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
@@ -21,6 +22,7 @@ type depsvc struct {
 	db     map[string]*appsv1.Deployment
 	calls  int
 	corcli *fake.Clientset
+	corinf informers.SharedInformerFactory
 }
 
 func (d *depsvc) Sync(ctx context.Context, dep *appsv1.Deployment) error {
@@ -48,6 +50,10 @@ func (d *depsvc) get(idx string) *appsv1.Deployment {
 	return d.db[idx]
 }
 
+func (d *depsvc) AddEventHandler(handler cache.ResourceEventHandler) {
+	d.corinf.Apps().V1().Deployments().Informer().AddEventHandler(handler)
+}
+
 func TestDeploymentCreated(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
@@ -55,9 +61,10 @@ func TestDeploymentCreated(t *testing.T) {
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 	svc := &depsvc{
 		corcli: corcli,
+		corinf: corinf,
 	}
 
-	ctrl := NewDeployment(corinf, svc)
+	ctrl := NewDeployment(svc)
 	corinf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(
@@ -111,9 +118,10 @@ func TestDeploymentSync(t *testing.T) {
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 	svc := &depsvc{
 		corcli: corcli,
+		corinf: corinf,
 	}
 
-	ctrl := NewDeployment(corinf, svc)
+	ctrl := NewDeployment(svc)
 	corinf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(

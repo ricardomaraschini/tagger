@@ -7,23 +7,23 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	coreinf "k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 )
 
-// DeploymentGetterSyncer abstraction exists to make testing easier. You
-// most likely wanna see Deployment struct under services/deployment.go
-// for a concrete implementation of this.
-type DeploymentGetterSyncer interface {
+// DeploymentSyncer abstraction exists to make testing easier. You most
+// likely wanna see Deployment struct under services/deployment.go for
+// a concrete implementation of this.
+type DeploymentSyncer interface {
 	Sync(context.Context, *appsv1.Deployment) error
 	Get(context.Context, string, string) (*appsv1.Deployment, error)
+	AddEventHandler(cache.ResourceEventHandler)
 }
 
 // Deployment controller handles events related to deployment creations.
 type Deployment struct {
-	depsvc DeploymentGetterSyncer
+	depsvc DeploymentSyncer
 	queue  workqueue.DelayingInterface
 	appctx context.Context
 }
@@ -31,14 +31,12 @@ type Deployment struct {
 // NewDeployment returns a new controller for Deployments. This controller
 // keeps track of deployments being created and assure that they contain the
 // right annotations if they leverage tags.
-func NewDeployment(
-	inf coreinf.SharedInformerFactory, depsvc DeploymentGetterSyncer,
-) *Deployment {
+func NewDeployment(depsvc DeploymentSyncer) *Deployment {
 	ctrl := &Deployment{
 		queue:  workqueue.NewDelayingQueue(),
 		depsvc: depsvc,
 	}
-	inf.Apps().V1().Deployments().Informer().AddEventHandler(ctrl.handlers())
+	depsvc.AddEventHandler(ctrl.handlers())
 	return ctrl
 }
 
