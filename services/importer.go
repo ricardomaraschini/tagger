@@ -164,6 +164,7 @@ func (i *Importer) ImportTag(
 			errors = multierror.Append(errors, err)
 			continue
 		}
+
 		// adds a no authenticated attempt to the last position so
 		// if everything fails we attempt without auth at all.
 		auths = append(auths, nil)
@@ -173,30 +174,14 @@ func (i *Importer) ImportTag(
 				DockerAuthConfig: auth,
 			}
 
-			// XXX move this to its own func.
-			img, err := imgref.NewImage(ctx, sysctx)
+			imghash, err := i.getImageHash(ctx, sysctx, imgref)
 			if err != nil {
 				errors = multierror.Append(errors, err)
 				continue
 			}
 
-			manifestBlob, _, err := img.Manifest(ctx)
-			if err != nil {
-				img.Close()
-				errors = multierror.Append(errors, err)
-				continue
-			}
-			defer img.Close()
-
-			dgst, err := manifest.Digest(manifestBlob)
-			if err != nil {
-				i.metric.ReportImportFailure()
-				return zero, fmt.Errorf("error calculating digest: %w", err)
-			}
-
-			imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
 			if it.Spec.Cache {
-				imageref, err = i.cacheTag(ctx, it, imageref, sysctx)
+				imghash, err = i.cacheTag(ctx, it, imghash, sysctx)
 				if err != nil {
 					i.metric.ReportImportFailure()
 					return zero, fmt.Errorf("unable to cache image: %w", err)
@@ -210,9 +195,36 @@ func (i *Importer) ImportTag(
 				Generation:     it.Spec.Generation,
 				From:           it.Spec.From,
 				ImportedAt:     metav1.NewTime(time.Now()),
-				ImageReference: imageref,
+				ImageReference: imghash,
 			}, nil
 		}
 	}
+
+	i.metric.ReportImportFailure()
 	return zero, errors.ErrorOrNil()
+}
+
+// getImageHash attempts to fetch remote image hash remotely using provided system
+// context.
+func (i *Importer) getImageHash(
+	ctx context.Context, sysctx *types.SystemContext, imgref types.ImageReference,
+) (string, error) {
+	img, err := imgref.NewImage(ctx, sysctx)
+	if err != nil {
+		return "", err
+	}
+	defer img.Close()
+
+	manifestBlob, _, err := img.Manifest(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	dgst, err := manifest.Digest(manifestBlob)
+	if err != nil {
+		return "", fmt.Errorf("error calculating digest: %w", err)
+	}
+
+	imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
+	return imageref, nil
 }

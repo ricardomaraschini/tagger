@@ -81,9 +81,9 @@ func main() {
 	dpctrl := controllers.NewDeployment(depsvc)
 	moctrl := controllers.NewMetric()
 
-	// starts up all informers and waits for their cache to sync
-	// up, only then we start the operators i.e. start to process
-	// events from the queue.
+	// starts up all informers and waits for their cache to sync up,
+	// only then we start the controllers i.e. start to process events
+	// from the queue.
 	klog.Info("waiting for caches to sync ...")
 	corinf.Start(ctx.Done())
 	taginf.Start(ctx.Done())
