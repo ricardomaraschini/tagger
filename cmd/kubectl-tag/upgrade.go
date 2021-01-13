@@ -10,7 +10,7 @@ import (
 
 var tagupgrade = &cobra.Command{
 	Use:   "upgrade <image tag>",
-	Short: "Move a tag to a newer generation",
+	Short: "Moves a tag to a newer generation",
 	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("provide an image tag")
@@ -21,7 +21,7 @@ var tagupgrade = &cobra.Command{
 			return err
 		}
 
-		ns, err := namespace(c)
+		ns, err := Namespace(c)
 		if err != nil {
 			return err
 		}

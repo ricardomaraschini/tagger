@@ -43,9 +43,9 @@ func CreateTagService() (*services.Tag, error) {
 	return services.NewTag(nil, nil, tagcli, nil), nil
 }
 
-// namespace returns the namespace provided through the --namespace/-n command
+// Namespace returns the namespace provided through the --namespace/-n command
 // line flag or the default one as extracted from kube configuration.
-func namespace(c *cobra.Command) (string, error) {
+func Namespace(c *cobra.Command) (string, error) {
 	nsflag := c.Flag("namespace")
 	if nsflag != nil && nsflag.Value.String() != "" {
 		return nsflag.Value.String(), nil
