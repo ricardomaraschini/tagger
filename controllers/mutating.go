@@ -59,7 +59,9 @@ func (m *MutatingWebHook) Name() string {
 // responseError writes on the response an AdmissionReview with response status
 // set to an error. If AdmissionReview contains an UID that is inserted into
 // the reply.
-func (m *MutatingWebHook) responseError(w http.ResponseWriter, req *admnv1.AdmissionReview, err error) {
+func (m *MutatingWebHook) responseError(
+	w http.ResponseWriter, req *admnv1.AdmissionReview, err error,
+) {
 	var ruid types.UID
 	if req.Request != nil {
 		ruid = req.Request.UID
