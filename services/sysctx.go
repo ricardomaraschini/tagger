@@ -168,7 +168,6 @@ func (s *SysContext) CacheRegistryContext(ctx context.Context) *types.SystemCont
 func (s *SysContext) AuthsFor(
 	ctx context.Context, imgref types.ImageReference, namespace string,
 ) ([]*types.DockerAuthConfig, error) {
-	// XXX get secrets by type?
 	secrets, err := s.sclister.Secrets(namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err

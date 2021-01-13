@@ -21,7 +21,7 @@ var tagimport = &cobra.Command{
 			return err
 		}
 
-		ns, err := namespace(c)
+		ns, err := Namespace(c)
 		if err != nil {
 			return err
 		}
