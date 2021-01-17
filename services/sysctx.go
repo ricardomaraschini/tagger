@@ -110,17 +110,17 @@ func (s *SysContext) UnqualifiedRegistries(ctx context.Context) []string {
 func (s *SysContext) parseCacheRegistryConfig() (*LocalRegistryHostingV1, error) {
 	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting registry configmap: %w", err)
 	}
 
 	dt, ok := cm.Data["localRegistryHosting.v1"]
 	if !ok {
-		return nil, fmt.Errorf("no v1 local registry config found")
+		return nil, fmt.Errorf("configmap index localRegistryHosting.v1 not found")
 	}
 
 	cfg := &LocalRegistryHostingV1{}
 	if err := yaml.Unmarshal([]byte(dt), cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to unmarshal registry config: %w", err)
 	}
 	return cfg, nil
 }
@@ -140,7 +140,7 @@ func (s *SysContext) CacheRegistryAddresses() (string, string, error) {
 
 	cfg, err := s.parseCacheRegistryConfig()
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("fail to parse cache registry config: %w", err)
 	}
 	return cfg.HostFromClusterNetwork, cfg.HostFromContainerRuntime, nil
 }
@@ -170,7 +170,7 @@ func (s *SysContext) AuthsFor(
 ) ([]*types.DockerAuthConfig, error) {
 	secrets, err := s.sclister.Secrets(namespace).List(labels.Everything())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to list secrets: %w", err)
 	}
 
 	domain := reference.Domain(imgref.DockerReference())

@@ -91,7 +91,7 @@ func TestImportPath(t *testing.T) {
 		},
 		{
 			name: "no unqualified registry registered",
-			err:  "no registry candidates",
+			err:  "no unqualified registries found",
 			tag: &imgtagv1.Tag{
 				Spec: imgtagv1.TagSpec{
 					From: "centos:latest",

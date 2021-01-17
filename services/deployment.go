@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,11 +57,11 @@ func NewDeployment(
 func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
 	deploys, err := d.DeploymentsForTag(ctx, it)
 	if err != nil {
-		return err
+		return fmt.Errorf("fail to get deployments for tag: %w", err)
 	}
 	for _, dep := range deploys {
 		if err := d.Sync(ctx, dep); err != nil {
-			return err
+			return fmt.Errorf("fail to sync deployment: %w", err)
 		}
 	}
 	return nil
@@ -73,7 +74,7 @@ func (d *Deployment) DeploymentsForTag(
 ) ([]*appsv1.Deployment, error) {
 	deploys, err := d.deplis.Deployments(it.Namespace).List(labels.Everything())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to list deployments: %w", err)
 	}
 
 	var deps []*appsv1.Deployment
@@ -112,7 +113,7 @@ func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 			if errors.IsNotFound(err) {
 				continue
 			}
-			return err
+			return fmt.Errorf("unable to get tag: %w", err)
 		}
 
 		ref := it.CurrentReferenceForTag()
@@ -133,7 +134,7 @@ func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	if _, err := d.corcli.AppsV1().Deployments(dep.Namespace).Update(
 		ctx, dep, metav1.UpdateOptions{},
 	); err != nil {
-		return err
+		return fmt.Errorf("unable to update tag: %w", err)
 	}
 	return nil
 }
@@ -142,7 +143,7 @@ func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 func (d *Deployment) Get(ctx context.Context, ns, name string) (*appsv1.Deployment, error) {
 	dep, err := d.deplis.Deployments(ns).Get(name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable get deployment: %w", err)
 	}
 	return dep.DeepCopy(), nil
 }
