@@ -77,7 +77,7 @@ func (t *Tag) CurrentReferenceForTagByName(namespace, name string) (string, erro
 		if errors.IsNotFound(err) {
 			return "", nil
 		}
-		return "", err
+		return "", fmt.Errorf("fail to get tag: %w", err)
 	}
 	return it.CurrentReferenceForTag(), nil
 }
@@ -98,7 +98,7 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 
 	rs, err := t.replis.ReplicaSets(pod.Namespace).Get(podOwner.Name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to get replicaset: %w", err)
 	}
 
 	// if the replica set has no image tag annotation there is nothing to
@@ -113,7 +113,7 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 	for _, c := range pod.Spec.Containers {
 		ref, err := t.CurrentReferenceForTagByName(pod.Namespace, c.Image)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("fail to find current hashref for tag: %w", err)
 		}
 
 		if ref != "" {
@@ -126,16 +126,16 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 
 	origData, err := json.Marshal(pod)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error marshaling original pod: %w", err)
 	}
 	changedData, err := json.Marshal(changed)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error marshaling updated pod: %w", err)
 	}
 
 	patch, err := jsonpatch.CreatePatch(origData, changedData)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail creating patch for pod: %w", err)
 	}
 
 	// make sure we always return the zero value for a slice and not
@@ -168,7 +168,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 			); err != nil {
 				klog.Errorf("error updating tag status: %s", err)
 			}
-			return fmt.Errorf("fail import %s/%s: %w", it.Namespace, it.Name, err)
+			return fmt.Errorf("fail importing %s/%s: %w", it.Namespace, it.Name, err)
 		}
 		it.RegisterImportSuccess()
 		it.PrependHashReference(hashref)
@@ -196,7 +196,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) error {
 	tags, err := t.taglis.List(labels.Everything())
 	if err != nil {
-		return err
+		return fmt.Errorf("fail to list tags: %w", err)
 	}
 
 	for _, tag := range tags {
@@ -219,7 +219,7 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 		if _, err := t.tagcli.ImagesV1().Tags(tag.Namespace).Update(
 			ctx, tag, metav1.UpdateOptions{},
 		); err != nil {
-			return err
+			return fmt.Errorf("fail updating tag: %w", err)
 		}
 	}
 
@@ -235,7 +235,7 @@ func (t *Tag) Upgrade(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to get tag: %w", err)
 	}
 
 	if !it.SpecTagImported() {
@@ -243,9 +243,13 @@ func (t *Tag) Upgrade(
 	}
 
 	it.Spec.Generation++
-	return t.tagcli.ImagesV1().Tags(namespace).Update(
+	if it, err = t.tagcli.ImagesV1().Tags(namespace).Update(
 		ctx, it, metav1.UpdateOptions{},
-	)
+	); err != nil {
+		return nil, fmt.Errorf("error updating tag: %w", err)
+	}
+
+	return it, nil
 }
 
 // Downgrade increments the expected (spec) generation for a tag. This function
@@ -257,7 +261,7 @@ func (t *Tag) Downgrade(
 		context.Background(), name, metav1.GetOptions{},
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting tag: %w", err)
 	}
 
 	it.Spec.Generation--
@@ -265,9 +269,12 @@ func (t *Tag) Downgrade(
 		return nil, fmt.Errorf("unable to downgrade, currently at oldest generation")
 	}
 
-	return t.tagcli.ImagesV1().Tags(namespace).Update(
-		context.Background(), it, metav1.UpdateOptions{},
-	)
+	if it, err = t.tagcli.ImagesV1().Tags(namespace).Update(
+		ctx, it, metav1.UpdateOptions{},
+	); err != nil {
+		return nil, fmt.Errorf("error updating tag: %w", err)
+	}
+	return it, nil
 }
 
 // NewGeneration creates a new generation for a tag. The new generation is set
@@ -276,7 +283,7 @@ func (t *Tag) Downgrade(
 func (t *Tag) NewGeneration(
 	ctx context.Context, namespace string, name string,
 ) (*imagtagv1.Tag, error) {
-	tag, err := t.tagcli.ImagesV1().Tags(namespace).Get(
+	it, err := t.tagcli.ImagesV1().Tags(namespace).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -284,21 +291,24 @@ func (t *Tag) NewGeneration(
 	}
 
 	nextGen := int64(0)
-	if len(tag.Status.References) > 0 {
-		nextGen = tag.Status.References[0].Generation + 1
+	if len(it.Status.References) > 0 {
+		nextGen = it.Status.References[0].Generation + 1
 	}
-	tag.Spec.Generation = nextGen
+	it.Spec.Generation = nextGen
 
-	return t.tagcli.ImagesV1().Tags(namespace).Update(
-		ctx, tag, metav1.UpdateOptions{},
-	)
+	if it, err = t.tagcli.ImagesV1().Tags(namespace).Update(
+		ctx, it, metav1.UpdateOptions{},
+	); err != nil {
+		return nil, fmt.Errorf("error updating tag: %w", err)
+	}
+	return it, nil
 }
 
 // Get returns a tag by namespace and name pair.
 func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
 	tag, err := t.taglis.Tags(ns).Get(name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get tag: %w", err)
 	}
 	return tag.DeepCopy(), nil
 }
