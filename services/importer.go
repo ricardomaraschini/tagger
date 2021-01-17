@@ -58,7 +58,7 @@ func (i *Importer) SplitRegistryDomain(imgPath string) (string, string) {
 func (i *Importer) ImageRefForStringRef(ref string) (types.ImageReference, error) {
 	namedReference, err := reference.ParseDockerRef(ref)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse docker reference: %w", err)
 	}
 	return docker.NewReference(namedReference)
 }
@@ -76,33 +76,38 @@ func (i *Importer) DefaultPolicyContext() (*signature.PolicyContext, error) {
 
 // cacheTag copies an image from one registry to another. The first is
 // the source registry, the latter is our caching registry. Returns the
-// cached image reference to be used.
+// cached image reference to be used. If tag has its cache flag set to
+// false this is a no-op.
 func (i *Importer) cacheTag(
 	ctx context.Context,
 	it *imagtagv1.Tag,
 	from string,
 	srcCtx *types.SystemContext,
 ) (string, error) {
+	if !it.Spec.Cache {
+		return from, nil
+	}
+
 	fromRef, err := i.ImageRefForStringRef(from)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("invalid source image reference: %w", err)
 	}
 
 	inregaddr, outregaddr, err := i.syssvc.CacheRegistryAddresses()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to find cache registry: %w", err)
 	}
 
 	// We cache images under registry/namespace/image-tag.
 	to := fmt.Sprintf("%s/%s/%s", inregaddr, it.Namespace, it.Name)
 	toRef, err := i.ImageRefForStringRef(to)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("invalid destination image reference: %w", err)
 	}
 
 	polctx, err := i.DefaultPolicyContext()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to get default policy: %w", err)
 	}
 
 	manifest, err := imgcopy.Image(
@@ -113,7 +118,7 @@ func (i *Importer) cacheTag(
 		},
 	)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to copy image: %w", err)
 	}
 
 	return fmt.Sprintf(
@@ -121,7 +126,27 @@ func (i *Importer) cacheTag(
 	), nil
 }
 
-// ImportTag runs an import on provided Tag.
+// registriesToSearch returns a list of registries to be used when looking for
+// an image. It is either the provided domain or a list of unqualified domains
+// configured globally and returned by SysContext service. This function is
+// used when trying to understand what an user means when they simply ask to
+// import an image called "centos:latest" for instance, in what registrise do
+// we need to look for this image.
+func (i *Importer) registriesToSearch(ctx context.Context, domain string) ([]string, error) {
+	if domain != "" {
+		return []string{domain}, nil
+	}
+
+	registries := i.syssvc.UnqualifiedRegistries(ctx)
+	if len(registries) == 0 {
+		return nil, fmt.Errorf("no unqualified registries found")
+	}
+	return registries, nil
+}
+
+// ImportTag runs an import on provided Tag. We look for the image in all
+// configured unqualified registries using all authentications we can find
+// on the Tag namespace.
 func (i *Importer) ImportTag(
 	ctx context.Context, it *imagtagv1.Tag,
 ) (imagtagv1.HashReference, error) {
@@ -135,38 +160,29 @@ func (i *Importer) ImportTag(
 
 	regDomain, remainder := i.SplitRegistryDomain(it.Spec.From)
 
-	registries := i.syssvc.UnqualifiedRegistries(ctx)
-	if regDomain != "" {
-		registries = []string{regDomain}
-	}
-	if len(registries) == 0 {
+	registries, err := i.registriesToSearch(ctx, regDomain)
+	if err != nil {
 		i.metric.ReportImportFailure()
-		return zero, fmt.Errorf("no registry candidates found")
+		return zero, fmt.Errorf("fail to find source image domain: %w", err)
 	}
 
 	var errors *multierror.Error
 	for _, registry := range registries {
 		imgFullPath := fmt.Sprintf("%s/%s", registry, remainder)
-		namedReference, err := reference.ParseDockerRef(imgFullPath)
+		imgref, err := i.ImageRefForStringRef(imgFullPath)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
 		}
 
-		imgref, err := docker.NewReference(namedReference)
-		if err != nil {
-			errors = multierror.Append(errors, err)
-			continue
-		}
-
+		// get all authentications for registry and adds a nil
+		// entry to the end in order to guarantee we gonna do
+		// an import  attempt without using authentication.
 		auths, err := i.syssvc.AuthsFor(ctx, imgref, it.Namespace)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
 		}
-
-		// adds a no authenticated attempt to the last position so
-		// if everything fails we attempt without auth at all.
 		auths = append(auths, nil)
 
 		for _, auth := range auths {
@@ -180,12 +196,10 @@ func (i *Importer) ImportTag(
 				continue
 			}
 
-			if it.Spec.Cache {
-				imghash, err = i.cacheTag(ctx, it, imghash, sysctx)
-				if err != nil {
-					i.metric.ReportImportFailure()
-					return zero, fmt.Errorf("unable to cache image: %w", err)
-				}
+			imghash, err = i.cacheTag(ctx, it, imghash, sysctx)
+			if err != nil {
+				i.metric.ReportImportFailure()
+				return zero, fmt.Errorf("fail to cache image: %w", err)
 			}
 
 			i.metric.ReportImportSuccess()
@@ -201,28 +215,27 @@ func (i *Importer) ImportTag(
 	}
 
 	i.metric.ReportImportFailure()
-	return zero, errors.ErrorOrNil()
+	return zero, fmt.Errorf("unable to import image: %w", errors)
 }
 
-// getImageHash attempts to fetch remote image hash remotely using provided system
-// context.
+// getImageHash attempts to fetch image hash remotely using provided system context.
 func (i *Importer) getImageHash(
 	ctx context.Context, sysctx *types.SystemContext, imgref types.ImageReference,
 ) (string, error) {
 	img, err := imgref.NewImage(ctx, sysctx)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to create ImageCloser: %w", err)
 	}
 	defer img.Close()
 
 	manifestBlob, _, err := img.Manifest(ctx)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to fetch image manifest: %w", err)
 	}
 
 	dgst, err := manifest.Digest(manifestBlob)
 	if err != nil {
-		return "", fmt.Errorf("error calculating digest: %w", err)
+		return "", fmt.Errorf("error calculating manifest digest: %w", err)
 	}
 
 	imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
