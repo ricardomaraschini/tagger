@@ -107,6 +107,11 @@ func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	}
 
 	changed := false
+	if _, ok := dep.Spec.Template.Annotations["image-tag"]; !ok {
+		changed = true
+		dep.Spec.Template.Annotations["image-tag"] = "true"
+	}
+
 	for _, cont := range dep.Spec.Template.Spec.Containers {
 		it, err := d.taglis.Tags(dep.Namespace).Get(cont.Image)
 		if err != nil {
