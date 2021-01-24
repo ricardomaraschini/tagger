@@ -259,6 +259,9 @@ func TestDeploymentSync(t *testing.T) {
 	}{
 		{
 			name: "tag not imported yet",
+			exp: map[string]string{
+				"image-tag": "true",
+			},
 			deploy: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mydeploy",
@@ -303,6 +306,9 @@ func TestDeploymentSync(t *testing.T) {
 		},
 		{
 			name: "tag not found",
+			exp: map[string]string{
+				"image-tag": "true",
+			},
 			deploy: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mydeploy",
@@ -348,7 +354,8 @@ func TestDeploymentSync(t *testing.T) {
 		{
 			name: "deployment already tagged with annotation",
 			exp: map[string]string{
-				"mytag": "remoteimage:123",
+				"image-tag": "true",
+				"mytag":     "remoteimage:123",
 			},
 			deploy: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -400,7 +407,8 @@ func TestDeploymentSync(t *testing.T) {
 		{
 			name: "deployment using tag",
 			exp: map[string]string{
-				"mytag": "remoteimage:123",
+				"mytag":     "remoteimage:123",
+				"image-tag": "true",
 			},
 			deploy: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
