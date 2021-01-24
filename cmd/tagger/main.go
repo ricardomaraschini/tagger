@@ -91,7 +91,6 @@ func main() {
 		ctx.Done(),
 		corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 		corinf.Core().V1().Secrets().Informer().HasSynced,
-		corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
 		corinf.Apps().V1().Deployments().Informer().HasSynced,
 		taginf.Images().V1().Tags().Informer().HasSynced,
 	) {
