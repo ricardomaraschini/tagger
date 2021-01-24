@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
@@ -28,7 +27,6 @@ type Tag struct {
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
 	taginf taginform.SharedInformerFactory
-	replis aplist.ReplicaSetLister
 	deplis aplist.DeploymentLister
 	impsvc *Importer
 	depsvc *Deployment
@@ -44,12 +42,10 @@ func NewTag(
 	tagcli tagclient.Interface,
 	taginf taginform.SharedInformerFactory,
 ) *Tag {
-	var replis aplist.ReplicaSetLister
 	var deplis aplist.DeploymentLister
 	var taglis taglist.TagLister
 
 	if corinf != nil {
-		replis = corinf.Apps().V1().ReplicaSets().Lister()
 		deplis = corinf.Apps().V1().Deployments().Lister()
 	}
 
@@ -61,49 +57,17 @@ func NewTag(
 		taginf: taginf,
 		tagcli: tagcli,
 		taglis: taglis,
-		replis: replis,
 		deplis: deplis,
 		impsvc: NewImporter(corinf),
 		depsvc: NewDeployment(corcli, corinf, taginf),
 	}
 }
 
-// CurrentReferenceForTagByName returns the image reference a tag is pointing to.
-// If we can't find the image tag by namespace and name an empty string is returned
-// instead.
-func (t *Tag) CurrentReferenceForTagByName(namespace, name string) (string, error) {
-	it, err := t.taglis.Tags(namespace).Get(name)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return "", nil
-		}
-		return "", fmt.Errorf("fail to get tag: %w", err)
-	}
-	return it.CurrentReferenceForTag(), nil
-}
-
 // PatchForPod creates and returns a json patch to be applied on top of a pod
 // in order to make it point to an already imported image tag. May returns nil
 // if no patch is needed (i.e. pod does not use image tag).
 func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error) {
-	if len(pod.OwnerReferences) == 0 {
-		return nil, nil
-	}
-
-	// TODO multiple / different types of owners
-	podOwner := pod.OwnerReferences[0]
-	if podOwner.Kind != "ReplicaSet" {
-		return nil, nil
-	}
-
-	rs, err := t.replis.ReplicaSets(pod.Namespace).Get(podOwner.Name)
-	if err != nil {
-		return nil, fmt.Errorf("fail to get replicaset: %w", err)
-	}
-
-	// if the replica set has no image tag annotation there is nothing to
-	// be patched.
-	if _, ok := rs.Annotations["image-tag"]; !ok {
+	if _, ok := pod.Annotations["image-tag"]; !ok {
 		return nil, nil
 	}
 
@@ -111,12 +75,7 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 	// we are going only for the containers on spec.containers.
 	nconts := []corev1.Container{}
 	for _, c := range pod.Spec.Containers {
-		ref, err := t.CurrentReferenceForTagByName(pod.Namespace, c.Image)
-		if err != nil {
-			return nil, fmt.Errorf("fail to find current hashref for tag: %w", err)
-		}
-
-		if ref != "" {
+		if ref, ok := pod.Annotations[c.Image]; ok {
 			c.Image = ref
 		}
 		nconts = append(nconts, c)

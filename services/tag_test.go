@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,159 +21,16 @@ import (
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
 )
 
-func TestCurrentReferenceForTagByName(t *testing.T) {
-	for _, tt := range []struct {
-		name    string
-		itname  string
-		objects []runtime.Object
-		expref  string
-		err     string
-	}{
-		{
-			name: "no image tag",
-		},
-		{
-			name:   "generation not existent",
-			itname: "tag",
-			objects: []runtime.Object{
-				&imagtagv1.Tag{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "tag",
-						Namespace: "default",
-					},
-				},
-			},
-		},
-		{
-			name:   "happy path",
-			expref: "my ref",
-			itname: "tag",
-			objects: []runtime.Object{
-				&imagtagv1.Tag{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "tag",
-						Namespace: "default",
-					},
-					Status: imagtagv1.TagStatus{
-						Generation: 60,
-						References: []imagtagv1.HashReference{
-							{Generation: 63},
-							{Generation: 62},
-							{Generation: 61},
-							{
-								Generation:     60,
-								ImageReference: "my ref",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:   "tag in different namespace",
-			itname: "tag",
-			objects: []runtime.Object{
-				&imagtagv1.Tag{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "tag",
-						Namespace: "another-namespace",
-					},
-					Status: imagtagv1.TagStatus{
-						Generation: 0,
-						References: []imagtagv1.HashReference{
-							{
-								Generation:     0,
-								ImageReference: "ref",
-							},
-						},
-					},
-				},
-			},
-		},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			fakecli := tagfake.NewSimpleClientset(tt.objects...)
-			informer := taginf.NewSharedInformerFactory(fakecli, time.Minute)
-			taglis := informer.Images().V1().Tags().Lister()
-			informer.Start(ctx.Done())
-			if !cache.WaitForCacheSync(
-				ctx.Done(),
-				informer.Images().V1().Tags().Informer().HasSynced,
-			) {
-				t.Fatal("errors waiting for caches to sync")
-			}
-
-			svc := &Tag{taglis: taglis}
-			ref, err := svc.CurrentReferenceForTagByName("default", tt.itname)
-			if err != nil {
-				if len(tt.err) == 0 {
-					t.Errorf("unexpected error: %s", err)
-				} else if !strings.Contains(err.Error(), tt.err) {
-					t.Errorf("expecting %q, %q received instead", tt.err, err)
-				}
-			} else if len(tt.err) > 0 {
-				t.Errorf("expecting error %q, nil received instead", tt.err)
-			}
-
-			if ref != tt.expref {
-				t.Errorf("expecting ref %q, received %q instead", tt.expref, ref)
-			}
-		})
-	}
-}
-
 func TestPatchForPod(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
 		pod      corev1.Pod
-		tags     []runtime.Object
-		replicas []runtime.Object
 		expected []jsonpatch.JsonPatchOperation
 		err      string
 	}{
 		{
-			name: "pod without owner",
+			name: "pod without annotation",
 			pod:  corev1.Pod{},
-		},
-		{
-			name: "job pod",
-			pod: corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "my-pod",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "Job",
-						},
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Image: "imagetag",
-						},
-					},
-				},
-			},
-			tags: []runtime.Object{
-				&imagtagv1.Tag{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "imagetag",
-						Namespace: "default",
-					},
-					Status: imagtagv1.TagStatus{
-						Generation: 1,
-						References: []imagtagv1.HashReference{
-							{
-								Generation: 0,
-							},
-						},
-					},
-				},
-			},
 		},
 		{
 			name: "happy path",
@@ -189,11 +45,9 @@ func TestPatchForPod(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 					Name:      "my-pod",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "ReplicaSet",
-							Name: "replicaset",
-						},
+					Annotations: map[string]string{
+						"image-tag": "true",
+						"imagetag":  "image ref",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -204,77 +58,15 @@ func TestPatchForPod(t *testing.T) {
 					},
 				},
 			},
-			tags: []runtime.Object{
-				&imagtagv1.Tag{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "imagetag",
-						Namespace: "default",
-					},
-					Status: imagtagv1.TagStatus{
-						Generation: 0,
-						References: []imagtagv1.HashReference{
-							{
-								Generation:     0,
-								ImageReference: "image ref",
-							},
-						},
-					},
-				},
-			},
-			replicas: []runtime.Object{
-				&appsv1.ReplicaSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "replicaset",
-						Namespace: "default",
-						Annotations: map[string]string{
-							"image-tag": "true",
-						},
-					},
-				},
-			},
 		},
 		{
-			name: "replica without annotation",
+			name: "pod without image tag annotation yet",
 			pod: corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 					Name:      "my-pod",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "ReplicaSet",
-							Name: "replicaset",
-						},
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Image: "imagetag",
-						},
-					},
-				},
-			},
-			replicas: []runtime.Object{
-				&appsv1.ReplicaSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "replicaset",
-						Namespace: "default",
-					},
-				},
-			},
-		},
-		{
-			name: "non existing replica set",
-			err:  "not found",
-			pod: corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "my-pod",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "ReplicaSet",
-							Name: "replicaset",
-						},
+					Annotations: map[string]string{
+						"image-tag": "true",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -288,31 +80,7 @@ func TestPatchForPod(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			tagcli := tagfake.NewSimpleClientset(tt.tags...)
-			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
-			taglis := taginf.Images().V1().Tags().Lister()
-
-			corcli := corfake.NewSimpleClientset(tt.replicas...)
-			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
-			replis := corinf.Apps().V1().ReplicaSets().Lister()
-
-			taginf.Start(ctx.Done())
-			corinf.Start(ctx.Done())
-			if !cache.WaitForCacheSync(
-				ctx.Done(),
-				taginf.Images().V1().Tags().Informer().HasSynced,
-				corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
-			) {
-				t.Fatal("errors waiting for caches to sync")
-			}
-
-			svc := &Tag{
-				taglis: taglis,
-				replis: replis,
-			}
+			svc := &Tag{}
 			patch, err := svc.PatchForPod(tt.pod)
 			if err != nil {
 				if len(tt.err) == 0 {
@@ -412,7 +180,6 @@ func TestSync(t *testing.T) {
 				ctx.Done(),
 				corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 				corinf.Core().V1().Secrets().Informer().HasSynced,
-				corinf.Apps().V1().ReplicaSets().Informer().HasSynced,
 				corinf.Apps().V1().Deployments().Informer().HasSynced,
 				taginf.Images().V1().Tags().Informer().HasSynced,
 			) {
