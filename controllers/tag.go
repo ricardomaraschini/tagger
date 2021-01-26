@@ -91,17 +91,23 @@ func (t *Tag) handlers() cache.ResourceEventHandler {
 
 // eventProcessor reads our events calling syncTag for all of them.
 func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
+	var running sync.WaitGroup
 	defer wg.Done()
 	for {
 		evt, end := t.queue.Get()
 		if end {
+			klog.Infof("queue closed, awaiting for running workers")
+			running.Wait()
+			klog.Infof("all running workers finished")
 			return
 		}
 
 		t.tokens <- true
+		running.Add(1)
 		go func() {
 			defer func() {
 				<-t.tokens
+				running.Done()
 				t.mtrsvc.ReportWorker(false)
 			}()
 			t.mtrsvc.ReportWorker(true)
