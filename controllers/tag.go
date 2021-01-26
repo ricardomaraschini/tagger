@@ -96,9 +96,9 @@ func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 	for {
 		evt, end := t.queue.Get()
 		if end {
-			klog.Infof("queue closed, awaiting for running workers")
+			klog.Info("queue closed, awaiting for running workers")
 			running.Wait()
-			klog.Infof("all running workers finished")
+			klog.Info("all running workers finished")
 			return
 		}
 
