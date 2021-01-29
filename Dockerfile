@@ -8,6 +8,6 @@ RUN make build
 
 FROM registry.centos.org/centos:8
 WORKDIR /
-EXPOSE 8080 8081
+EXPOSE 8080 8081 8082 8090
 COPY --from=builder /go/src/tagger/_output/bin/tagger /usr/local/bin/
 CMD "/usr/local/bin/tagger"
