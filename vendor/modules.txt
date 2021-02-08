@@ -12,6 +12,8 @@ github.com/beorn7/perks/quantile
 # github.com/containers/image/v5 v5.6.0
 ## explicit
 github.com/containers/image/v5/copy
+github.com/containers/image/v5/directory
+github.com/containers/image/v5/directory/explicitfilepath
 github.com/containers/image/v5/docker
 github.com/containers/image/v5/docker/policyconfiguration
 github.com/containers/image/v5/docker/reference
