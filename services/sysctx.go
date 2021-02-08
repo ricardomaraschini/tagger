@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
 )
 
@@ -203,4 +204,15 @@ func (s *SysContext) AuthsFor(
 		dockerAuths = append(dockerAuths, &sec)
 	}
 	return dockerAuths, nil
+}
+
+// DefaultPolicyContext returns the default policy context. XXX this should
+// be reviewed.
+func (s *SysContext) DefaultPolicyContext() (*signature.PolicyContext, error) {
+	pol := &signature.Policy{
+		Default: signature.PolicyRequirements{
+			signature.NewPRInsecureAcceptAnything(),
+		},
+	}
+	return signature.NewPolicyContext(pol)
 }

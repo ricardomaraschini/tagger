@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -11,10 +12,10 @@ import (
 	"k8s.io/client-go/informers"
 
 	imgcopy "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/directory"
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
-	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
 
@@ -63,17 +64,6 @@ func (i *Importer) ImageRefForStringRef(ref string) (types.ImageReference, error
 	return docker.NewReference(namedReference)
 }
 
-// DefaultPolicyContext returns the default policy context. XXX this should
-// be reviewed.
-func (i *Importer) DefaultPolicyContext() (*signature.PolicyContext, error) {
-	pol := &signature.Policy{
-		Default: signature.PolicyRequirements{
-			signature.NewPRInsecureAcceptAnything(),
-		},
-	}
-	return signature.NewPolicyContext(pol)
-}
-
 // cacheTag copies an image from one registry to another. The first is
 // the source registry, the latter is our caching registry. Returns the
 // cached image reference to be used. If tag has its cache flag set to
@@ -105,7 +95,7 @@ func (i *Importer) cacheTag(
 		return "", fmt.Errorf("invalid destination image reference: %w", err)
 	}
 
-	polctx, err := i.DefaultPolicyContext()
+	polctx, err := i.syssvc.DefaultPolicyContext()
 	if err != nil {
 		return "", fmt.Errorf("unable to get default policy: %w", err)
 	}
@@ -240,4 +230,63 @@ func (i *Importer) getImageHash(
 
 	imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
 	return imageref, nil
+}
+
+// PullTagToDir pull all Tag's generations hosted locally (cached) and stores them
+// into a directory. Inside the resulting directory every generation will be placed
+// in a different subdirectory, subdirs are named after their generation number.
+func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dir string) error {
+	inregaddr, _, err := i.syssvc.CacheRegistryAddresses()
+	if err != nil {
+		return fmt.Errorf("unable to find cache registry: %w", err)
+	}
+
+	for _, hr := range it.Status.References {
+		domain, _ := i.SplitRegistryDomain(hr.ImageReference)
+		if domain != inregaddr {
+			continue
+		}
+
+		gendir := fmt.Sprintf("%s/%d", dir, hr.Generation)
+		if err := os.Mkdir(gendir, 0700); err != nil {
+			return fmt.Errorf("error creating gen dir: %w", err)
+		}
+
+		ref, err := i.ImageRefForStringRef(hr.ImageReference)
+		if err != nil {
+			return fmt.Errorf("error parsing generation: %w", err)
+		}
+
+		if err := i.pullImageToDir(ctx, ref, gendir); err != nil {
+			return fmt.Errorf("error pulling image: %w", err)
+		}
+	}
+	return nil
+}
+
+// pullImageToDir pulls an image hosted in the cache registry into a local
+// directory. This function uses the cache registry context so it is not
+// suitable to pull image from other registries.
+func (i *Importer) pullImageToDir(
+	ctx context.Context, fromRef types.ImageReference, dir string,
+) error {
+	toRef, err := directory.NewReference(dir)
+	if err != nil {
+		return fmt.Errorf("unable to create dir reference: %w", err)
+	}
+
+	polctx, err := i.syssvc.DefaultPolicyContext()
+	if err != nil {
+		return fmt.Errorf("unable to get default policy: %w", err)
+	}
+
+	if _, err := imgcopy.Image(
+		ctx, polctx, toRef, fromRef, &imgcopy.Options{
+			ImageListSelection: imgcopy.CopyAllImages,
+			SourceCtx:          i.syssvc.CacheRegistryContext(ctx),
+		},
+	); err != nil {
+		return fmt.Errorf("error pulling image to disk: %w", err)
+	}
+	return nil
 }
