@@ -1,0 +1,30 @@
+syntax = "proto3";
+option go_package = "github.com/ricardomaraschini/tagger/imagetags/pb";
+
+package pb;
+
+message Request {
+	string namespace = 1;
+	string name = 2;
+	string token = 3;
+}
+
+message ImportRequest {
+	oneof test_oneof {
+		Request request = 1;
+		Chunk chunk = 2;
+	}
+}
+
+message Chunk {
+	bytes content = 1;
+}
+
+message ImportResult {
+	string status = 1;
+}
+
+service TagIOService {
+	rpc Export(Request) returns (stream Chunk);
+	rpc Import(ImportRequest) returns (ImportResult);
+}

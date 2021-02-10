@@ -13,7 +13,12 @@ get-code-generator:
 		https://github.com/kubernetes/code-generator.git                \
 		_output/code-generator
 
-generate:
+generate-proto:
+	protoc --go-grpc_out=paths=source_relative:.				\
+		--go_out=paths=source_relative:.				\
+		./imagetags/pb/*.proto
+
+generate-k8s:
 	_output/code-generator/generate-groups.sh all                           \
 		$(PROJECT)/imagetags/generated                                  \
 		$(PROJECT)                                                      \
