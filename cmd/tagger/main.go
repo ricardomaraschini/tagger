@@ -71,6 +71,8 @@ func main() {
 	// create our service layer
 	depsvc := services.NewDeployment(corcli, corinf, taginf)
 	tagsvc := services.NewTag(corcli, corinf, tagcli, taginf)
+	tiosvc := services.NewTagIO(corinf, tagcli, taginf)
+	usrsvc := services.NewUser(corcli)
 	mtrsvc := services.NewMetrics()
 
 	// create controller layer
@@ -79,6 +81,7 @@ func main() {
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)
 	dpctrl := controllers.NewDeployment(depsvc)
+	tioctr := controllers.NewTagIO(tiosvc, usrsvc)
 	moctrl := controllers.NewMetric()
 
 	// starts up all informers and waits for their cache to sync up,
@@ -99,7 +102,7 @@ func main() {
 	klog.Info("caches in sync, moving on.")
 
 	var wg sync.WaitGroup
-	ctrls := []Controller{mtctrl, qyctrl, dkctrl, dpctrl, itctrl, moctrl}
+	ctrls := []Controller{mtctrl, qyctrl, dkctrl, dpctrl, itctrl, moctrl, tioctr}
 	for _, ctrl := range ctrls {
 		wg.Add(1)
 		go func(c Controller) {

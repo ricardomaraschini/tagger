@@ -4,17 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	corecli "k8s.io/client-go/kubernetes"
-	aplist "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -28,15 +23,11 @@ import (
 
 // Tag gather all actions related to image tag objects.
 type Tag struct {
-	tmpdir string
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
 	taginf taginform.SharedInformerFactory
-	deplis aplist.DeploymentLister
 	impsvc *Importer
 	depsvc *Deployment
-	syssvc *SysContext
-	fstsvc *FS
 }
 
 // NewTag returns a handler for all image tag related services. I have chosen to
@@ -49,27 +40,17 @@ func NewTag(
 	tagcli tagclient.Interface,
 	taginf taginform.SharedInformerFactory,
 ) *Tag {
-	var deplis aplist.DeploymentLister
 	var taglis taglist.TagLister
-
-	if corinf != nil {
-		deplis = corinf.Apps().V1().Deployments().Lister()
-	}
-
 	if taginf != nil {
 		taglis = taginf.Images().V1().Tags().Lister()
 	}
 
 	return &Tag{
-		tmpdir: "/data",
 		taginf: taginf,
 		tagcli: tagcli,
 		taglis: taglis,
-		deplis: deplis,
 		impsvc: NewImporter(corinf),
 		depsvc: NewDeployment(corcli, corinf, taginf),
-		fstsvc: NewFS(),
-		syssvc: NewSysContext(corinf),
 	}
 }
 
@@ -269,94 +250,6 @@ func (t *Tag) NewGeneration(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
-	}
-	return it, nil
-}
-
-// Export saves a Tag into a local tar file and returns a reader closer to
-// it.  Caller is responsible for cleaning up after the returned value.
-func (t *Tag) Export(
-	ctx context.Context, ns string, name string,
-) (io.ReadCloser, error) {
-	it, err := t.taglis.Tags(ns).Get(name)
-	if err != nil {
-		return nil, fmt.Errorf("error getting tag: %w", err)
-	}
-
-	dir, err := ioutil.TempDir(t.tmpdir, "tag-export-*")
-	if err != nil {
-		return nil, fmt.Errorf("error creating temp dir: %w", err)
-	}
-	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
-			klog.Errorf("error removing temp dir: %s", err)
-		}
-	}()
-
-	if err := t.impsvc.PullTagToDir(ctx, it, dir); err != nil {
-		return nil, fmt.Errorf("error pulling tag to dir: %w", err)
-	}
-
-	if err := t.cleanAndEncodeTag(it, dir); err != nil {
-		return nil, fmt.Errorf("error encoding tag: %w", err)
-	}
-
-	out, err := ioutil.TempFile(t.tmpdir, "tar-export-*.tar.gz")
-	if err != nil {
-		return nil, fmt.Errorf("error creating tar file: %w", err)
-	}
-
-	if err := t.fstsvc.CompressDirectory(dir, out); err != nil {
-		out.Close()
-		if err := os.Remove(out.Name()); err != nil {
-			klog.Errorf("error removing temp tar: %s", err)
-		}
-		return nil, fmt.Errorf("error compressing tag: %w", err)
-	}
-	return out, nil
-}
-
-// cleanAndEncodeTag json encodes the Tag referred by TagExport and stores it in
-// a file callled tag.json inside the provided directory.
-func (t *Tag) cleanAndEncodeTag(it *imagtagv1.Tag, dir string) error {
-	tcopy, err := t.cleanTag(it)
-	if err != nil {
-		return fmt.Errorf("unable to clear tag: %w", err)
-	}
-
-	tfpath := fmt.Sprintf("%s/tag.json", dir)
-	tf, err := os.Create(tfpath)
-	if err != nil {
-		return fmt.Errorf("error creating file for encoded tag: %w", err)
-	}
-	defer tf.Close()
-
-	return json.NewEncoder(tf).Encode(tcopy)
-}
-
-// cleanTag changes all references to the cache registry by a template entry so it
-// can be reassembled later on in another cluster. Cleans up the tag namespace as
-// well.
-func (t *Tag) cleanTag(it *imagtagv1.Tag) (*imagtagv1.Tag, error) {
-	inregaddr, _, err := t.syssvc.CacheRegistryAddresses()
-	if err != nil {
-		return nil, fmt.Errorf("error cleaning up tag: %w", err)
-	}
-
-	it = it.DeepCopy()
-	namespace := fmt.Sprintf("/%s/", it.Namespace)
-	it.ObjectMeta = metav1.ObjectMeta{
-		Name: it.Name,
-	}
-	for i := range it.Status.References {
-		imgref := it.Status.References[i].ImageReference
-		if !strings.HasPrefix(imgref, inregaddr) {
-			continue
-		}
-
-		imgref = strings.ReplaceAll(imgref, inregaddr, "{{.Registry}}")
-		imgref = strings.ReplaceAll(imgref, namespace, "/{{.Namespace}}/")
-		it.Status.References[i].ImageReference = imgref
 	}
 	return it, nil
 }
