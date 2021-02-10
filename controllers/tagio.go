@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -10,29 +11,30 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// TagExporter is here to make tests easier. You may be looking for its
-// concrete implementation in services/tag.go.
-type TagExporter interface {
-	Export(context.Context, string, string) (io.ReadCloser, error)
+// TagImporterExporter is here to make tests easier. You may be looking for
+// its concrete implementation in services/tagio.go.
+type TagImporterExporter interface {
+	Import(context.Context, string, string, io.Reader) error
+	Export(context.Context, string, string) (io.ReadCloser, func(), error)
 }
 
 // UserValidator validates an user can access Tags in a given namespace.
 // You should be looking for a concrete implementation of this, please
 // look at services/user.go and you will find it.
 type UserValidator interface {
-	CanAccessTag(context.Context, string, string) error
+	CanAccessTags(context.Context, string, string) error
 }
 
 // TagIO handles requests for exporting and import Tag custom resources.
 type TagIO struct {
 	bind   string
-	tagexp TagExporter
+	tagexp TagImporterExporter
 	usrval UserValidator
 }
 
 // NewTagIO returns a web hook handler for quay webhooks.
 func NewTagIO(
-	tagexp TagExporter,
+	tagexp TagImporterExporter,
 	usrval UserValidator,
 ) *TagIO {
 	return &TagIO{
@@ -44,10 +46,12 @@ func NewTagIO(
 
 // Name returns a name identifier for this controller.
 func (t *TagIO) Name() string {
-	return "tag input/output webhook"
+	return "tag input/output handler"
 }
 
-// ServeHTTP handles requests coming in.
+// ServeHTTP handles requests coming in. Validates if the request contains
+// a valid kubernetes token through an UserValidator call and then based
+// on the request method disptaches an import (post) or export (get).
 func (t *TagIO) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tkheader := r.Header.Get("Authorization")
 	tkslices := strings.Split(tkheader, "Bearer ")
@@ -75,20 +79,46 @@ func (t *TagIO) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	name := names[0]
 
-	if err := t.usrval.CanAccessTag(r.Context(), namespace, token); err != nil {
+	// checks if the token allows access to tags in the provided namespace.
+	if err := t.usrval.CanAccessTags(r.Context(), namespace, token); err != nil {
 		klog.Errorf("user cannot access tags in namespace: %s", err)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	fp, err := t.tagexp.Export(r.Context(), namespace, name)
+	switch r.Method {
+	case http.MethodGet:
+		t.exportTag(namespace, name, w, r)
+	case http.MethodPost:
+		t.importTag(namespace, name, w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+// importTag reads content from the request body and attempts to uncompress it,
+// creating a tag if succeeds.
+func (t *TagIO) importTag(namespace, name string, w http.ResponseWriter, r *http.Request) {
+	if err := t.tagexp.Import(r.Context(), namespace, name, r.Body); err != nil {
+		klog.Errorf("unexpected error importing tag: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// exportTag compresses a tag and writes the content down into the writer.
+func (t *TagIO) exportTag(namespace, name string, w http.ResponseWriter, r *http.Request) {
+	fp, cleanup, err := t.tagexp.Export(r.Context(), namespace, name)
 	if err != nil {
 		klog.Errorf("unexpected error exporting tag: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer fp.Close()
+	defer cleanup()
 
+	hdr := fmt.Sprintf("attachment; filename=tag-%s-%s.tar.gz", namespace, name)
+	w.Header().Set("Content-Disposition", hdr)
 	w.WriteHeader(http.StatusOK)
 	if _, err := io.Copy(w, fp); err != nil {
 		klog.Errorf("error copying tag: %s", err)

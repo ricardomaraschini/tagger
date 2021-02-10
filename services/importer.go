@@ -232,6 +232,60 @@ func (i *Importer) getImageHash(
 	return imageref, nil
 }
 
+// PushTagFromDir tag from dir reads a tag from a directory and pushes images that
+// refer to the cache registry.
+func (i *Importer) PushTagFromDir(ctx context.Context, it *imagtagv1.Tag, dir string) error {
+	inregaddr, _, err := i.syssvc.CacheRegistryAddresses()
+	if err != nil {
+		return fmt.Errorf("unable to find cache registry: %w", err)
+	}
+
+	for _, hr := range it.Status.References {
+		domain, _ := i.SplitRegistryDomain(hr.ImageReference)
+		if domain != inregaddr {
+			continue
+		}
+
+		ref, err := i.ImageRefForStringRef(hr.ImageReference)
+		if err != nil {
+			return fmt.Errorf("error parsing generation: %w", err)
+		}
+
+		gendir := fmt.Sprintf("%s/%d", dir, hr.Generation)
+		if err := i.pushImageFromDir(ctx, gendir, ref); err != nil {
+			return fmt.Errorf("error pulling image: %w", err)
+		}
+	}
+	return nil
+}
+
+// pushImageFromDir reads an image from a directory and pushes it to the
+// cache registry. This uses the cache registry context, do not try to
+// use this to push images to other registries.
+func (i *Importer) pushImageFromDir(
+	ctx context.Context, dir string, toRef types.ImageReference,
+) error {
+	fromRef, err := directory.NewReference(dir)
+	if err != nil {
+		return fmt.Errorf("unable to create dir reference: %w", err)
+	}
+
+	polctx, err := i.syssvc.DefaultPolicyContext()
+	if err != nil {
+		return fmt.Errorf("unable to get default policy: %w", err)
+	}
+
+	if _, err := imgcopy.Image(
+		ctx, polctx, toRef, fromRef, &imgcopy.Options{
+			ImageListSelection: imgcopy.CopyAllImages,
+			DestinationCtx:     i.syssvc.CacheRegistryContext(ctx),
+		},
+	); err != nil {
+		return fmt.Errorf("error pushing image from disk: %w", err)
+	}
+	return nil
+}
+
 // PullTagToDir pull all Tag's generations hosted locally (cached) and stores them
 // into a directory. Inside the resulting directory every generation will be placed
 // in a different subdirectory, subdirs are named after their generation number.

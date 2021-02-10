@@ -13,23 +13,31 @@ import (
 	"time"
 )
 
-type tagexporter struct {
+type tagio struct {
 	fail bool
 	body []byte
 }
 
-func (t *tagexporter) Export(ctx context.Context, ns, name string) (io.ReadCloser, error) {
+func (t *tagio) Export(ctx context.Context, ns, name string) (io.ReadCloser, func(), error) {
 	if t.fail {
-		return nil, fmt.Errorf("error exporting tag")
+		return nil, nil, fmt.Errorf("error exporting tag")
 	}
-	return ioutil.NopCloser(bytes.NewBuffer(t.body)), nil
+	fn := func() {}
+	return ioutil.NopCloser(bytes.NewBuffer(t.body)), fn, nil
+}
+
+func (t *tagio) Import(context.Context, string, string, io.Reader) error {
+	if t.fail {
+		return fmt.Errorf("error importing tag")
+	}
+	return nil
 }
 
 type uservalidator struct {
 	allowed bool
 }
 
-func (u *uservalidator) CanAccessTag(context.Context, string, string) error {
+func (u *uservalidator) CanAccessTags(context.Context, string, string) error {
 	if !u.allowed {
 		return fmt.Errorf("not allowed")
 	}
@@ -40,7 +48,7 @@ func TestTagIO(t *testing.T) {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
-	expsvc := &tagexporter{}
+	expsvc := &tagio{}
 	usrsvc := &uservalidator{}
 	srv := NewTagIO(expsvc, usrsvc)
 	wg.Add(1)
