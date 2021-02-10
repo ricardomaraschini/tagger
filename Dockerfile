@@ -8,6 +8,8 @@ RUN make build
 
 FROM registry.centos.org/centos:8
 WORKDIR /
+RUN mkdir /data
+RUN chmod 777 /data
 # 8080 pod mutating webhook handler.
 # 8081 quay webhooks handler.
 # 8082 docker webhooks handler.
