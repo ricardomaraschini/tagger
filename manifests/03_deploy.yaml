@@ -29,6 +29,8 @@ spec:
         env:
         - name: CACHE_REGISTRY_INSECURE
           value: "true"
+        - name: CACHE_REGISTRY_ADDRESS
+          value: "do.not.exist.io"
       volumes:
       - name: certs
         secret:
