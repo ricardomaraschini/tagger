@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ricardomaraschini/tagger/imagetags/pb"
+	"github.com/ricardomaraschini/tagger/infra/pb"
 	"google.golang.org/grpc"
 )
 

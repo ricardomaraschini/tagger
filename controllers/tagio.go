@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/reflection"
 	"k8s.io/klog/v2"
 
-	"github.com/ricardomaraschini/tagger/imagetags/pb"
-	"github.com/ricardomaraschini/tagger/infra"
+	"github.com/ricardomaraschini/tagger/infra/fs"
+	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
 // TagImporterExporter is here to make tests easier. You may be looking for
@@ -36,7 +36,7 @@ type TagIO struct {
 	tagexp TagImporterExporter
 	usrval UserValidator
 	srv    *grpc.Server
-	fs     *infra.FS
+	fs     *fs.FS
 	pb.UnimplementedTagIOServiceServer
 }
 
@@ -50,7 +50,7 @@ func NewTagIO(
 		tagexp: tagexp,
 		usrval: usrval,
 		srv:    grpc.NewServer(),
-		fs:     infra.NewFS("/data"),
+		fs:     fs.New("/data"),
 	}
 	pb.RegisterTagIOServiceServer(tio.srv, tio)
 	reflection.Register(tio.srv)
