@@ -12,11 +12,10 @@ import (
 	corelister "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
+	"gopkg.in/yaml.v2"
 )
 
 // We use dockerAuthConfig to unmarshal a default docker configuration present on

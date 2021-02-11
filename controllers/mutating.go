@@ -18,7 +18,7 @@ import (
 
 	"github.com/mattbaird/jsonpatch"
 
-	imgtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imgtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 )
 
 // PodPatcher creates a patch for a pod resource, possibly overwritting

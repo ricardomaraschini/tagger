@@ -1,7 +1,7 @@
 .PHONY: get-code-generator generate build clean
 
 PROJECT=github.com/ricardomaraschini/tagger
-GEN_OUTPUT=/tmp/$(PROJECT)/imagetags
+GEN_OUTPUT=/tmp/$(PROJECT)/infra/tags
 
 build:
 	go build -mod vendor -o _output/bin/tagger ./cmd/tagger
@@ -16,18 +16,17 @@ get-code-generator:
 generate-proto:
 	protoc --go-grpc_out=paths=source_relative:.				\
 		--go_out=paths=source_relative:.				\
-		./imagetags/pb/*.proto
+		./infra/pb/*.proto
 
 generate-k8s:
 	_output/code-generator/generate-groups.sh all                           \
-		$(PROJECT)/imagetags/generated                                  \
+		$(PROJECT)/infra/tags/v1/gen					\
 		$(PROJECT)                                                      \
-		imagetags:v1                                                    \
+		infra/tags:v1                                                   \
 		--go-header-file _output/code-generator/hack/boilerplate.go.txt \
 		--output-base=/tmp
-	rm -rf imagetags/generated
-	mv $(GEN_OUTPUT)/generated imagetags 
-	mv $(GEN_OUTPUT)/v1/* imagetags/v1/
+	rm -rf infra/tags/v1/gen
+	mv $(GEN_OUTPUT)/v1/* infra/tags/v1/
 
 image:
 	podman build -t quay.io/rmarasch/tagger .
