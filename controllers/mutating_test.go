@@ -17,7 +17,7 @@ import (
 
 	"github.com/mattbaird/jsonpatch"
 
-	imgv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imgv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 )
 
 type patcher struct {

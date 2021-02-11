@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
+	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
 	"github.com/ricardomaraschini/tagger/services"
 )
 
@@ -21,6 +21,7 @@ func main() {
 	root.AddCommand(tagupgrade)
 	root.AddCommand(tagdowngrade)
 	root.AddCommand(tagimport)
+	root.AddCommand(tagexport)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
