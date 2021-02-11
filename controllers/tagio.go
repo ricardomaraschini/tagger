@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/ricardomaraschini/tagger/imagetags/pb"
+	"github.com/ricardomaraschini/tagger/infra"
 )
 
 // TagImporterExporter is here to make tests easier. You may be looking for
@@ -34,6 +36,7 @@ type TagIO struct {
 	tagexp TagImporterExporter
 	usrval UserValidator
 	srv    *grpc.Server
+	fs     *infra.FS
 	pb.UnimplementedTagIOServiceServer
 }
 
@@ -47,73 +50,168 @@ func NewTagIO(
 		tagexp: tagexp,
 		usrval: usrval,
 		srv:    grpc.NewServer(),
+		fs:     infra.NewFS("/data"),
 	}
 	pb.RegisterTagIOServiceServer(tio.srv, tio)
 	reflection.Register(tio.srv)
 	return tio
 }
 
-// Export handles tag exports through grpc.
+// keepAlive helps to keep some activity going on in the grcp connection,
+// we send down the line an empty Chunk once each second. This is to make
+// AWS load balancers happy (otherwise they shut down our connection after
+// one minute). This might be useful for other types of load balancers as
+// well. Keep alive messages are stopped when "end" channel is closed.
+func (t *TagIO) keepAlive(
+	wg *sync.WaitGroup, end chan bool, stream pb.TagIOService_ExportServer,
+) {
+	ticker := time.NewTicker(time.Second)
+	defer func() {
+		ticker.Stop()
+		wg.Done()
+	}()
+
+	for {
+		select {
+		case <-end:
+			return
+		case <-ticker.C:
+			stream.Send(&pb.Chunk{})
+		}
+	}
+}
+
+// Export handles tag exports through grpc. We receive a request informing what
+// is the tag to be exported (namespace and name) and also a kubernetes token
+// for authentication and authorization. This function writes down the exported
+// tag file in Chunks, client can then reassemble the file downstream.
 func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	klog.Info("received request to export tag")
+	ctx, cancel := context.WithTimeout(stream.Context(), 10*time.Minute)
 	defer cancel()
 
-	if err := t.usrval.CanAccessTags(
-		ctx, in.GetNamespace(), in.GetToken(),
-	); err != nil {
+	name := in.GetName()
+	namespace := in.GetNamespace()
+	token := in.GetToken()
+	if err := t.usrval.CanAccessTags(ctx, namespace, token); err != nil {
 		klog.Errorf("user cannot access tags in namespace: %s", err)
 		return fmt.Errorf("unauthorized")
 	}
 
-	fp, cleanup, err := t.tagexp.Export(
-		ctx, in.GetNamespace(), in.GetName(),
-	)
+	kalive := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go t.keepAlive(&wg, kalive, stream)
+
+	klog.Infof("exporting tag %s/%s", namespace, name)
+	fp, cleanup, err := t.tagexp.Export(ctx, namespace, name)
 	if err != nil {
-		return fmt.Errorf("error importing image: %w", err)
+		close(kalive)
+		klog.Errorf("error exporting tag: %s", err)
+		return fmt.Errorf("error exporting tag: %w", err)
 	}
 	defer cleanup()
 
-	chunk := &pb.Chunk{
-		Content: make([]byte, 256),
-	}
+	close(kalive)
+	wg.Wait()
+
+	// each chunk is arbitrarily defined to be 2MB in size.
+	content := make([]byte, 2*1024*1024)
+	chunk := &pb.Chunk{Content: content}
 	for {
 		if _, err := fp.Read(chunk.Content); err != nil {
 			if err == io.EOF {
 				break
 			}
+			klog.Errorf("error reading tag file: %s", err)
 			return fmt.Errorf("error reading tag file: %w", err)
 		}
 		if err := stream.Send(chunk); err != nil {
+			klog.Errorf("error sending blob: %s", err)
 			return fmt.Errorf("error sending blob: %w", err)
 		}
 	}
+
+	klog.Infof("tag %s/%s exported successfully", namespace, name)
 	return nil
 }
 
-// Import handles tag imports through grpc.
-func (t *TagIO) Import(ctx context.Context, in *pb.ImportRequest) (*pb.ImportResult, error) {
-	return &pb.ImportResult{}, nil
-	/*
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		defer cancel()
+// Import handles tag imports through grpc. The first message received indicates
+// the destination for the tag (namespace and name) and a authorization token,
+// all subsequent messages are of type Chunk where we can find a slice of bytes.
+// By gluing Chunks together we have the tag tar file then we can call Import
+// passing the file as parameter.
+func (t *TagIO) Import(stream pb.TagIOService_ImportServer) error {
+	klog.Info("received request to import tag")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 
-		if err := t.usrval.CanAccessTags(
-			ctx, in.GetNamespace(), in.GetToken(),
-		); err != nil {
-			klog.Errorf("user cannot access tags in namespace: %s", err)
-			return nil, fmt.Errorf("unauthorized")
+	tmpfile, cleanup, err := t.fs.TempFile()
+	if err != nil {
+		klog.Errorf("error creating temp file: %s", err)
+		return fmt.Errorf("error creating temp file: %w", err)
+	}
+	defer cleanup()
+
+	in, err := stream.Recv()
+	if err != nil {
+		klog.Errorf("error receiving import request: %s", err)
+		return fmt.Errorf("error receiving import request: %w", err)
+	}
+
+	req := in.GetRequest()
+	if req == nil {
+		klog.Errorf("first message of invalid type chunk")
+		return fmt.Errorf("first message of invalid type chunk")
+	}
+
+	name := req.GetName()
+	namespace := req.GetNamespace()
+	token := req.GetToken()
+	klog.Infof("output tag set to %s/%s", namespace, name)
+	if err := t.usrval.CanAccessTags(ctx, namespace, token); err != nil {
+		klog.Errorf("user cannot access tags in namespace: %s", err)
+		return fmt.Errorf("unauthorized")
+	}
+
+	var fsize int64
+	for {
+		in, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			klog.Errorf("error receiving chunk: %s", err)
+			return fmt.Errorf("error receiving chunk: %w", err)
 		}
 
-		buf := bytes.NewBuffer(nil)
-		if err := t.tagexp.Import(
-			ctx, in.GetNamespace(), in.GetName(), buf,
-		); err != nil {
-			klog.Errorf("error importing image: %s", err)
-			return nil, fmt.Errorf("error importing image: %w", err)
+		ck := in.GetChunk()
+		if ck == nil {
+			klog.Error("nil chunk received")
+			return fmt.Errorf("nil chunk received")
 		}
 
-		return &pb.ImportResult{}, nil
-	*/
+		written, err := tmpfile.Write(ck.Content)
+		if err != nil {
+			klog.Errorf("error writing to temp file: %s", err)
+			return fmt.Errorf("error writing to temp file: %w", err)
+		}
+		fsize += int64(written)
+	}
+
+	klog.Infof("tag file received, size: %d bytes", fsize)
+	if _, err := tmpfile.Seek(0, 0); err != nil {
+		klog.Errorf("error file seek: %s", err)
+		return fmt.Errorf("error file seek: %w", err)
+	}
+
+	if err := t.tagexp.Import(ctx, namespace, name, tmpfile); err != nil {
+		klog.Errorf("error importing tag: %s", err)
+		return fmt.Errorf("error importing tag: %w", err)
+	}
+
+	klog.Infof("tag %s/%s imported successfully", namespace, name)
+	return stream.SendAndClose(&pb.ImportResult{})
 }
 
 // Name returns a name identifier for this controller.
@@ -121,7 +219,7 @@ func (t *TagIO) Name() string {
 	return "tag input/output handler"
 }
 
-// Start puts the http server online.
+// Start puts the http server online. TODO enable ssl on this listener.
 func (t *TagIO) Start(ctx context.Context) error {
 	listener, err := net.Listen("tcp", t.bind)
 	if err != nil {

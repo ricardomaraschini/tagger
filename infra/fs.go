@@ -1,4 +1,4 @@
-package services
+package infra
 
 import (
 	"archive/tar"
@@ -18,9 +18,9 @@ type FS struct {
 }
 
 // NewFS returns a handler for filesystem related activities.
-func NewFS() *FS {
+func NewFS(tmpdir string) *FS {
 	return &FS{
-		tmpdir: "/data",
+		tmpdir: tmpdir,
 	}
 }
 
