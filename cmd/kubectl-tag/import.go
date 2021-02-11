@@ -21,6 +21,8 @@ func init() {
 	tagimport.MarkFlagRequired("url")
 }
 
+// importParams gather all parameters needed to import a tag from a local
+// file into a tagger instance.
 type importParams struct {
 	url       string
 	srcfile   string
@@ -31,7 +33,7 @@ type importParams struct {
 
 var tagimport = &cobra.Command{
 	Use:   "import <image tag>",
-	Short: "Imports a tag from a local tar file",
+	Short: "Imports a tag from a tar file and into a tagger instance",
 	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("provide an image tag")
@@ -69,6 +71,8 @@ var tagimport = &cobra.Command{
 	},
 }
 
+// importTag issues a grpc call against a remote instance of tagger (pointed by
+// url) and uploads a tar file (pointed by srcfile).
 func importTag(params importParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -79,6 +83,7 @@ func importTag(params importParams) error {
 	}
 	defer fp.Close()
 
+	// XXX implement ssl please?
 	conn, err := grpc.Dial(params.url, grpc.WithInsecure())
 	if err != nil {
 		return err
@@ -104,17 +109,20 @@ func importTag(params importParams) error {
 	}
 
 	for {
+		// At this stage we are ready to start uploading the tar file.
+		// I have chosen an arbitrarily value of 2MB for each chunk.
 		content := make([]byte, 2*1024*1024)
-		if _, err := fp.Read(content); err != nil {
-			if err == io.EOF {
-				if _, err := stream.CloseAndRecv(); err != nil {
-					return err
-				}
-				break
+		_, err := fp.Read(content)
+		if err == io.EOF {
+			if _, err := stream.CloseAndRecv(); err != nil {
+				return err
 			}
+			break
+		} else if err != nil {
 			return err
 		}
 
+		// Sends a chunk of the file.
 		ireq := &pb.ImportRequest{
 			TestOneof: &pb.ImportRequest_Chunk{
 				Chunk: &pb.Chunk{

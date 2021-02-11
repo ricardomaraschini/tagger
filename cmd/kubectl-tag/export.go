@@ -22,6 +22,8 @@ func init() {
 	tagexport.MarkFlagRequired("url")
 }
 
+// exportParams gather all parameters needed to export a tag from a tagger
+// instance into a local file.
 type exportParams struct {
 	url       string
 	dstfile   string
@@ -32,7 +34,7 @@ type exportParams struct {
 
 var tagexport = &cobra.Command{
 	Use:   "export <image tag>",
-	Short: "Exports a tag into a local tar file",
+	Short: "Exports a tag from a tagger instance and into a tar file",
 	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("provide an image tag")
@@ -70,6 +72,8 @@ var tagexport = &cobra.Command{
 	},
 }
 
+// exportTag does a grpc call to the remote tagger instance, awaits for the tag
+// to be exported and retrieves it. Content is written to dstfile.
 func exportTag(params exportParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -80,6 +84,7 @@ func exportTag(params exportParams) error {
 	}
 	defer fp.Close()
 
+	// XXX ssl please?
 	conn, err := grpc.Dial(params.url, grpc.WithInsecure())
 	if err != nil {
 		return err
