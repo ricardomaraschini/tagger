@@ -17,8 +17,8 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/ricardomaraschini/tagger/controllers"
-	itagcli "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
-	itaginf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
+	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
+	itaginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 	"github.com/ricardomaraschini/tagger/services"
 )
 

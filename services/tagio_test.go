@@ -13,9 +13,10 @@ import (
 	corfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	tagfake "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/fake"
-	taginf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	"github.com/ricardomaraschini/tagger/infra/fs"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
+	taginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 )
 
 func TestExport(t *testing.T) {
@@ -97,7 +98,8 @@ func TestExport(t *testing.T) {
 			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
 
 			tagio := NewTagIO(corinf, tagcli, taginf)
-			tagio.fstsvc.tmpdir = ""
+			fs := fs.New("")
+			tagio.fstsvc = fs
 
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(

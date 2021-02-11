@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 )
 
 // TagSyncer abstraction exists to make testing easier. You most likely wanna

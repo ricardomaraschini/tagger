@@ -15,10 +15,10 @@ import (
 
 	"github.com/mattbaird/jsonpatch"
 
-	tagclient "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
-	taginform "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
+	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
 )
 
 // Tag gather all actions related to image tag objects.
