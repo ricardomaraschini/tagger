@@ -21,6 +21,7 @@ func main() {
 	root.AddCommand(tagupgrade)
 	root.AddCommand(tagdowngrade)
 	root.AddCommand(tagimport)
+	root.AddCommand(tagexport)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
