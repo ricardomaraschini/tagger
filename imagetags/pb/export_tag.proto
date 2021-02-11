@@ -21,10 +21,9 @@ message Chunk {
 }
 
 message ImportResult {
-	string status = 1;
 }
 
 service TagIOService {
 	rpc Export(Request) returns (stream Chunk);
-	rpc Import(ImportRequest) returns (ImportResult);
+	rpc Import(stream ImportRequest) returns (ImportResult);
 }

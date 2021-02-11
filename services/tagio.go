@@ -18,6 +18,7 @@ import (
 	taginform "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
 	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
 	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	"github.com/ricardomaraschini/tagger/infra"
 )
 
 // TagIO is an entity that gather operations related to Tag input/output.
@@ -29,7 +30,7 @@ type TagIO struct {
 	taglis taglist.TagLister
 	syssvc *SysContext
 	impsvc *Importer
-	fstsvc *FS
+	fstsvc *infra.FS
 }
 
 // NewTagIO returns a new TagIO object, capable of import and export Tags.
@@ -48,7 +49,7 @@ func NewTagIO(
 		taglis: taglis,
 		syssvc: NewSysContext(corinf),
 		impsvc: NewImporter(corinf),
-		fstsvc: NewFS(),
+		fstsvc: infra.NewFS("/data"),
 	}
 }
 
