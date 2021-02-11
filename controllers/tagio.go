@@ -184,7 +184,7 @@ func (t *TagIO) Import(stream pb.TagIOService_ImportServer) error {
 		return fmt.Errorf("first message of invalid type chunk")
 	}
 
-	if err := t.validateRequest(in); err != nil {
+	if err := t.validateRequest(req); err != nil {
 		klog.Errorf("error validating export request: %s", err)
 		return fmt.Errorf("error validating input: %w", err)
 	}
