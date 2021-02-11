@@ -289,6 +289,8 @@ func (i *Importer) pushImageFromDir(
 // PullTagToDir pull all Tag's generations hosted locally (cached) and stores them
 // into a directory. Inside the resulting directory every generation will be placed
 // in a different subdirectory, subdirs are named after their generation number.
+// TODO deduplicate blobs. The exported tag may be huge due to the fact that we
+// pull each generation into its own directory.
 func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dir string) error {
 	inregaddr, _, err := i.syssvc.CacheRegistryAddresses()
 	if err != nil {

@@ -62,6 +62,8 @@ func NewTagIO(
 // AWS load balancers happy (otherwise they shut down our connection after
 // one minute). This might be useful for other types of load balancers as
 // well. Keep alive messages are stopped when "end" channel is closed.
+// XXX Please verify if we can use WithKeepaliveParams when creating the
+// grpc server, then we can get rid of this nasty stuff.
 func (t *TagIO) keepAlive(
 	wg *sync.WaitGroup, end chan bool, stream pb.TagIOService_ExportServer,
 ) {
@@ -86,9 +88,13 @@ func (t *TagIO) keepAlive(
 // for authentication and authorization. This function writes down the exported
 // tag file in Chunks, client can then reassemble the file downstream.
 func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) error {
+	ctx := stream.Context()
 	klog.Info("received request to export tag")
-	ctx, cancel := context.WithTimeout(stream.Context(), 10*time.Minute)
-	defer cancel()
+
+	if err := t.validateRequest(in); err != nil {
+		klog.Errorf("error validating export request: %s", err)
+		return fmt.Errorf("error validating input: %w", err)
+	}
 
 	name := in.GetName()
 	namespace := in.GetNamespace()
@@ -115,7 +121,7 @@ func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) erro
 	close(kalive)
 	wg.Wait()
 
-	// each chunk is arbitrarily defined to be 2MB in size.
+	// each chunk is arbitrarily defined to be of 2MB in size.
 	content := make([]byte, 2*1024*1024)
 	chunk := &pb.Chunk{Content: content}
 	for {
@@ -136,15 +142,28 @@ func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) erro
 	return nil
 }
 
+// validateRequest checks if all mandatory fields in a request are present.
+func (t *TagIO) validateRequest(req *pb.Request) error {
+	if req.GetName() == "" {
+		return fmt.Errorf("empty name field")
+	}
+	if req.GetNamespace() == "" {
+		return fmt.Errorf("empty namespace field")
+	}
+	if req.GetToken() == "" {
+		return fmt.Errorf("empty token field")
+	}
+	return nil
+}
+
 // Import handles tag imports through grpc. The first message received indicates
 // the destination for the tag (namespace and name) and a authorization token,
 // all subsequent messages are of type Chunk where we can find a slice of bytes.
 // By gluing Chunks together we have the tag tar file then we can call Import
 // passing the file as parameter.
 func (t *TagIO) Import(stream pb.TagIOService_ImportServer) error {
+	ctx := stream.Context()
 	klog.Info("received request to import tag")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
 
 	tmpfile, cleanup, err := t.fs.TempFile()
 	if err != nil {
@@ -163,6 +182,11 @@ func (t *TagIO) Import(stream pb.TagIOService_ImportServer) error {
 	if req == nil {
 		klog.Errorf("first message of invalid type chunk")
 		return fmt.Errorf("first message of invalid type chunk")
+	}
+
+	if err := t.validateRequest(in); err != nil {
+		klog.Errorf("error validating export request: %s", err)
+		return fmt.Errorf("error validating input: %w", err)
 	}
 
 	name := req.GetName()

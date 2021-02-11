@@ -94,7 +94,9 @@ func (t *TagIO) Import(
 }
 
 // Export saves a Tag into a local tar file and returns a reader closer to
-// it.  Caller is responsible for cleaning up after the returned value.
+// it.  Caller is responsible for cleaning up after the returned value by
+// calling the function we return (2nd return), by deferring a call to the
+// returned func() the tar will be closed and deleted from disk.
 func (t *TagIO) Export(
 	ctx context.Context, ns string, name string,
 ) (io.ReadCloser, func(), error) {
