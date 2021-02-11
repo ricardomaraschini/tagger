@@ -19,7 +19,7 @@ spec:
       serviceAccountName: tagger
       containers:
       - name: tagger
-        image: quay.io/rmarasch/tagger:latest
+        image: quay.io/rmarasch/tagger@sha256:97a9e162186a4f637bab813d25c672c20fc5422a8b1f52429015863246ac310d
         volumeMounts:
           - mountPath: "/assets"
             name: certs
@@ -29,6 +29,8 @@ spec:
         env:
         - name: CACHE_REGISTRY_INSECURE
           value: "true"
+        - name: CACHE_REGISTRY_ADDRESS
+          value: "do.not.exist.io"
       volumes:
       - name: certs
         secret:
@@ -72,6 +74,19 @@ spec:
     - protocol: TCP
       port: 8082 
       targetPort: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tagio
+  namespace: tagger
+spec:
+  selector:
+    app: tagger
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
 ---
 apiVersion: v1
 kind: Service

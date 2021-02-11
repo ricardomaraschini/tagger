@@ -10,16 +10,15 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	corecli "k8s.io/client-go/kubernetes"
-	aplist "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	"github.com/mattbaird/jsonpatch"
 
-	tagclient "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
-	taginform "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
+	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
 )
 
 // Tag gather all actions related to image tag objects.
@@ -27,7 +26,6 @@ type Tag struct {
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
 	taginf taginform.SharedInformerFactory
-	deplis aplist.DeploymentLister
 	impsvc *Importer
 	depsvc *Deployment
 }
@@ -42,13 +40,7 @@ func NewTag(
 	tagcli tagclient.Interface,
 	taginf taginform.SharedInformerFactory,
 ) *Tag {
-	var deplis aplist.DeploymentLister
 	var taglis taglist.TagLister
-
-	if corinf != nil {
-		deplis = corinf.Apps().V1().Deployments().Lister()
-	}
-
 	if taginf != nil {
 		taglis = taginf.Images().V1().Tags().Lister()
 	}
@@ -57,7 +49,6 @@ func NewTag(
 		taginf: taginf,
 		tagcli: tagcli,
 		taglis: taglis,
-		deplis: deplis,
 		impsvc: NewImporter(corinf),
 		depsvc: NewDeployment(corcli, corinf, taginf),
 	}

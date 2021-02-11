@@ -13,9 +13,9 @@ import (
 	aplist "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	"github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
 )
 
 // Deployment gather all actions related to deployment objects.

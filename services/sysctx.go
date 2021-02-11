@@ -12,10 +12,10 @@ import (
 	corelister "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
+	"gopkg.in/yaml.v2"
 )
 
 // We use dockerAuthConfig to unmarshal a default docker configuration present on
@@ -203,4 +203,15 @@ func (s *SysContext) AuthsFor(
 		dockerAuths = append(dockerAuths, &sec)
 	}
 	return dockerAuths, nil
+}
+
+// DefaultPolicyContext returns the default policy context. XXX this should
+// be reviewed.
+func (s *SysContext) DefaultPolicyContext() (*signature.PolicyContext, error) {
+	pol := &signature.Policy{
+		Default: signature.PolicyRequirements{
+			signature.NewPRInsecureAcceptAnything(),
+		},
+	}
+	return signature.NewPolicyContext(pol)
 }

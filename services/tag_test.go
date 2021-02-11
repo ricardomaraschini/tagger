@@ -16,9 +16,9 @@ import (
 
 	"github.com/mattbaird/jsonpatch"
 
-	tagfake "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/fake"
-	taginf "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
+	taginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 )
 
 func TestPatchForPod(t *testing.T) {
