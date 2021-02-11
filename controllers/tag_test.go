@@ -11,9 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	tagfake "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned/fake"
-	taginformer "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
+	taginformer "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 )
 
 type mtrsvc struct{}

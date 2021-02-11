@@ -14,10 +14,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 
-	tagclient "github.com/ricardomaraschini/tagger/imagetags/generated/clientset/versioned"
-	taginform "github.com/ricardomaraschini/tagger/imagetags/generated/informers/externalversions"
-	taglist "github.com/ricardomaraschini/tagger/imagetags/generated/listers/imagetags/v1"
-	imagtagv1 "github.com/ricardomaraschini/tagger/imagetags/v1"
+	"github.com/ricardomaraschini/tagger/infra/fs"
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
+	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
 )
 
 // TagIO is an entity that gather operations related to Tag input/output.
@@ -29,7 +30,7 @@ type TagIO struct {
 	taglis taglist.TagLister
 	syssvc *SysContext
 	impsvc *Importer
-	fstsvc *FS
+	fstsvc *fs.FS
 }
 
 // NewTagIO returns a new TagIO object, capable of import and export Tags.
@@ -48,7 +49,7 @@ func NewTagIO(
 		taglis: taglis,
 		syssvc: NewSysContext(corinf),
 		impsvc: NewImporter(corinf),
-		fstsvc: NewFS(),
+		fstsvc: fs.New("/data"),
 	}
 }
 
