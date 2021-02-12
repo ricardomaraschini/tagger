@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 	"k8s.io/klog/v2"
 
@@ -40,47 +40,32 @@ type TagIO struct {
 	pb.UnimplementedTagIOServiceServer
 }
 
-// NewTagIO returns a web hook handler for quay webhooks.
+// NewTagIO returns a web hook handler for quay webhooks. We have hardcoded
+// what seems to be a reasonable value in terms of keep alive and connection
+// lifespan management (we may need to better tune this).
 func NewTagIO(
 	tagexp TagImporterExporter,
 	usrval UserValidator,
 ) *TagIO {
+	aliveopt := grpc.KeepaliveParams(
+		keepalive.ServerParameters{
+			MaxConnectionIdle:     time.Minute,
+			MaxConnectionAge:      10 * time.Minute,
+			MaxConnectionAgeGrace: 10 * time.Second,
+			Time:                  time.Second,
+			Timeout:               2 * time.Second,
+		},
+	)
 	tio := &TagIO{
 		bind:   ":8083",
 		tagexp: tagexp,
 		usrval: usrval,
-		srv:    grpc.NewServer(),
 		fs:     fs.New("/data"),
+		srv:    grpc.NewServer(aliveopt),
 	}
 	pb.RegisterTagIOServiceServer(tio.srv, tio)
 	reflection.Register(tio.srv)
 	return tio
-}
-
-// keepAlive helps to keep some activity going on in the grcp connection,
-// we send down the line an empty Chunk once each second. This is to make
-// AWS load balancers happy (otherwise they shut down our connection after
-// one minute). This might be useful for other types of load balancers as
-// well. Keep alive messages are stopped when "end" channel is closed.
-// XXX Please verify if we can use WithKeepaliveParams when creating the
-// grpc server, then we can get rid of this nasty stuff.
-func (t *TagIO) keepAlive(
-	wg *sync.WaitGroup, end chan bool, stream pb.TagIOService_ExportServer,
-) {
-	ticker := time.NewTicker(time.Second)
-	defer func() {
-		ticker.Stop()
-		wg.Done()
-	}()
-
-	for {
-		select {
-		case <-end:
-			return
-		case <-ticker.C:
-			stream.Send(&pb.Chunk{})
-		}
-	}
 }
 
 // Export handles tag exports through grpc. We receive a request informing what
@@ -104,22 +89,13 @@ func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) erro
 		return fmt.Errorf("unauthorized")
 	}
 
-	kalive := make(chan bool)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go t.keepAlive(&wg, kalive, stream)
-
 	klog.Infof("exporting tag %s/%s", namespace, name)
 	fp, cleanup, err := t.tagexp.Export(ctx, namespace, name)
 	if err != nil {
-		close(kalive)
 		klog.Errorf("error exporting tag: %s", err)
 		return fmt.Errorf("error exporting tag: %w", err)
 	}
 	defer cleanup()
-
-	close(kalive)
-	wg.Wait()
 
 	// each chunk is arbitrarily defined to be of 2MB in size.
 	content := make([]byte, 2*1024*1024)

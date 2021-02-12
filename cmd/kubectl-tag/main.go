@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -23,7 +24,7 @@ func main() {
 	root.AddCommand(tagimport)
 	root.AddCommand(tagexport)
 	if err := root.Execute(); err != nil {
-		os.Exit(1)
+		log.Print(err)
 	}
 }
 

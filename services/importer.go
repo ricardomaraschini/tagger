@@ -19,6 +19,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
 
+	"github.com/ricardomaraschini/tagger/infra/fs"
 	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 )
 
@@ -26,6 +27,7 @@ import (
 type Importer struct {
 	syssvc *SysContext
 	metric *Metric
+	fs     *fs.FS
 }
 
 // NewImporter returns a handler for tag related services. I have chosen to go
@@ -36,6 +38,7 @@ func NewImporter(corinf informers.SharedInformerFactory) *Importer {
 	return &Importer{
 		syssvc: NewSysContext(corinf),
 		metric: NewMetrics(),
+		fs:     fs.New("/data"),
 	}
 }
 
@@ -240,6 +243,7 @@ func (i *Importer) PushTagFromDir(ctx context.Context, it *imagtagv1.Tag, dir st
 		return fmt.Errorf("unable to find cache registry: %w", err)
 	}
 
+	blobsdir := fmt.Sprintf("%s/blobs", dir)
 	for _, hr := range it.Status.References {
 		domain, _ := i.SplitRegistryDomain(hr.ImageReference)
 		if domain != inregaddr {
@@ -251,8 +255,18 @@ func (i *Importer) PushTagFromDir(ctx context.Context, it *imagtagv1.Tag, dir st
 			return fmt.Errorf("error parsing generation: %w", err)
 		}
 
-		gendir := fmt.Sprintf("%s/%d", dir, hr.Generation)
-		if err := i.pushImageFromDir(ctx, gendir, ref); err != nil {
+		for _, fname := range []string{
+			"manifest.json",
+			"version",
+		} {
+			oname := fmt.Sprintf("%s/%d-%s", dir, hr.Generation, fname)
+			nname := fmt.Sprintf("%s/%s", blobsdir, fname)
+			if err := os.Rename(oname, nname); err != nil {
+				return fmt.Errorf("error moving file %s: %s", oname, err)
+			}
+		}
+
+		if err := i.pushImageFromDir(ctx, blobsdir, ref); err != nil {
 			return fmt.Errorf("error pulling image: %w", err)
 		}
 	}
@@ -289,12 +303,21 @@ func (i *Importer) pushImageFromDir(
 // PullTagToDir pull all Tag's generations hosted locally (cached) and stores them
 // into a directory. Inside the resulting directory every generation will be placed
 // in a different subdirectory, subdirs are named after their generation number.
-// TODO deduplicate blobs. The exported tag may be huge due to the fact that we
-// pull each generation into its own directory.
-func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dir string) error {
+func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dstdir string) error {
 	inregaddr, _, err := i.syssvc.CacheRegistryAddresses()
 	if err != nil {
 		return fmt.Errorf("unable to find cache registry: %w", err)
+	}
+
+	tmpdir, cleanup, err := i.fs.TempDir()
+	if err != nil {
+		return fmt.Errorf("error creating temp dir: %w", err)
+	}
+	defer cleanup()
+
+	blobsdir := fmt.Sprintf("%s/blobs", dstdir)
+	if err := os.Mkdir(blobsdir, 0700); err != nil {
+		return fmt.Errorf("error creating blobs dir: %w", err)
 	}
 
 	for _, hr := range it.Status.References {
@@ -303,18 +326,35 @@ func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dir stri
 			continue
 		}
 
-		gendir := fmt.Sprintf("%s/%d", dir, hr.Generation)
-		if err := os.Mkdir(gendir, 0700); err != nil {
-			return fmt.Errorf("error creating gen dir: %w", err)
-		}
-
 		ref, err := i.ImageRefForStringRef(hr.ImageReference)
 		if err != nil {
 			return fmt.Errorf("error parsing generation: %w", err)
 		}
 
-		if err := i.pullImageToDir(ctx, ref, gendir); err != nil {
+		if err := i.pullImageToDir(ctx, ref, tmpdir); err != nil {
 			return fmt.Errorf("error pulling image: %w", err)
+		}
+
+		// move manifest and version files out of the temporary dir
+		// and into our definitive directory (provided through args
+		// to this function).
+		for _, fname := range []string{
+			"manifest.json",
+			"version",
+		} {
+			oname := fmt.Sprintf("%s/%s", tmpdir, fname)
+			nname := fmt.Sprintf("%s/%d-%s", dstdir, hr.Generation, fname)
+			if err := os.Rename(oname, nname); err != nil {
+				return fmt.Errorf("error moving file %s: %s", oname, err)
+			}
+		}
+
+		// now move all the rest of the files from temporary dir
+		// into their final destionation, as we already moved
+		// manifest and version files only blobs must be residing
+		// on the temporary dir.
+		if err := i.fs.MoveFiles(tmpdir, blobsdir); err != nil {
+			return fmt.Errorf("error moving blobs: %w", err)
 		}
 	}
 	return nil

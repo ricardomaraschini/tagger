@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -35,45 +35,49 @@ type exportParams struct {
 var tagexport = &cobra.Command{
 	Use:   "export <image tag>",
 	Short: "Exports a tag from a tagger instance and into a tar file",
-	RunE: func(c *cobra.Command, args []string) error {
+	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
-			return fmt.Errorf("provide an image tag")
+			log.Fatalf("invalid command, missing tag name")
 		}
+		name := args[0]
 
 		url, err := c.Flags().GetString("url")
 		if err != nil {
-			return err
+			return
 		}
 
 		token, err := c.Flags().GetString("token")
 		if err != nil {
-			return err
+			return
 		}
 
 		dstfile, err := c.Flags().GetString("output")
 		if err != nil {
-			return err
+			return
 		}
 
 		namespace, err := Namespace(c)
 		if err != nil {
-			return err
+			log.Fatalf("error determining current namespace: %s", err)
+			return
 		}
 
-		return exportTag(
+		if err := exportTag(
 			exportParams{
 				url:       url,
 				dstfile:   dstfile,
 				token:     token,
 				namespace: namespace,
-				name:      args[0],
+				name:      name,
 			},
-		)
+		); err != nil {
+			log.Fatalf("error exporting tag: %s", err)
+		}
 	},
 }
 
 // exportTag does a grpc call to the remote tagger instance, awaits for the tag
-// to be exported and retrieves it. Content is written to dstfile.
+// to be exported and retrieves it. Content is written to params.dstfile.
 func exportTag(params exportParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
