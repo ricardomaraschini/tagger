@@ -1,3 +1,71 @@
+# Tag example
+
+```yaml
+apiVersion: images.io/v1
+kind: Tag
+metadata:
+  name: nginx
+spec:
+  from: docker.io/rmarasch/simple-web-server:latest
+  cache: true
+```
+
+# Deployment using a tag
+
+```yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    image-tag: "true"
+  name: app 
+  labels:
+    app: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+      - name: app
+        image: simple-web-server
+        ports:
+        - containerPort: 8080
+```
+
+# Example of integrated registry configuration
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: "localregistry.ddns.net"
+    hostFromContainerRuntime: "localregistry.ddns.net"
+    hostFromClusterNetwork: "localregistry.ddns.net"
+```
+# Exposing tagio (tag push and pull)
+
+```
+oc expose deployment tagger	\
+	--type=LoadBalancer	\
+	--name=tagio-external	\
+	--port=8083		\
+	--target-port=8083
+```
+
+# Deploying an ephemeral registry into the cluster
+
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -56,3 +124,4 @@ spec:
     - protocol: TCP
       port: 5000 
       targetPort: 5000
+```
