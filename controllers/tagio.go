@@ -19,8 +19,8 @@ import (
 // TagImporterExporter is here to make tests easier. You may be looking for
 // its concrete implementation in services/tagio.go.
 type TagImporterExporter interface {
-	Import(context.Context, string, string, io.Reader) error
-	Export(context.Context, string, string) (io.ReadCloser, func(), error)
+	Push(context.Context, string, string, io.Reader) error
+	Pull(context.Context, string, string) (io.ReadCloser, func(), error)
 }
 
 // UserValidator validates an user can access Tags in a given namespace.
@@ -68,11 +68,11 @@ func NewTagIO(
 	return tio
 }
 
-// Export handles tag exports through grpc. We receive a request informing what
-// is the tag to be exported (namespace and name) and also a kubernetes token
-// for authentication and authorization. This function writes down the exported
-// tag file in Chunks, client can then reassemble the file downstream.
-func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) error {
+// Pull handles tag export through grpc. We receive a request informing what is
+// the tag to be pulled (namespace and name) and also a kubernetes token for
+// authentication and authorization. This function writes down the exported tag
+// file in Chunks, client can then reassemble the file downstream.
+func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
 	ctx := stream.Context()
 	klog.Info("received request to export tag")
 
@@ -90,7 +90,7 @@ func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) erro
 	}
 
 	klog.Infof("exporting tag %s/%s", namespace, name)
-	fp, cleanup, err := t.tagexp.Export(ctx, namespace, name)
+	fp, cleanup, err := t.tagexp.Pull(ctx, namespace, name)
 	if err != nil {
 		klog.Errorf("error exporting tag: %s", err)
 		return fmt.Errorf("error exporting tag: %w", err)
@@ -131,12 +131,12 @@ func (t *TagIO) validateRequest(req *pb.Request) error {
 	return nil
 }
 
-// Import handles tag imports through grpc. The first message received indicates
+// Push handles tag imports through grpc. The first message received indicates
 // the destination for the tag (namespace and name) and a authorization token,
 // all subsequent messages are of type Chunk where we can find a slice of bytes.
 // By gluing Chunks together we have the tag tar file then we can call Import
 // passing the file as parameter.
-func (t *TagIO) Import(stream pb.TagIOService_ImportServer) error {
+func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
 	ctx := stream.Context()
 	klog.Info("received request to import tag")
 
@@ -204,13 +204,13 @@ func (t *TagIO) Import(stream pb.TagIOService_ImportServer) error {
 		return fmt.Errorf("error file seek: %w", err)
 	}
 
-	if err := t.tagexp.Import(ctx, namespace, name, tmpfile); err != nil {
+	if err := t.tagexp.Push(ctx, namespace, name, tmpfile); err != nil {
 		klog.Errorf("error importing tag: %s", err)
 		return fmt.Errorf("error importing tag: %w", err)
 	}
 
 	klog.Infof("tag %s/%s imported successfully", namespace, name)
-	return stream.SendAndClose(&pb.ImportResult{})
+	return stream.SendAndClose(&pb.PushResult{})
 }
 
 // Name returns a name identifier for this controller.

@@ -22,7 +22,8 @@ func main() {
 	root.AddCommand(tagupgrade)
 	root.AddCommand(tagdowngrade)
 	root.AddCommand(tagimport)
-	root.AddCommand(tagexport)
+	root.AddCommand(tagpull)
+	root.AddCommand(tagpush)
 	if err := root.Execute(); err != nil {
 		log.Print(err)
 	}

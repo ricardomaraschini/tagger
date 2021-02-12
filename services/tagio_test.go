@@ -19,7 +19,7 @@ import (
 	taginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 )
 
-func TestExport(t *testing.T) {
+func TestPull(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		tagname string
@@ -110,7 +110,7 @@ func TestExport(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			tarfp, clean, err := tagio.Export(ctx, tt.tagns, tt.tagname)
+			tarfp, clean, err := tagio.Pull(ctx, tt.tagns, tt.tagname)
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error: %s", err)
@@ -133,8 +133,8 @@ func TestExport(t *testing.T) {
 			}
 			defer cleanup()
 
-			if err := tagio.fstsvc.DecompressFile(tarfp, dst); err != nil {
-				t.Fatalf("error decompressing file: %s", err)
+			if err := tagio.fstsvc.UnarchiveFile(tarfp, dst); err != nil {
+				t.Fatalf("error unarchiving file: %s", err)
 			}
 
 			tagfile := fmt.Sprintf("%s/tag.json", dst)

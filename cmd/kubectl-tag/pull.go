@@ -14,17 +14,17 @@ import (
 )
 
 func init() {
-	tagexport.Flags().String("token", "", "User token.")
-	tagexport.MarkFlagRequired("token")
-	tagexport.Flags().String("output", "", "Output file (where to store the tag).")
-	tagexport.MarkFlagRequired("output")
-	tagexport.Flags().String("url", "", "The URL of a tagger instance.")
-	tagexport.MarkFlagRequired("url")
+	tagpull.Flags().String("token", "", "User token.")
+	tagpull.MarkFlagRequired("token")
+	tagpull.Flags().String("output", "", "Output file (where to store the tag).")
+	tagpull.MarkFlagRequired("output")
+	tagpull.Flags().String("url", "", "The URL of a tagger instance.")
+	tagpull.MarkFlagRequired("url")
 }
 
-// exportParams gather all parameters needed to export a tag from a tagger
+// pullParams gather all parameters needed to pull a tag from a tagger
 // instance into a local file.
-type exportParams struct {
+type pullParams struct {
 	url       string
 	dstfile   string
 	token     string
@@ -32,9 +32,9 @@ type exportParams struct {
 	name      string
 }
 
-var tagexport = &cobra.Command{
-	Use:   "export <image tag>",
-	Short: "Exports a tag from a tagger instance and into a tar file",
+var tagpull = &cobra.Command{
+	Use:   "pull <image tag>",
+	Short: "Pull a tag from a tagger instance and into a tar file",
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			log.Fatalf("invalid command, missing tag name")
@@ -62,8 +62,8 @@ var tagexport = &cobra.Command{
 			return
 		}
 
-		if err := exportTag(
-			exportParams{
+		if err := pullTag(
+			pullParams{
 				url:       url,
 				dstfile:   dstfile,
 				token:     token,
@@ -71,14 +71,14 @@ var tagexport = &cobra.Command{
 				name:      name,
 			},
 		); err != nil {
-			log.Fatalf("error exporting tag: %s", err)
+			log.Fatalf("error pulling tag: %s", err)
 		}
 	},
 }
 
-// exportTag does a grpc call to the remote tagger instance, awaits for the tag
+// pullTag does a grpc call to the remote tagger instance, awaits for the tag
 // to be exported and retrieves it. Content is written to params.dstfile.
-func exportTag(params exportParams) error {
+func pullTag(params pullParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
@@ -95,7 +95,7 @@ func exportTag(params exportParams) error {
 	}
 
 	client := pb.NewTagIOServiceClient(conn)
-	stream, err := client.Export(ctx, &pb.Request{
+	stream, err := client.Pull(ctx, &pb.Request{
 		Name:      params.name,
 		Namespace: params.namespace,
 		Token:     params.token,
