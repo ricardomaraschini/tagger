@@ -7,9 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ricardomaraschini/tagger/infra/pb"
 	"github.com/spf13/cobra"
+	"github.com/vbauerster/mpb/v6"
+	"github.com/vbauerster/mpb/v6/decor"
 	"google.golang.org/grpc"
+
+	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
 func init() {
@@ -78,6 +81,11 @@ func pushTag(params pushParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
+	finfo, err := os.Stat(params.srcfile)
+	if err != nil {
+		return nil
+	}
+
 	fp, err := os.Open(params.srcfile)
 	if err != nil {
 		return err
@@ -109,9 +117,19 @@ func pushTag(params pushParams) error {
 		return err
 	}
 
+	p := mpb.New(mpb.WithWidth(60))
+	defer p.Wait()
+
+	pbar := p.Add(
+		finfo.Size(),
+		mpb.NewBarFiller(" ▮▮▯ "),
+		mpb.PrependDecorators(decor.Name("Uploading")),
+		mpb.AppendDecorators(decor.CountersKiloByte("%d %d")),
+	)
+
 	content := make([]byte, 1024)
 	for {
-		_, err := fp.Read(content)
+		read, err := fp.Read(content)
 		if err == io.EOF {
 			if _, err := stream.CloseAndRecv(); err != nil {
 				return err
@@ -132,6 +150,7 @@ func pushTag(params pushParams) error {
 		if err := stream.Send(ireq); err != nil {
 			return err
 		}
+		pbar.IncrBy(read)
 	}
 	return nil
 }
