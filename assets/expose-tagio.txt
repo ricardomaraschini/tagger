@@ -1,2 +1,0 @@
-# openshift
-oc expose deployment tagger --type=LoadBalancer --name=tagio-external --port=8083 --target-port=8083
