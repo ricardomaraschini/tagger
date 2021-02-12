@@ -9,6 +9,7 @@ require (
 	github.com/mattbaird/jsonpatch v0.0.0-20200820163806-098863c1fc24
 	github.com/prometheus/client_golang v1.1.0
 	github.com/spf13/cobra v1.0.0
+	github.com/vbauerster/mpb/v6 v6.0.2
 	golang.org/x/net v0.0.0-20210119194325-5f4716e94777 // indirect
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
 	golang.org/x/text v0.3.5 // indirect
