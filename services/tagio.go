@@ -53,10 +53,10 @@ func NewTagIO(
 	}
 }
 
-// Import reads a compressed tag from argument "from", uncompress it into
-// a temporary directory and attempts to create a tag based on its content,
+// Push reads a compressed tag from argument "from", uncompress it into a
+// temporary directory and attempts to create a tag based on its content,
 // returns an error if the tag already exists.
-func (t *TagIO) Import(
+func (t *TagIO) Push(
 	ctx context.Context, ns, name string, from io.Reader,
 ) error {
 	if _, err := t.taglis.Tags(ns).Get(name); err == nil {
@@ -71,7 +71,7 @@ func (t *TagIO) Import(
 	}
 	defer cleanup()
 
-	if err := t.fstsvc.DecompressFile(from, tmpdir); err != nil {
+	if err := t.fstsvc.UnarchiveFile(from, tmpdir); err != nil {
 		return fmt.Errorf("error decompressing tag: %s", err)
 	}
 
@@ -93,11 +93,11 @@ func (t *TagIO) Import(
 	return nil
 }
 
-// Export saves a Tag into a local tar file and returns a reader closer to
+// Pull saves a Tag into a local tar file and returns a reader closer to
 // it.  Caller is responsible for cleaning up after the returned value by
 // calling the function we return (2nd return), by deferring a call to the
 // returned func() the tar will be closed and deleted from disk.
-func (t *TagIO) Export(
+func (t *TagIO) Pull(
 	ctx context.Context, ns string, name string,
 ) (io.ReadCloser, func(), error) {
 	it, err := t.taglis.Tags(ns).Get(name)
@@ -124,7 +124,7 @@ func (t *TagIO) Export(
 		return nil, nil, fmt.Errorf("error creating tar file: %w", err)
 	}
 
-	if err := t.fstsvc.CompressDirectory(dir, tar); err != nil {
+	if err := t.fstsvc.ArchiveDirectory(dir, tar); err != nil {
 		cleanfile()
 		return nil, nil, fmt.Errorf("error compressing tag: %w", err)
 	}

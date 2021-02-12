@@ -9,7 +9,7 @@ message Request {
 	string token = 3;
 }
 
-message ImportRequest {
+message PushRequest {
 	oneof test_oneof {
 		Request request = 1;
 		Chunk chunk = 2;
@@ -20,10 +20,10 @@ message Chunk {
 	bytes content = 1;
 }
 
-message ImportResult {
+message PushResult {
 }
 
 service TagIOService {
-	rpc Export(Request) returns (stream Chunk);
-	rpc Import(stream ImportRequest) returns (ImportResult);
+	rpc Pull(Request) returns (stream Chunk);
+	rpc Push(stream PushRequest) returns (PushResult);
 }

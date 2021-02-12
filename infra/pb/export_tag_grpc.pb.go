@@ -18,8 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TagIOServiceClient interface {
-	Export(ctx context.Context, in *Request, opts ...grpc.CallOption) (TagIOService_ExportClient, error)
-	Import(ctx context.Context, opts ...grpc.CallOption) (TagIOService_ImportClient, error)
+	Pull(ctx context.Context, in *Request, opts ...grpc.CallOption) (TagIOService_PullClient, error)
+	Push(ctx context.Context, opts ...grpc.CallOption) (TagIOService_PushClient, error)
 }
 
 type tagIOServiceClient struct {
@@ -30,12 +30,12 @@ func NewTagIOServiceClient(cc grpc.ClientConnInterface) TagIOServiceClient {
 	return &tagIOServiceClient{cc}
 }
 
-func (c *tagIOServiceClient) Export(ctx context.Context, in *Request, opts ...grpc.CallOption) (TagIOService_ExportClient, error) {
-	stream, err := c.cc.NewStream(ctx, &TagIOService_ServiceDesc.Streams[0], "/pb.TagIOService/Export", opts...)
+func (c *tagIOServiceClient) Pull(ctx context.Context, in *Request, opts ...grpc.CallOption) (TagIOService_PullClient, error) {
+	stream, err := c.cc.NewStream(ctx, &TagIOService_ServiceDesc.Streams[0], "/pb.TagIOService/Pull", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &tagIOServiceExportClient{stream}
+	x := &tagIOServicePullClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -45,16 +45,16 @@ func (c *tagIOServiceClient) Export(ctx context.Context, in *Request, opts ...gr
 	return x, nil
 }
 
-type TagIOService_ExportClient interface {
+type TagIOService_PullClient interface {
 	Recv() (*Chunk, error)
 	grpc.ClientStream
 }
 
-type tagIOServiceExportClient struct {
+type tagIOServicePullClient struct {
 	grpc.ClientStream
 }
 
-func (x *tagIOServiceExportClient) Recv() (*Chunk, error) {
+func (x *tagIOServicePullClient) Recv() (*Chunk, error) {
 	m := new(Chunk)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -62,34 +62,34 @@ func (x *tagIOServiceExportClient) Recv() (*Chunk, error) {
 	return m, nil
 }
 
-func (c *tagIOServiceClient) Import(ctx context.Context, opts ...grpc.CallOption) (TagIOService_ImportClient, error) {
-	stream, err := c.cc.NewStream(ctx, &TagIOService_ServiceDesc.Streams[1], "/pb.TagIOService/Import", opts...)
+func (c *tagIOServiceClient) Push(ctx context.Context, opts ...grpc.CallOption) (TagIOService_PushClient, error) {
+	stream, err := c.cc.NewStream(ctx, &TagIOService_ServiceDesc.Streams[1], "/pb.TagIOService/Push", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &tagIOServiceImportClient{stream}
+	x := &tagIOServicePushClient{stream}
 	return x, nil
 }
 
-type TagIOService_ImportClient interface {
-	Send(*ImportRequest) error
-	CloseAndRecv() (*ImportResult, error)
+type TagIOService_PushClient interface {
+	Send(*PushRequest) error
+	CloseAndRecv() (*PushResult, error)
 	grpc.ClientStream
 }
 
-type tagIOServiceImportClient struct {
+type tagIOServicePushClient struct {
 	grpc.ClientStream
 }
 
-func (x *tagIOServiceImportClient) Send(m *ImportRequest) error {
+func (x *tagIOServicePushClient) Send(m *PushRequest) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *tagIOServiceImportClient) CloseAndRecv() (*ImportResult, error) {
+func (x *tagIOServicePushClient) CloseAndRecv() (*PushResult, error) {
 	if err := x.ClientStream.CloseSend(); err != nil {
 		return nil, err
 	}
-	m := new(ImportResult)
+	m := new(PushResult)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -100,8 +100,8 @@ func (x *tagIOServiceImportClient) CloseAndRecv() (*ImportResult, error) {
 // All implementations must embed UnimplementedTagIOServiceServer
 // for forward compatibility
 type TagIOServiceServer interface {
-	Export(*Request, TagIOService_ExportServer) error
-	Import(TagIOService_ImportServer) error
+	Pull(*Request, TagIOService_PullServer) error
+	Push(TagIOService_PushServer) error
 	mustEmbedUnimplementedTagIOServiceServer()
 }
 
@@ -109,11 +109,11 @@ type TagIOServiceServer interface {
 type UnimplementedTagIOServiceServer struct {
 }
 
-func (UnimplementedTagIOServiceServer) Export(*Request, TagIOService_ExportServer) error {
-	return status.Errorf(codes.Unimplemented, "method Export not implemented")
+func (UnimplementedTagIOServiceServer) Pull(*Request, TagIOService_PullServer) error {
+	return status.Errorf(codes.Unimplemented, "method Pull not implemented")
 }
-func (UnimplementedTagIOServiceServer) Import(TagIOService_ImportServer) error {
-	return status.Errorf(codes.Unimplemented, "method Import not implemented")
+func (UnimplementedTagIOServiceServer) Push(TagIOService_PushServer) error {
+	return status.Errorf(codes.Unimplemented, "method Push not implemented")
 }
 func (UnimplementedTagIOServiceServer) mustEmbedUnimplementedTagIOServiceServer() {}
 
@@ -128,47 +128,47 @@ func RegisterTagIOServiceServer(s grpc.ServiceRegistrar, srv TagIOServiceServer)
 	s.RegisterService(&TagIOService_ServiceDesc, srv)
 }
 
-func _TagIOService_Export_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _TagIOService_Pull_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(Request)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(TagIOServiceServer).Export(m, &tagIOServiceExportServer{stream})
+	return srv.(TagIOServiceServer).Pull(m, &tagIOServicePullServer{stream})
 }
 
-type TagIOService_ExportServer interface {
+type TagIOService_PullServer interface {
 	Send(*Chunk) error
 	grpc.ServerStream
 }
 
-type tagIOServiceExportServer struct {
+type tagIOServicePullServer struct {
 	grpc.ServerStream
 }
 
-func (x *tagIOServiceExportServer) Send(m *Chunk) error {
+func (x *tagIOServicePullServer) Send(m *Chunk) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _TagIOService_Import_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(TagIOServiceServer).Import(&tagIOServiceImportServer{stream})
+func _TagIOService_Push_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(TagIOServiceServer).Push(&tagIOServicePushServer{stream})
 }
 
-type TagIOService_ImportServer interface {
-	SendAndClose(*ImportResult) error
-	Recv() (*ImportRequest, error)
+type TagIOService_PushServer interface {
+	SendAndClose(*PushResult) error
+	Recv() (*PushRequest, error)
 	grpc.ServerStream
 }
 
-type tagIOServiceImportServer struct {
+type tagIOServicePushServer struct {
 	grpc.ServerStream
 }
 
-func (x *tagIOServiceImportServer) SendAndClose(m *ImportResult) error {
+func (x *tagIOServicePushServer) SendAndClose(m *PushResult) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *tagIOServiceImportServer) Recv() (*ImportRequest, error) {
-	m := new(ImportRequest)
+func (x *tagIOServicePushServer) Recv() (*PushRequest, error) {
+	m := new(PushRequest)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -184,13 +184,13 @@ var TagIOService_ServiceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Export",
-			Handler:       _TagIOService_Export_Handler,
+			StreamName:    "Pull",
+			Handler:       _TagIOService_Pull_Handler,
 			ServerStreams: true,
 		},
 		{
-			StreamName:    "Import",
-			Handler:       _TagIOService_Import_Handler,
+			StreamName:    "Push",
+			Handler:       _TagIOService_Push_Handler,
 			ClientStreams: true,
 		},
 	},

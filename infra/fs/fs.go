@@ -2,7 +2,6 @@ package fs
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -63,12 +62,10 @@ func (f *FS) TempFile() (*os.File, func(), error) {
 	return fp, clean, nil
 }
 
-// CompressDirectory creates a tarball file from directory pointed by
-// srcdir, writing the output into dst.
-func (f *FS) CompressDirectory(srcdir string, dst io.Writer) error {
-	zw := gzip.NewWriter(dst)
-	defer zw.Close()
-	tw := tar.NewWriter(zw)
+// ArchiveDirectory creates a tar archive file from directory pointed
+// by srcdir, writing the output into dst.
+func (f *FS) ArchiveDirectory(srcdir string, dst io.Writer) error {
+	tw := tar.NewWriter(dst)
 	defer tw.Close()
 
 	return filepath.Walk(
@@ -112,16 +109,10 @@ func (f *FS) CompressDirectory(srcdir string, dst io.Writer) error {
 	)
 }
 
-// DecompressFile decompress file pointed by src storing results inside
+// UnarchiveFile unarchives a tar file pointed by src storing results inside
 // dst directory.
-func (f *FS) DecompressFile(src io.Reader, dst string) error {
-	gzfp, err := gzip.NewReader(src)
-	if err != nil {
-		return fmt.Errorf("unable to create gzip reader: %s", err)
-	}
-	defer gzfp.Close()
-
-	tarfp := tar.NewReader(gzfp)
+func (f *FS) UnarchiveFile(src io.Reader, dst string) error {
+	tarfp := tar.NewReader(src)
 	for {
 		hdr, err := tarfp.Next()
 		if err == io.EOF {

@@ -75,7 +75,7 @@ func TestTempFile(t *testing.T) {
 	}
 }
 
-func TestCompressDirectory(t *testing.T) {
+func TestArchiveDirectory(t *testing.T) {
 	fs := &FS{}
 
 	dir, cleandir, err := fs.TempDir()
@@ -103,8 +103,8 @@ func TestCompressDirectory(t *testing.T) {
 	}
 	defer cleanfile()
 
-	if err := fs.CompressDirectory(dir, tar); err != nil {
-		t.Fatalf("unexpected error compressing file: %s", err)
+	if err := fs.ArchiveDirectory(dir, tar); err != nil {
+		t.Fatalf("unexpected error archiving dir: %s", err)
 	}
 
 	tar.Seek(0, 0)
@@ -115,12 +115,12 @@ func TestCompressDirectory(t *testing.T) {
 	}
 
 	ctype := http.DetectContentType(buffer)
-	if ctype != "application/x-gzip" {
+	if ctype != "application/octet-stream" {
 		t.Fatalf("unexpected file type %q", ctype)
 	}
 }
 
-func TestDecompressDirectory(t *testing.T) {
+func TestUnarchiveFile(t *testing.T) {
 	fs := &FS{}
 
 	dir, cleandir, err := fs.TempDir()
@@ -152,30 +152,30 @@ func TestDecompressDirectory(t *testing.T) {
 		}
 	}
 
-	// create a temp file and compress temp directory into it.
+	// create a temp file and archive a temp directory into it.
 	tar, cleanfile, err := fs.TempFile()
 	if err != nil {
 		t.Fatalf("unexpected error creating temp tar file: %s", err)
 	}
 	defer cleanfile()
 
-	if err := fs.CompressDirectory(dir, tar); err != nil {
-		t.Fatalf("unexpected error compressing file: %s", err)
+	if err := fs.ArchiveDirectory(dir, tar); err != nil {
+		t.Fatalf("unexpected error archiving dir: %s", err)
 	}
 	tar.Seek(0, 0)
 
-	// create another dir to uncompress the compressed file
+	// create another dir to unarchive the archived file
 	dir, cleandir, err = fs.TempDir()
 	if err != nil {
 		t.Fatalf("error creating temp dir: %s", err)
 	}
 	defer cleandir()
 
-	if err := fs.DecompressFile(tar, dir); err != nil {
-		t.Fatalf("unexpected error decompressing tar: %s", err)
+	if err := fs.UnarchiveFile(tar, dir); err != nil {
+		t.Fatalf("unexpected error unarchive tar: %s", err)
 	}
 
-	// now checks the output of the decompress process. we must find
+	// now checks the output of the unarchive process. we must find
 	// 10 sub directories with 10 files each. Checks also each file
 	// content.
 	for i := 0; i < 10; i++ {
@@ -183,7 +183,7 @@ func TestDecompressDirectory(t *testing.T) {
 		dh, err := os.Open(subdir)
 		if err != nil {
 			dh.Close()
-			t.Fatalf("error opening decompressed dir: %s", err)
+			t.Fatalf("error opening unarchive dir: %s", err)
 		}
 		dh.Close()
 
@@ -191,7 +191,7 @@ func TestDecompressDirectory(t *testing.T) {
 			fpath := fmt.Sprintf("%s/%d.txt", subdir, j)
 			fp, err := os.Open(fpath)
 			if err != nil {
-				t.Fatalf("unexpected opening decompressed file: %s", err)
+				t.Fatalf("unexpected opening unarchived file: %s", err)
 			}
 
 			dt, err := ioutil.ReadAll(fp)
