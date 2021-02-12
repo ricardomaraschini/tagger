@@ -50,10 +50,10 @@ func NewTagIO(
 	aliveopt := grpc.KeepaliveParams(
 		keepalive.ServerParameters{
 			MaxConnectionIdle:     time.Minute,
-			MaxConnectionAge:      10 * time.Minute,
-			MaxConnectionAgeGrace: 10 * time.Second,
+			MaxConnectionAge:      20 * time.Minute,
+			MaxConnectionAgeGrace: time.Minute,
 			Time:                  time.Second,
-			Timeout:               2 * time.Second,
+			Timeout:               5 * time.Second,
 		},
 	)
 	tio := &TagIO{
@@ -97,8 +97,7 @@ func (t *TagIO) Export(in *pb.Request, stream pb.TagIOService_ExportServer) erro
 	}
 	defer cleanup()
 
-	// each chunk is arbitrarily defined to be of 2MB in size.
-	content := make([]byte, 2*1024*1024)
+	content := make([]byte, 1024)
 	chunk := &pb.Chunk{Content: content}
 	for {
 		if _, err := fp.Read(chunk.Content); err != nil {
