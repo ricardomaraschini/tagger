@@ -100,6 +100,7 @@ func TestExport(t *testing.T) {
 			tagio := NewTagIO(corinf, tagcli, taginf)
 			fs := fs.New("")
 			tagio.fstsvc = fs
+			tagio.impsvc.fs = fs
 
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
@@ -144,12 +145,27 @@ func TestExport(t *testing.T) {
 			}
 			fp.Close()
 
-			// we expect to find one sub directory for each generation
 			for i := 0; i < len(tt.tagobj.Status.References); i++ {
-				manpath := fmt.Sprintf("%s/%d/manifest.json", dst, i)
+				manpath := fmt.Sprintf("%s/%d-manifest.json", dst, i)
 				fp, err := os.Open(manpath)
 				if err != nil {
 					t.Errorf("manifest %s not found: %s", manpath, err)
+					return
+				}
+				fp.Close()
+
+				versionpath := fmt.Sprintf("%s/%d-version", dst, i)
+				fp, err = os.Open(versionpath)
+				if err != nil {
+					t.Errorf("version %s not found: %s", versionpath, err)
+					return
+				}
+				fp.Close()
+
+				blobspath := fmt.Sprintf("%s/blobs", dst)
+				fp, err = os.Open(blobspath)
+				if err != nil {
+					t.Errorf("blobs directory not found: %s", err)
 					return
 				}
 				fp.Close()

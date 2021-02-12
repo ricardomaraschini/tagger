@@ -38,6 +38,7 @@ var tagimport = &cobra.Command{
 		if len(args) != 1 {
 			return fmt.Errorf("provide an image tag")
 		}
+		name := args[0]
 
 		url, err := c.Flags().GetString("url")
 		if err != nil {
@@ -65,7 +66,7 @@ var tagimport = &cobra.Command{
 				srcfile:   srcfile,
 				token:     token,
 				namespace: namespace,
-				name:      args[0],
+				name:      name,
 			},
 		)
 	},
@@ -108,10 +109,10 @@ func importTag(params importParams) error {
 		return err
 	}
 
+	// At this stage we are ready to start uploading the tar file.
+	// I have chosen an arbitrarily value of 2MB for each chunk.
+	content := make([]byte, 2*1024*1024)
 	for {
-		// At this stage we are ready to start uploading the tar file.
-		// I have chosen an arbitrarily value of 2MB for each chunk.
-		content := make([]byte, 2*1024*1024)
 		_, err := fp.Read(content)
 		if err == io.EOF {
 			if _, err := stream.CloseAndRecv(); err != nil {

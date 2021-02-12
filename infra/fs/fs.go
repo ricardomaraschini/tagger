@@ -163,3 +163,21 @@ func (f *FS) DecompressFile(src io.Reader, dst string) error {
 	}
 	return nil
 }
+
+// MoveFiles move regular files from one directory into another. This is
+// not a recursive function (it does not copy subdirectories).
+func (f *FS) MoveFiles(srcdir, dstdir string) error {
+	return filepath.Walk(
+		srcdir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			dstfile := fmt.Sprintf("%s/%s", dstdir, info.Name())
+			return os.Rename(path, dstfile)
+		},
+	)
+}
