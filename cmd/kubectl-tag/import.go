@@ -109,9 +109,7 @@ func importTag(params importParams) error {
 		return err
 	}
 
-	// At this stage we are ready to start uploading the tar file.
-	// I have chosen an arbitrarily value of 2MB for each chunk.
-	content := make([]byte, 2*1024*1024)
+	content := make([]byte, 1024)
 	for {
 		_, err := fp.Read(content)
 		if err == io.EOF {
