@@ -194,5 +194,5 @@ var TagIOService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "infra/pb/export_tag.proto",
+	Metadata: "infra/pb/tagio.proto",
 }
