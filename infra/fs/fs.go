@@ -98,13 +98,13 @@ func (f *FS) ArchiveDirectory(srcdir string, dst io.Writer) error {
 				return nil
 			}
 
-			fp, err := os.Open(file)
+			data, err := os.Open(file)
 			if err != nil {
 				return err
 			}
-			defer fp.Close()
+			defer data.Close()
 
-			_, err = io.Copy(tw, fp)
+			_, err = io.Copy(tw, data)
 			return err
 		},
 	)
@@ -147,12 +147,11 @@ func (f *FS) UnarchiveFile(src io.Reader, dst string) error {
 		if err != nil {
 			return fmt.Errorf("error creating file: %w", err)
 		}
-		defer out.Close()
-
 		if _, err := io.Copy(out, tarfp); err != nil {
+			out.Close()
 			return fmt.Errorf("error decompressing: %w", err)
 		}
-		return nil
+		out.Close()
 	}
 	return nil
 }
