@@ -16,14 +16,27 @@ message PushRequest {
 	}
 }
 
+message PushResult {
+}
+
+message PullResult {
+	oneof test_oneof {
+		Progress progress = 1;
+		Chunk chunk = 2;
+	}
+}
+
+message Progress {
+	string description = 1;
+	uint64 offset = 2;
+	int64 size = 3;
+}
+
 message Chunk {
 	bytes content = 1;
 }
 
-message PushResult {
-}
-
 service TagIOService {
-	rpc Pull(Request) returns (stream Chunk);
+	rpc Pull(Request) returns (stream PullResult);
 	rpc Push(stream PushRequest) returns (PushResult);
 }

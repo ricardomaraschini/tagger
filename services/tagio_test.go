@@ -13,6 +13,7 @@ import (
 	corfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/containers/image/v5/types"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
@@ -110,7 +111,12 @@ func TestPull(t *testing.T) {
 				t.Fatal("errors waiting for caches to sync")
 			}
 
-			tarfp, clean, err := tagio.Pull(ctx, tt.tagns, tt.tagname)
+			ch := make(chan types.ProgressProperties)
+			go func() {
+				for range ch {
+				}
+			}()
+			tarfp, clean, err := tagio.Pull(ctx, tt.tagns, tt.tagname, ch)
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error: %s", err)
@@ -120,6 +126,7 @@ func TestPull(t *testing.T) {
 			} else if len(tt.err) > 0 {
 				t.Errorf("expecting error %q, nil received instead", tt.err)
 			}
+			close(ch)
 
 			// tar was not created on this test, move on.
 			if tarfp == nil {

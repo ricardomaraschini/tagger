@@ -46,7 +46,7 @@ func (c *tagIOServiceClient) Pull(ctx context.Context, in *Request, opts ...grpc
 }
 
 type TagIOService_PullClient interface {
-	Recv() (*Chunk, error)
+	Recv() (*PullResult, error)
 	grpc.ClientStream
 }
 
@@ -54,8 +54,8 @@ type tagIOServicePullClient struct {
 	grpc.ClientStream
 }
 
-func (x *tagIOServicePullClient) Recv() (*Chunk, error) {
-	m := new(Chunk)
+func (x *tagIOServicePullClient) Recv() (*PullResult, error) {
+	m := new(PullResult)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func _TagIOService_Pull_Handler(srv interface{}, stream grpc.ServerStream) error
 }
 
 type TagIOService_PullServer interface {
-	Send(*Chunk) error
+	Send(*PullResult) error
 	grpc.ServerStream
 }
 
@@ -145,7 +145,7 @@ type tagIOServicePullServer struct {
 	grpc.ServerStream
 }
 
-func (x *tagIOServicePullServer) Send(m *Chunk) error {
+func (x *tagIOServicePullServer) Send(m *PullResult) error {
 	return x.ServerStream.SendMsg(m)
 }
 
