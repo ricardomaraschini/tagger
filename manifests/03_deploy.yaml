@@ -19,7 +19,7 @@ spec:
       serviceAccountName: tagger
       containers:
       - name: tagger
-        image: quay.io/rmarasch/tagger:latest
+        image: quay.io/rmarasch/tagger@sha256:8b325ccbdcd3feca481b6ab2e2e9f2f2d8ab45abc9e74482b65e12834e21bb1f
         volumeMounts:
           - mountPath: "/assets"
             name: certs
@@ -30,7 +30,11 @@ spec:
         - name: CACHE_REGISTRY_INSECURE
           value: "true"
         - name: CACHE_REGISTRY_ADDRESS
-          value: "do.not.exist.io"
+          value: "goiaba.news:5000"
+        - name: CACHE_REGISTRY_USERNAME
+          value: "rmarasch"
+        - name: CACHE_REGISTRY_PASSWORD
+          value: "rmarasch"
       volumes:
       - name: certs
         secret:

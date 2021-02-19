@@ -5,9 +5,12 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/vbauerster/mpb/v6"
+	"github.com/vbauerster/mpb/v6/decor"
 	"google.golang.org/grpc"
 
 	"github.com/ricardomaraschini/tagger/infra/pb"
@@ -104,6 +107,10 @@ func pullTag(params pullParams) error {
 		return err
 	}
 
+	var prevdescr string
+	var pbar *mpb.Bar
+	p := mpb.New(mpb.WithWidth(60))
+	defer p.Wait()
 	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
@@ -113,9 +120,43 @@ func pullTag(params pullParams) error {
 			return err
 		}
 
-		if _, err := fp.Write(resp.Content); err != nil {
+		if progress := resp.GetProgress(); progress != nil {
+			descr := formatDescription(progress.Description)
+			if prevdescr != descr {
+				prevdescr = descr
+				pbar = p.Add(
+					progress.Size,
+					mpb.NewBarFiller(" ▮▮▯ "),
+					mpb.PrependDecorators(decor.Name(descr)),
+					mpb.AppendDecorators(
+						decor.CountersKiloByte("%d %d"),
+					),
+				)
+			}
+			pbar.SetCurrent(int64(progress.Offset))
+			continue
+		}
+
+		chunk := resp.GetChunk()
+		if _, err := fp.Write(chunk.Content); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// formatDescription removes "sha256:" prefix of a description and makes it to have
+// a 13 in length.
+func formatDescription(descr string) string {
+	descr = strings.TrimPrefix(descr, "sha256:")
+	strlen := len(descr)
+
+	switch {
+	case strlen > 13:
+		return descr[:13]
+	case strlen < 13:
+		return descr + strings.Repeat(" ", 13-strlen)
+	default:
+		return descr
+	}
 }

@@ -303,7 +303,13 @@ func (i *Importer) pushImageFromDir(
 // PullTagToDir pull all Tag's generations hosted locally (cached) and stores them
 // into a directory. Inside the resulting directory every generation will be placed
 // in a different subdirectory, subdirs are named after their generation number.
-func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dstdir string) error {
+// Pull progress is reported through the progress channel.
+func (i *Importer) PullTagToDir(
+	ctx context.Context,
+	it *imagtagv1.Tag,
+	dstdir string,
+	progress chan types.ProgressProperties,
+) error {
 	inregaddr, _, err := i.syssvc.CacheRegistryAddresses()
 	if err != nil {
 		return fmt.Errorf("unable to find cache registry: %w", err)
@@ -331,7 +337,7 @@ func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dstdir s
 			return fmt.Errorf("error parsing generation: %w", err)
 		}
 
-		if err := i.pullImageToDir(ctx, ref, tmpdir); err != nil {
+		if err := i.pullImageToDir(ctx, ref, tmpdir, progress); err != nil {
 			return fmt.Errorf("error pulling image: %w", err)
 		}
 
@@ -364,7 +370,10 @@ func (i *Importer) PullTagToDir(ctx context.Context, it *imagtagv1.Tag, dstdir s
 // directory. This function uses the cache registry context so it is not
 // suitable to pull image from other registries.
 func (i *Importer) pullImageToDir(
-	ctx context.Context, fromRef types.ImageReference, dir string,
+	ctx context.Context,
+	fromRef types.ImageReference,
+	dir string,
+	progress chan types.ProgressProperties,
 ) error {
 	toRef, err := directory.NewReference(dir)
 	if err != nil {
@@ -380,6 +389,8 @@ func (i *Importer) pullImageToDir(
 		ctx, polctx, toRef, fromRef, &imgcopy.Options{
 			ImageListSelection: imgcopy.CopyAllImages,
 			SourceCtx:          i.syssvc.CacheRegistryContext(ctx),
+			ProgressInterval:   500 * time.Millisecond,
+			Progress:           progress,
 		},
 	); err != nil {
 		return fmt.Errorf("error pulling image to disk: %w", err)

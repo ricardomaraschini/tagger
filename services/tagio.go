@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 
+	"github.com/containers/image/v5/types"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
@@ -24,7 +25,9 @@ import (
 // TagIO is an entity that gather operations related to Tag input/output.
 // Input and output is related to a cluster, we allow users to input (import
 // a tag from a different cluster) and output (export a tag to a different
-// cluster.
+// cluster. For this entity Pull and Push are functions to be interpreted
+// from the client's point of view, i.e. pull means a client pulling a tag
+// from tagger while push means a client pushing a tag to tagger.
 type TagIO struct {
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
@@ -98,8 +101,8 @@ func (t *TagIO) Push(
 // calling the function we return (2nd return), by deferring a call to the
 // returned func() the tar will be closed and deleted from disk.
 func (t *TagIO) Pull(
-	ctx context.Context, ns string, name string,
-) (io.ReadCloser, func(), error) {
+	ctx context.Context, ns string, name string, progress chan types.ProgressProperties,
+) (*os.File, func(), error) {
 	it, err := t.taglis.Tags(ns).Get(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting tag: %w", err)
@@ -111,7 +114,7 @@ func (t *TagIO) Pull(
 	}
 	defer cleandir()
 
-	if err := t.impsvc.PullTagToDir(ctx, it, dir); err != nil {
+	if err := t.impsvc.PullTagToDir(ctx, it, dir, progress); err != nil {
 		return nil, nil, fmt.Errorf("error pulling tag to dir: %w", err)
 	}
 
