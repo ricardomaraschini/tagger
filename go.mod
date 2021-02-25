@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/containers/image/v5 v5.6.0
+	github.com/containers/storage v1.23.5
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/mattbaird/jsonpatch v0.0.0-20200820163806-098863c1fc24
