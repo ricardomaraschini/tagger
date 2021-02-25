@@ -12,7 +12,7 @@ import (
 	imgtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 )
 
-func TestSplitRegistryDomain(t *testing.T) {
+func Test_splitRegistryDomain(t *testing.T) {
 	for _, tt := range []struct {
 		name  string
 		input string
@@ -63,10 +63,8 @@ func TestSplitRegistryDomain(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			imp := &Importer{
-				metric: NewMetrics(),
-			}
-			reg, img := imp.SplitRegistryDomain(tt.input)
+			imp := &Importer{}
+			reg, img := imp.splitRegistryDomain(tt.input)
 			if reg != tt.reg {
 				t.Errorf("expecting registry %q, received %q", tt.reg, reg)
 			}
@@ -150,7 +148,6 @@ func TestImportPath(t *testing.T) {
 
 			imp := &Importer{
 				syssvc: NewSysContext(corinf),
-				metric: NewMetrics(),
 			}
 			imp.syssvc.unqualifiedRegistries = tt.unqreg
 			_, err := imp.ImportTag(context.Background(), tt.tag)
