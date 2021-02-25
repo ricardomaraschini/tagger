@@ -7,6 +7,8 @@ import (
 
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/containers/storage/pkg/reexec"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/spf13/cobra"
 
 	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
@@ -14,6 +16,11 @@ import (
 )
 
 func main() {
+	if reexec.Init() {
+		panic("reexec returned true")
+	}
+	unshare.MaybeReexecUsingUserNamespace(true)
+
 	root := &cobra.Command{Use: "kubectl-tag"}
 	root.PersistentFlags().StringP(
 		"namespace", "n", "", "Namespace to use",

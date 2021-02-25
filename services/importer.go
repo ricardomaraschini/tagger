@@ -2,8 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -52,7 +52,6 @@ func (i *Importer) getImageStore(ctx context.Context) error {
 	}
 
 	sysctx := i.syssvc.CacheRegistryContext(ctx)
-
 	regaddr, _, err := i.syssvc.CacheRegistryAddresses()
 	if err != nil {
 		return fmt.Errorf("unable to discover cache registry: %w", err)
@@ -161,43 +160,46 @@ func (i *Importer) ImportTag(
 	return zero, fmt.Errorf("unable to import image: %w", errors)
 }
 
-// PushTagFromDir tag from dir reads a tag from a directory and pushes images that
-// refer to the cache registry.
-func (i *Importer) PushTagFromDir(ctx context.Context, it *imagtagv1.Tag, dir string) error {
-	inregaddr, _, err := i.syssvc.CacheRegistryAddresses()
+// LoadTagImage loads an image into our cache registry and updates provided tag to
+// points to its highest Generation to the new pushed image. If we fail during the
+// second operation that is ok, client will retry and the blobs will be already
+// present in the cache registry.
+func (i *Importer) LoadTagImage(
+	ctx context.Context,
+	from types.ImageReference,
+	fromCtx *types.SystemContext,
+	repo string,
+	name string,
+) (string, error) {
+	inregaddr, outregaddr, err := i.syssvc.CacheRegistryAddresses()
 	if err != nil {
-		return fmt.Errorf("unable to find cache registry: %w", err)
+		return "", fmt.Errorf("unable to find cache registry: %w", err)
+	}
+	to := fmt.Sprintf("%s/%s/%s", inregaddr, repo, name)
+	toRef, err := i.ImageRefForStringRef(to)
+	if err != nil {
+		return "", fmt.Errorf("invalid destination image reference: %w", err)
 	}
 
-	blobsdir := fmt.Sprintf("%s/blobs", dir)
-	for _, hr := range it.Status.References {
-		domain, _ := i.splitRegistryDomain(hr.ImageReference)
-		if domain != inregaddr {
-			continue
-		}
-
-		refstr := fmt.Sprintf("docker://%s", hr.ImageReference)
-		ref, err := alltransports.ParseImageName(refstr)
-		if err != nil {
-			return fmt.Errorf("error parsing generation: %w", err)
-		}
-
-		for _, fname := range []string{
-			"manifest.json",
-			"version",
-		} {
-			oname := fmt.Sprintf("%s/%d-%s", dir, hr.Generation, fname)
-			nname := fmt.Sprintf("%s/%s", blobsdir, fname)
-			if err := os.Rename(oname, nname); err != nil {
-				return fmt.Errorf("error moving file %s: %s", oname, err)
-			}
-		}
-
-		if err := i.pushImageFromDir(ctx, blobsdir, ref); err != nil {
-			return fmt.Errorf("error pulling image: %w", err)
-		}
+	polctx, err := i.syssvc.DefaultPolicyContext()
+	if err != nil {
+		return "", fmt.Errorf("unable to get default policy: %w", err)
 	}
-	return nil
+
+	manifest, err := imgcopy.Image(
+		ctx, polctx, toRef, from, &imgcopy.Options{
+			ImageListSelection: imgcopy.CopyAllImages,
+			SourceCtx:          fromCtx,
+			DestinationCtx:     i.syssvc.CacheRegistryContext(ctx),
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("unable to copy image: %w", err)
+	}
+
+	return fmt.Sprintf(
+		"%s/%s/%s@sha256:%x", outregaddr, repo, name, sha256.Sum256(manifest),
+	), nil
 }
 
 // pushImageFromDir reads an image from a directory and pushes it to the
@@ -227,85 +229,29 @@ func (i *Importer) pushImageFromDir(
 	return nil
 }
 
-// PullTagToDir pull all Tag's generations hosted locally (cached) and stores them
-// into a directory. Inside the resulting directory every generation will be placed
-// in a different subdirectory, subdirs are named after their generation number.
-// Pull progress is reported through the progress channel.
-func (i *Importer) PullTagToDir(
+// SaveTagImage pulls current generation of a given Tag into a local tar file.
+// Pull progress is reported through provided progress channel, AFAIK we don't
+// close the provided channel at the end of progress it seems :-(.
+func (i *Importer) SaveTagImage(
 	ctx context.Context,
 	it *imagtagv1.Tag,
-	dstdir string,
+	dst string,
 	progress chan types.ProgressProperties,
 ) error {
-	inregaddr, _, err := i.syssvc.CacheRegistryAddresses()
+	imgref := it.CurrentReferenceForTag()
+	if len(imgref) == 0 {
+		return fmt.Errorf("reference for current generation not found")
+	}
+
+	fromRef, err := i.ImageRefForStringRef(imgref)
 	if err != nil {
-		return fmt.Errorf("unable to find cache registry: %w", err)
+		return fmt.Errorf("error parsing image reference: %w", err)
 	}
 
-	tmpdir, cleanup, err := i.fs.TempDir()
+	dstref := fmt.Sprintf("docker-archive:%s", dst)
+	toRef, err := alltransports.ParseImageName(dstref)
 	if err != nil {
-		return fmt.Errorf("error creating temp dir: %w", err)
-	}
-	defer cleanup()
-
-	blobsdir := fmt.Sprintf("%s/blobs", dstdir)
-	if err := os.Mkdir(blobsdir, 0700); err != nil {
-		return fmt.Errorf("error creating blobs dir: %w", err)
-	}
-
-	for _, hr := range it.Status.References {
-		domain, _ := i.splitRegistryDomain(hr.ImageReference)
-		if domain != inregaddr {
-			continue
-		}
-
-		refstr := fmt.Sprintf("docker://%s", hr.ImageReference)
-		ref, err := alltransports.ParseImageName(refstr)
-		if err != nil {
-			return fmt.Errorf("error parsing generation: %w", err)
-		}
-
-		if err := i.pullImageToDir(ctx, ref, tmpdir, progress); err != nil {
-			return fmt.Errorf("error pulling image: %w", err)
-		}
-
-		// move manifest and version files out of the temporary dir
-		// and into our definitive directory (provided through args
-		// to this function).
-		for _, fname := range []string{
-			"manifest.json",
-			"version",
-		} {
-			oname := fmt.Sprintf("%s/%s", tmpdir, fname)
-			nname := fmt.Sprintf("%s/%d-%s", dstdir, hr.Generation, fname)
-			if err := os.Rename(oname, nname); err != nil {
-				return fmt.Errorf("error moving file %s: %s", oname, err)
-			}
-		}
-
-		// now move all the rest of the files from temporary dir
-		// into their final destionation, as we already moved
-		// manifest and version files only blobs must be residing
-		// on the temporary dir.
-		if err := i.fs.MoveFiles(tmpdir, blobsdir); err != nil {
-			return fmt.Errorf("error moving blobs: %w", err)
-		}
-	}
-	return nil
-}
-
-// pullImageToDir pulls an image hosted in the cache registry into a local
-// directory. This function uses the cache registry context so it is not
-// suitable to pull image from other registries.
-func (i *Importer) pullImageToDir(
-	ctx context.Context,
-	fromRef types.ImageReference,
-	dir string,
-	progress chan types.ProgressProperties,
-) error {
-	toRef, err := directory.NewReference(dir)
-	if err != nil {
-		return fmt.Errorf("unable to create dir reference: %w", err)
+		return fmt.Errorf("error creating dir reference: %w", err)
 	}
 
 	polctx, err := i.syssvc.DefaultPolicyContext()
@@ -313,15 +259,31 @@ func (i *Importer) pullImageToDir(
 		return fmt.Errorf("unable to get default policy: %w", err)
 	}
 
-	if _, err := imgcopy.Image(
-		ctx, polctx, toRef, fromRef, &imgcopy.Options{
-			ImageListSelection: imgcopy.CopyAllImages,
-			SourceCtx:          i.syssvc.CacheRegistryContext(ctx),
-			ProgressInterval:   500 * time.Millisecond,
-			Progress:           progress,
-		},
-	); err != nil {
-		return fmt.Errorf("error pulling image to disk: %w", err)
+	auths, err := i.syssvc.AuthsFor(ctx, fromRef, it.Namespace)
+	if err != nil {
+		return fmt.Errorf("error reading docker secrets: %w", err)
 	}
-	return nil
+	// by adding a nil entry at the end of the slice we assure that we are
+	// going to give "no credentials" access a try.
+	auths = append(auths, nil)
+
+	var errors *multierror.Error
+	for _, auth := range auths {
+		sysctx := &types.SystemContext{
+			DockerAuthConfig: auth,
+		}
+
+		_, err := imgcopy.Image(
+			ctx, polctx, toRef, fromRef, &imgcopy.Options{
+				SourceCtx:        sysctx,
+				ProgressInterval: 500 * time.Millisecond,
+				Progress:         progress,
+			},
+		)
+		if err == nil {
+			return nil
+		}
+		errors = multierror.Append(errors, err)
+	}
+	return fmt.Errorf("unable to pull tag image: %w", errors)
 }

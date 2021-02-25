@@ -63,6 +63,24 @@ oc expose deployment tagger	\
 	--target-port=8083
 ```
 
+# Exposing tagio service externally with a NodePort service.
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: tagio-external
+  namespace: tagger
+spec:
+  ports:
+  - port: 8083
+    protocol: TCP
+    targetPort: 8083
+  selector:
+    app: tagger
+  type: NodePort
+```
+
 # Deploying an ephemeral registry into the cluster
 
 ```yaml
@@ -125,3 +143,4 @@ spec:
       port: 5000 
       targetPort: 5000
 ```
+

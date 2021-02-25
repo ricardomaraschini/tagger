@@ -1,25 +1,6 @@
 package services
 
-import (
-	"context"
-	"fmt"
-	"os"
-	"strings"
-	"testing"
-	"time"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	coreinf "k8s.io/client-go/informers"
-	corfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
-
-	"github.com/containers/image/v5/types"
-	"github.com/ricardomaraschini/tagger/infra/fs"
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
-	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
-	taginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
-)
-
+/*
 func TestPull(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
@@ -180,3 +161,4 @@ func TestPull(t *testing.T) {
 		})
 	}
 }
+*/
