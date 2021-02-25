@@ -2,25 +2,27 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"time"
 
+	imgcopy "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/signature"
+	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v6"
 	"github.com/vbauerster/mpb/v6/decor"
 	"google.golang.org/grpc"
 
+	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
 func init() {
 	tagpull.Flags().String("token", "", "User token.")
 	tagpull.MarkFlagRequired("token")
-	tagpull.Flags().String("output", "", "Output file (where to store the tag).")
-	tagpull.MarkFlagRequired("output")
 	tagpull.Flags().String("url", "", "The URL of a tagger instance.")
 	tagpull.MarkFlagRequired("url")
 }
@@ -29,7 +31,6 @@ func init() {
 // instance into a local file.
 type pullParams struct {
 	url       string
-	dstfile   string
 	token     string
 	namespace string
 	name      string
@@ -37,7 +38,7 @@ type pullParams struct {
 
 var tagpull = &cobra.Command{
 	Use:   "pull <image tag>",
-	Short: "Pull a tag from a tagger instance and into a tar file",
+	Short: "Pull a tag image from a tagger instance",
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			log.Fatalf("invalid command, missing tag name")
@@ -54,11 +55,6 @@ var tagpull = &cobra.Command{
 			return
 		}
 
-		dstfile, err := c.Flags().GetString("output")
-		if err != nil {
-			return
-		}
-
 		namespace, err := Namespace(c)
 		if err != nil {
 			log.Fatalf("error determining current namespace: %s", err)
@@ -68,7 +64,6 @@ var tagpull = &cobra.Command{
 		if err := pullTag(
 			pullParams{
 				url:       url,
-				dstfile:   dstfile,
 				token:     token,
 				namespace: namespace,
 				name:      name,
@@ -80,16 +75,17 @@ var tagpull = &cobra.Command{
 }
 
 // pullTag does a grpc call to the remote tagger instance, awaits for the tag
-// to be exported and retrieves it. Content is written to params.dstfile.
+// to be exported and retrieves it.
 func pullTag(params pullParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	fp, err := os.Create(params.dstfile)
+	fsh := fs.New("")
+	fp, cleanup, err := fsh.TempFile()
 	if err != nil {
-		return err
+		return nil
 	}
-	defer fp.Close()
+	defer cleanup()
 
 	// XXX ssl please?
 	conn, err := grpc.Dial(params.url, grpc.WithInsecure())
@@ -142,6 +138,41 @@ func pullTag(params pullParams) error {
 			return err
 		}
 	}
+
+	srcref := fmt.Sprintf("docker-archive:%s", fp.Name())
+	fromRef, err := alltransports.ParseImageName(srcref)
+	if err != nil {
+		return err
+	}
+
+	dstpath := fmt.Sprintf(
+		"containers-storage:%s/%s/%s:latest",
+		params.url,
+		params.namespace,
+		params.name,
+	)
+
+	toRef, err := alltransports.ParseImageName(dstpath)
+	if err != nil {
+		return err
+	}
+
+	pol := &signature.Policy{
+		Default: signature.PolicyRequirements{
+			signature.NewPRInsecureAcceptAnything(),
+		},
+	}
+	polctx, err := signature.NewPolicyContext(pol)
+	if err != nil {
+		return err
+	}
+
+	if _, err := imgcopy.Image(
+		ctx, polctx, toRef, fromRef, &imgcopy.Options{},
+	); err != nil {
+		panic(err)
+	}
+
 	return nil
 }
 

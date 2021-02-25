@@ -35,7 +35,8 @@ type UserValidator interface {
 	CanAccessTags(context.Context, string, string) error
 }
 
-// TagIO handles requests for exporting and import Tag custom resources.
+// TagIO handles requests for pulling and pushing images pointed by a
+// Tag.
 type TagIO struct {
 	bind   string
 	tagexp TagImporterExporter
@@ -113,18 +114,18 @@ func (t *TagIO) pullProgressLoop(
 	}
 }
 
-// Pull handles tag export through grpc. We receive a request informing what is
-// the tag to be pulled (namespace and name) and also a kubernetes token for
-// authentication and authorization. This function writes down the exported tag
-// file in Chunks, client can then reassemble the file downstream.
+// Pull handles an image pull through grpc. We receive a request informing what
+// is the tag to be pulled (namespace and name) and also a kubernetes token for
+// authentication and authorization. This function writes the exported image
+// file in Chunks, client can then reassemble the file downstream. XXX Refactor.
 func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
 	var wg = &sync.WaitGroup{}
 
 	ctx := stream.Context()
-	klog.Info("received request to export tag")
+	klog.Info("received request to pull image pointed by a tag")
 
 	if err := t.validateRequest(in); err != nil {
-		klog.Errorf("error validating export request: %s", err)
+		klog.Errorf("error validating pull request: %s", err)
 		return fmt.Errorf("error validating input: %w", err)
 	}
 
@@ -140,7 +141,7 @@ func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
 	progress := make(chan types.ProgressProperties)
 	go t.pullProgressLoop(wg, progress, stream)
 
-	klog.Infof("exporting tag %s/%s", namespace, name)
+	klog.Infof("exporting image pointed by tag %s/%s", namespace, name)
 	fp, cleanup, err := t.tagexp.Pull(ctx, namespace, name, progress)
 	if err != nil {
 		close(progress)
@@ -167,13 +168,13 @@ func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
 			if err == io.EOF {
 				break
 			}
-			klog.Errorf("error reading tag file: %s", err)
-			return fmt.Errorf("error reading tag file: %w", err)
+			klog.Errorf("error reading image file: %s", err)
+			return fmt.Errorf("error reading image file: %w", err)
 		}
 		totread += uint64(read)
 
 		if counter%50 == 0 {
-			err := t.sendProgressMessage("downloading", totread, fsize, stream)
+			err := t.sendProgressMessage("Downloading", totread, fsize, stream)
 			if err != nil {
 				klog.Errorf("error sending progress: %s", err)
 				return fmt.Errorf("error sending progress: %w", err)
@@ -189,19 +190,19 @@ func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
 				},
 			},
 		); err != nil {
-			klog.Errorf("error sending blob: %s", err)
-			return fmt.Errorf("error sending blob: %w", err)
+			klog.Errorf("error sending chunk: %s", err)
+			return fmt.Errorf("error sending chunk: %w", err)
 		}
 		counter++
 	}
 
-	err = t.sendProgressMessage("downloading", uint64(fsize), fsize, stream)
+	err = t.sendProgressMessage("Downloading", uint64(fsize), fsize, stream)
 	if err != nil {
 		klog.Errorf("error sending progress: %s", err)
 		return fmt.Errorf("error sending progress: %w", err)
 	}
 
-	klog.Infof("tag %s/%s exported successfully", namespace, name)
+	klog.Infof("image pointed by tag %s/%s sent successfully", namespace, name)
 	return nil
 }
 
