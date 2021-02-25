@@ -2,10 +2,10 @@ package services
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,20 +13,20 @@ import (
 
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/directory"
-	"github.com/containers/image/v5/docker"
-	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/ricardomaraschini/tagger/infra/fs"
+	"github.com/ricardomaraschini/tagger/infra/imagestore"
 	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 )
 
 // Importer wrap srvices for tag import related operations.
 type Importer struct {
+	sync.Mutex
+	istore *imagestore.ImageStore
 	syssvc *SysContext
-	metric *Metric
 	fs     *fs.FS
 }
 
@@ -37,13 +37,38 @@ type Importer struct {
 func NewImporter(corinf informers.SharedInformerFactory) *Importer {
 	return &Importer{
 		syssvc: NewSysContext(corinf),
-		metric: NewMetrics(),
-		fs:     fs.New("/data"),
+		fs:     fs.New(""),
 	}
 }
 
-// SplitRegistryDomain splits the domain from the repository and image.
-func (i *Importer) SplitRegistryDomain(imgPath string) (string, string) {
+// getImageStore creates an instance of an ImageStore populated with our internal
+// registry as storage. I have opted to do this here as it is better not to
+// full our New() functions with this kind of thing.
+func (i *Importer) getImageStore(ctx context.Context) error {
+	i.Lock()
+	defer i.Unlock()
+	if i.istore != nil {
+		return nil
+	}
+
+	sysctx := i.syssvc.CacheRegistryContext(ctx)
+
+	regaddr, _, err := i.syssvc.CacheRegistryAddresses()
+	if err != nil {
+		return fmt.Errorf("unable to discover cache registry: %w", err)
+	}
+
+	defpol, err := i.syssvc.DefaultPolicyContext()
+	if err != nil {
+		return fmt.Errorf("error reading default policy: %w", err)
+	}
+
+	i.istore = imagestore.NewImageStore(regaddr, sysctx, defpol)
+	return nil
+}
+
+// splitRegistryDomain splits the domain from the repository and image.
+func (i *Importer) splitRegistryDomain(imgPath string) (string, string) {
 	imageSlices := strings.SplitN(imgPath, "/", 2)
 	if len(imageSlices) < 2 {
 		return "", imgPath
@@ -56,67 +81,6 @@ func (i *Importer) SplitRegistryDomain(imgPath string) (string, string) {
 	}
 
 	return imageSlices[0], imageSlices[1]
-}
-
-// ImageRefForStringRef parses provided string into a types.ImageReference.
-func (i *Importer) ImageRefForStringRef(ref string) (types.ImageReference, error) {
-	namedReference, err := reference.ParseDockerRef(ref)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse docker reference: %w", err)
-	}
-	return docker.NewReference(namedReference)
-}
-
-// cacheTag copies an image from one registry to another. The first is
-// the source registry, the latter is our caching registry. Returns the
-// cached image reference to be used. If tag has its cache flag set to
-// false this is a no-op.
-func (i *Importer) cacheTag(
-	ctx context.Context,
-	it *imagtagv1.Tag,
-	from string,
-	srcCtx *types.SystemContext,
-) (string, error) {
-	if !it.Spec.Cache {
-		return from, nil
-	}
-
-	fromRef, err := i.ImageRefForStringRef(from)
-	if err != nil {
-		return "", fmt.Errorf("invalid source image reference: %w", err)
-	}
-
-	inregaddr, outregaddr, err := i.syssvc.CacheRegistryAddresses()
-	if err != nil {
-		return "", fmt.Errorf("unable to find cache registry: %w", err)
-	}
-
-	// We cache images under registry/namespace/image-tag.
-	to := fmt.Sprintf("%s/%s/%s", inregaddr, it.Namespace, it.Name)
-	toRef, err := i.ImageRefForStringRef(to)
-	if err != nil {
-		return "", fmt.Errorf("invalid destination image reference: %w", err)
-	}
-
-	polctx, err := i.syssvc.DefaultPolicyContext()
-	if err != nil {
-		return "", fmt.Errorf("unable to get default policy: %w", err)
-	}
-
-	manifest, err := imgcopy.Image(
-		ctx, polctx, toRef, fromRef, &imgcopy.Options{
-			ImageListSelection: imgcopy.CopyAllImages,
-			SourceCtx:          srcCtx,
-			DestinationCtx:     i.syssvc.CacheRegistryContext(ctx),
-		},
-	)
-	if err != nil {
-		return "", fmt.Errorf("unable to copy image: %w", err)
-	}
-
-	return fmt.Sprintf(
-		"%s/%s/%s@sha256:%x", outregaddr, it.Namespace, it.Name, sha256.Sum256(manifest),
-	), nil
 }
 
 // registriesToSearch returns a list of registries to be used when looking for
@@ -137,102 +101,64 @@ func (i *Importer) registriesToSearch(ctx context.Context, domain string) ([]str
 	return registries, nil
 }
 
-// ImportTag runs an import on provided Tag. We look for the image in all
-// configured unqualified registries using all authentications we can find
-// on the Tag namespace.
+// ImportTag runs an import on provided Tag. We look for the image in all configured
+// unqualified registries using all authentications we can find on the Tag namespace.
 func (i *Importer) ImportTag(
 	ctx context.Context, it *imagtagv1.Tag,
 ) (imagtagv1.HashReference, error) {
-	start := time.Now()
-
 	var zero imagtagv1.HashReference
 	if it.Spec.From == "" {
-		i.metric.ReportImportFailure()
 		return zero, fmt.Errorf("empty tag reference")
 	}
+	domain, remainder := i.splitRegistryDomain(it.Spec.From)
 
-	regDomain, remainder := i.SplitRegistryDomain(it.Spec.From)
-
-	registries, err := i.registriesToSearch(ctx, regDomain)
+	registries, err := i.registriesToSearch(ctx, domain)
 	if err != nil {
-		i.metric.ReportImportFailure()
 		return zero, fmt.Errorf("fail to find source image domain: %w", err)
 	}
 
 	var errors *multierror.Error
 	for _, registry := range registries {
-		imgFullPath := fmt.Sprintf("%s/%s", registry, remainder)
-		imgref, err := i.ImageRefForStringRef(imgFullPath)
+		imgpath := fmt.Sprintf("docker://%s/%s", registry, remainder)
+		imgref, err := alltransports.ParseImageName(imgpath)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
 		}
 
-		// get all authentications for registry and adds a nil
-		// entry to the end in order to guarantee we gonna do
-		// an import  attempt without using authentication.
-		auths, err := i.syssvc.AuthsFor(ctx, imgref, it.Namespace)
+		syscontexts, err := i.syssvc.SystemContextsFor(ctx, imgref, it.Namespace)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
 		}
-		auths = append(auths, nil)
 
-		for _, auth := range auths {
-			sysctx := &types.SystemContext{
-				DockerAuthConfig: auth,
+		imghash, sysctx, err := i.istore.GetImageHash(ctx, imgref, syscontexts)
+		if err != nil {
+			errors = multierror.Append(errors, err)
+			continue
+		}
+
+		if it.Spec.Cache {
+			if err := i.getImageStore(ctx); err != nil {
+				return zero, fmt.Errorf("unable to get registry reference: %w", err)
 			}
 
-			imghash, err := i.getImageHash(ctx, sysctx, imgref)
-			if err != nil {
-				errors = multierror.Append(errors, err)
-				continue
-			}
-
-			imghash, err = i.cacheTag(ctx, it, imghash, sysctx)
-			if err != nil {
-				i.metric.ReportImportFailure()
+			if imghash, err = i.istore.Load(
+				ctx, imghash, sysctx, it.Namespace, it.Name,
+			); err != nil {
 				return zero, fmt.Errorf("fail to cache image: %w", err)
 			}
-
-			i.metric.ReportImportSuccess()
-			i.metric.ReportImportDuration(time.Since(start), it.Spec.Cache)
-
-			return imagtagv1.HashReference{
-				Generation:     it.Spec.Generation,
-				From:           it.Spec.From,
-				ImportedAt:     metav1.NewTime(time.Now()),
-				ImageReference: imghash,
-			}, nil
 		}
+
+		return imagtagv1.HashReference{
+			Generation:     it.Spec.Generation,
+			From:           it.Spec.From,
+			ImportedAt:     metav1.NewTime(time.Now()),
+			ImageReference: imghash.DockerReference().String(),
+		}, nil
 	}
 
-	i.metric.ReportImportFailure()
 	return zero, fmt.Errorf("unable to import image: %w", errors)
-}
-
-// getImageHash attempts to fetch image hash remotely using provided system context.
-func (i *Importer) getImageHash(
-	ctx context.Context, sysctx *types.SystemContext, imgref types.ImageReference,
-) (string, error) {
-	img, err := imgref.NewImage(ctx, sysctx)
-	if err != nil {
-		return "", fmt.Errorf("unable to create ImageCloser: %w", err)
-	}
-	defer img.Close()
-
-	manifestBlob, _, err := img.Manifest(ctx)
-	if err != nil {
-		return "", fmt.Errorf("unable to fetch image manifest: %w", err)
-	}
-
-	dgst, err := manifest.Digest(manifestBlob)
-	if err != nil {
-		return "", fmt.Errorf("error calculating manifest digest: %w", err)
-	}
-
-	imageref := fmt.Sprintf("%s@%s", imgref.DockerReference().Name(), dgst)
-	return imageref, nil
 }
 
 // PushTagFromDir tag from dir reads a tag from a directory and pushes images that
@@ -245,12 +171,13 @@ func (i *Importer) PushTagFromDir(ctx context.Context, it *imagtagv1.Tag, dir st
 
 	blobsdir := fmt.Sprintf("%s/blobs", dir)
 	for _, hr := range it.Status.References {
-		domain, _ := i.SplitRegistryDomain(hr.ImageReference)
+		domain, _ := i.splitRegistryDomain(hr.ImageReference)
 		if domain != inregaddr {
 			continue
 		}
 
-		ref, err := i.ImageRefForStringRef(hr.ImageReference)
+		refstr := fmt.Sprintf("docker://%s", hr.ImageReference)
+		ref, err := alltransports.ParseImageName(refstr)
 		if err != nil {
 			return fmt.Errorf("error parsing generation: %w", err)
 		}
@@ -327,12 +254,13 @@ func (i *Importer) PullTagToDir(
 	}
 
 	for _, hr := range it.Status.References {
-		domain, _ := i.SplitRegistryDomain(hr.ImageReference)
+		domain, _ := i.splitRegistryDomain(hr.ImageReference)
 		if domain != inregaddr {
 			continue
 		}
 
-		ref, err := i.ImageRefForStringRef(hr.ImageReference)
+		refstr := fmt.Sprintf("docker://%s", hr.ImageReference)
+		ref, err := alltransports.ParseImageName(refstr)
 		if err != nil {
 			return fmt.Errorf("error parsing generation: %w", err)
 		}
