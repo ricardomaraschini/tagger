@@ -162,6 +162,27 @@ func (s *SysContext) CacheRegistryContext(ctx context.Context) *types.SystemCont
 	}
 }
 
+// SystemContextsFor builds a series of types.SystemContexts, one of them
+// using one of the auth credentials present in the namespace. The last
+// entry is always a nil SystemContext, this last entry means "no auth".
+func (s *SysContext) SystemContextsFor(
+	ctx context.Context, imgref types.ImageReference, namespace string,
+) ([]*types.SystemContext, error) {
+	auths, err := s.AuthsFor(ctx, imgref, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error reading auths: %w", err)
+	}
+
+	ctxs := make([]*types.SystemContext, len(auths))
+	for i, auth := range auths {
+		ctxs[i] = &types.SystemContext{
+			DockerAuthConfig: auth,
+		}
+	}
+	ctxs = append(ctxs, nil)
+	return ctxs, nil
+}
+
 // AuthsFor return configured authentications for the registry hosting
 // the image reference. Namespace is the namespace from where read docker
 // authentications.
