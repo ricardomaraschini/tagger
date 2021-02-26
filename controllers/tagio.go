@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -14,7 +13,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"k8s.io/klog/v2"
 
-	"github.com/containers/image/v5/types"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
 )
@@ -22,10 +20,8 @@ import (
 // TagImporterExporter is here to make tests easier. You may be looking for
 // its concrete implementation in services/tagio.go.
 type TagImporterExporter interface {
-	Push(context.Context, string, string, io.Reader) error
-	Pull(
-		context.Context, string, string, chan types.ProgressProperties,
-	) (*os.File, func(), error)
+	Push(context.Context, string, string, string) error
+	Pull(context.Context, string, string) (*os.File, func(), error)
 }
 
 // UserValidator validates an user can access Tags in a given namespace.
@@ -66,7 +62,7 @@ func NewTagIO(
 		bind:   ":8083",
 		tagexp: tagexp,
 		usrval: usrval,
-		fs:     fs.New("/data"),
+		fs:     fs.New(""),
 		srv:    grpc.NewServer(aliveopt),
 	}
 	pb.RegisterTagIOServiceServer(tio.srv, tio)
@@ -94,33 +90,11 @@ func (t *TagIO) sendProgressMessage(
 	)
 }
 
-// pullProgressLoop iterates over provided channel sending a progress message
-// down the protobuf line for each received event.
-func (t *TagIO) pullProgressLoop(
-	wg *sync.WaitGroup,
-	progress <-chan types.ProgressProperties,
-	stream pb.TagIOService_PullServer,
-) {
-	defer wg.Done()
-	for evt := range progress {
-		if err := t.sendProgressMessage(
-			evt.Artifact.Digest.String(),
-			evt.Offset,
-			evt.Artifact.Size,
-			stream,
-		); err != nil {
-			klog.Errorf("error sending progress message: %s", err)
-		}
-	}
-}
-
 // Pull handles an image pull through grpc. We receive a request informing what
 // is the tag to be pulled (namespace and name) and also a kubernetes token for
 // authentication and authorization. This function writes the exported image
-// file in Chunks, client can then reassemble the file downstream. XXX Refactor.
+// file in Chunks, client can then reassemble the file downstream.
 func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
-	var wg = &sync.WaitGroup{}
-
 	ctx := stream.Context()
 	klog.Info("received request to pull image pointed by a tag")
 
@@ -137,20 +111,13 @@ func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
 		return fmt.Errorf("unauthorized")
 	}
 
-	wg.Add(1)
-	progress := make(chan types.ProgressProperties)
-	go t.pullProgressLoop(wg, progress, stream)
-
 	klog.Infof("exporting image pointed by tag %s/%s", namespace, name)
-	fp, cleanup, err := t.tagexp.Pull(ctx, namespace, name, progress)
+	fp, cleanup, err := t.tagexp.Pull(ctx, namespace, name)
 	if err != nil {
-		close(progress)
 		klog.Errorf("error exporting tag: %s", err)
 		return fmt.Errorf("error exporting tag: %w", err)
 	}
 	defer cleanup()
-	close(progress)
-	wg.Wait()
 
 	finfo, err := fp.Stat()
 	if err != nil {
@@ -195,13 +162,6 @@ func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
 		}
 		counter++
 	}
-
-	err = t.sendProgressMessage("Downloading", uint64(fsize), fsize, stream)
-	if err != nil {
-		klog.Errorf("error sending progress: %s", err)
-		return fmt.Errorf("error sending progress: %w", err)
-	}
-
 	klog.Infof("image pointed by tag %s/%s sent successfully", namespace, name)
 	return nil
 }
@@ -288,12 +248,7 @@ func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
 	}
 
 	klog.Infof("tag file received, size: %d bytes", fsize)
-	if _, err := tmpfile.Seek(0, 0); err != nil {
-		klog.Errorf("error file seek: %s", err)
-		return fmt.Errorf("error file seek: %w", err)
-	}
-
-	if err := t.tagexp.Push(ctx, namespace, name, tmpfile); err != nil {
+	if err := t.tagexp.Push(ctx, namespace, name, tmpfile.Name()); err != nil {
 		klog.Errorf("error importing tag: %s", err)
 		return fmt.Errorf("error importing tag: %w", err)
 	}
