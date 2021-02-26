@@ -3,108 +3,60 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"strings"
 	"time"
 
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/ricardomaraschini/tagger/infra/fs"
-	"github.com/ricardomaraschini/tagger/infra/pb"
+	"github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+
+	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
+	"github.com/ricardomaraschini/tagger/infra/fs"
+	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
 func init() {
-	tagpull.Flags().String("token", "", "User token.")
+	tagpull.Flags().String("token", "", "Kubernetes authentication token.")
 	tagpull.MarkFlagRequired("token")
 }
 
-func splitDomainRepoAndName(imgPath string) (string, string, string) {
-	slices := strings.SplitN(imgPath, "/", 3)
-	if len(slices) < 3 {
-		return "", "", ""
-	}
-	url := slices[0]
-	repo := slices[1]
-	remainder := slices[2]
-
-	slices = strings.SplitN(remainder, ":", 2)
-	if len(slices) == 2 {
-		return url, repo, slices[0]
-	}
-
-	slices = strings.SplitN(remainder, "@", 2)
-	if len(slices) == 2 {
-		return url, repo, slices[0]
-	}
-
-	return url, repo, remainder
-}
-
 var tagpull = &cobra.Command{
-	Use:   "pull <image>",
-	Short: "Pull a tag image from a tagger instance",
-	Run: func(c *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		defer cancel()
-
+	Use:     "pull <tagger.instance:port/namespace/name>",
+	Short:   "Pulls current Tag image",
+	Long:    static.Text["pull_help_header"],
+	Example: static.Text["pull_help_examples"],
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			log.Fatalf("invalid command, missing tag name")
+			return fmt.Errorf("invalid number of arguments")
 		}
 
 		token, err := c.Flags().GetString("token")
 		if err != nil {
-			log.Fatal("token flag not valid")
+			return err
 		}
 
-		url, namespace, name := splitDomainRepoAndName(args[0])
-		if url == "" {
-			log.Fatalf("invalid image reference: %s", args[0])
-		}
-
-		// XXX ssl please?
-		conn, err := grpc.Dial(url, grpc.WithInsecure())
+		// first understands what tag is the user referring to.
+		tidx, err := indexFor(args[0])
 		if err != nil {
-			log.Fatalf("error connecting to tagger: %s", err)
+			return err
 		}
 
-		client := pb.NewTagIOServiceClient(conn)
-		stream, err := client.Pull(ctx, &pb.Request{
-			Name:      name,
-			Namespace: namespace,
-			Token:     token,
-		})
+		// now that we know what is the tag we do the grpc call
+		// to retrieve the image and host it locally on disk.
+		srcref, cleanup, err := pullTagImage(tidx, token)
 		if err != nil {
-			log.Fatalf("error sending request: %s", err)
-		}
-
-		fsh := fs.New("")
-		fp, cleanup, err := fsh.TempFile()
-		if err != nil {
-			log.Fatalf("error creating temp file: %s", err)
+			return err
 		}
 		defer cleanup()
 
-		if _, err := pb.ReceiveFileClient(fp, stream); err != nil {
-			log.Fatalf("errror receiving file: %s", err)
-		}
-
-		srcref := fmt.Sprintf("docker-archive:%s", fp.Name())
-		fromRef, err := alltransports.ParseImageName(srcref)
+		// now we need to understand to where we are copying this
+		// image. we are copying to the local storage so just
+		// grab a reference to it.
+		dstref, err := tidx.localref()
 		if err != nil {
-			log.Fatalf("errror parsing local reference: %s", err)
-		}
-
-		dstpath := fmt.Sprintf(
-			"containers-storage:%s/%s/%s:latest",
-			url, namespace, name,
-		)
-
-		toRef, err := alltransports.ParseImageName(dstpath)
-		if err != nil {
-			log.Fatalf("errror parsing storage reference: %s", err)
+			return err
 		}
 
 		pol := &signature.Policy{
@@ -114,13 +66,69 @@ var tagpull = &cobra.Command{
 		}
 		polctx, err := signature.NewPolicyContext(pol)
 		if err != nil {
-			log.Fatalf("errror creating policy context: %s", err)
+			return err
 		}
 
-		if _, err := imgcopy.Image(
-			ctx, polctx, toRef, fromRef, &imgcopy.Options{},
-		); err != nil {
-			log.Fatalf("error copying image: %s", err)
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		// copy the image into local storage.
+		_, err = imgcopy.Image(
+			ctx, polctx, dstref, srcref, &imgcopy.Options{},
+		)
+		return err
 	},
+}
+
+// pullTagImage pulls the current generation for a tag identified by tagindex.
+// Returns a function to be called at the end to clean up resources.
+func pullTagImage(idx tagindex, token string) (types.ImageReference, func(), error) {
+	// XXX ssl goes here, please.
+	conn, err := grpc.Dial(idx.server, grpc.WithInsecure())
+	if err != nil {
+		return nil, nil, fmt.Errorf("error connecting: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	client := pb.NewTagIOServiceClient(conn)
+	stream, err := client.Pull(ctx, &pb.Request{
+		Name:      idx.name,
+		Namespace: idx.namespace,
+		Token:     token,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("error pulling: %w", err)
+	}
+
+	fsh := fs.New("")
+	fp, cleanup, err := fsh.TempFile()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating temp file: %w", err)
+	}
+
+	if _, err := pb.ReceiveFileClient(fp, stream); err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("error receiving file: %w", err)
+	}
+
+	str := fmt.Sprintf("docker-archive:%s", fp.Name())
+	fromref, err := alltransports.ParseImageName(str)
+	if err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("error parsing reference: %w", err)
+	}
+
+	return fromref, cleanup, nil
+}
+
+// localReferenceForTag returns what should be used when copying an image
+// tag into local storage.
+func localReferenceForTag(tidx tagindex) (types.ImageReference, error) {
+	str := fmt.Sprintf(
+		"containers-storage:%s/%s/%s:latest",
+		tidx.server, tidx.namespace, tidx.name,
+	)
+	return alltransports.ParseImageName(str)
 }

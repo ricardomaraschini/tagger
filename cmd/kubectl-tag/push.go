@@ -3,21 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"time"
 
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/spf13/cobra"
-	"github.com/vbauerster/mpb/v6"
-	"github.com/vbauerster/mpb/v6/decor"
-	"google.golang.org/grpc"
-
+	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 )
 
 func init() {
@@ -25,20 +21,98 @@ func init() {
 	tagpush.MarkFlagRequired("token")
 }
 
+// saveTagImage saves an image present in the local storage into a local
+// tar file. This function returns a "cleanup" func that must be called
+// to release used resources.
+func saveTagImage(tidx tagindex) (*os.File, func(), error) {
+	fsh := fs.New("")
+	fp, cleanup, err := fsh.TempFile()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	str := fmt.Sprintf("docker-archive:%s", fp.Name())
+	dstref, err := alltransports.ParseImageName(str)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	srcref, err := tidx.localref()
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	pol := &signature.Policy{
+		Default: signature.PolicyRequirements{
+			signature.NewPRInsecureAcceptAnything(),
+		},
+	}
+	pctx, err := signature.NewPolicyContext(pol)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	if _, err := imgcopy.Image(
+		ctx, pctx, dstref, srcref, &imgcopy.Options{},
+	); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	return fp, cleanup, err
+}
+
+// pushTagImages sends an image through GRPC to a tagger instance.
+func pushTagImage(idx tagindex, from *os.File, token string) error {
+	// XXX implement ssl please
+	conn, err := grpc.Dial(idx.server, grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	client := pb.NewTagIOServiceClient(conn)
+	stream, err := client.Push(ctx)
+	if err != nil {
+		return err
+	}
+
+	// we first send over a communication to indicate we are
+	// willing to send an image. That will bail out if the
+	// provided info is wrong.
+	ireq := &pb.PushRequest{
+		TestOneof: &pb.PushRequest_Request{
+			Request: &pb.Request{
+				Name:      idx.name,
+				Namespace: idx.namespace,
+				Token:     token,
+			},
+		},
+	}
+	if err := stream.Send(ireq); err != nil {
+		return err
+	}
+
+	_, err = pb.SendFileClient(from, stream)
+	return err
+}
+
 var tagpush = &cobra.Command{
-	Use:   "push <image>",
-	Short: "Pushes an image into tagger",
+	Use:     "push <tagger.instance:port/namespace/name>",
+	Short:   "Pushes an image into the next generation of a tag",
+	Long:    static.Text["push_help_header"],
+	Example: static.Text["push_help_examples"],
 	RunE: func(c *cobra.Command, args []string) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		defer cancel()
-
 		if len(args) != 1 {
-			return fmt.Errorf("provide an image name")
-		}
-
-		url, namespace, name := splitDomainRepoAndName(args[0])
-		if url == "" {
-			log.Fatalf("invalid image reference: %s", args[0])
+			return fmt.Errorf("invalid number of arguments")
 		}
 
 		token, err := c.Flags().GetString("token")
@@ -46,113 +120,21 @@ var tagpush = &cobra.Command{
 			return err
 		}
 
-		fsh := fs.New("")
-		fp, cleanup, err := fsh.TempFile()
+		// first understands what tag is the user referring to.
+		tidx, err := indexFor(args[0])
+		if err != nil {
+			return err
+		}
+
+		// now we save the image from the local storage and into
+		// a tar file.
+
+		srcref, cleanup, err := saveTagImage(tidx)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
 
-		torefstr := fmt.Sprintf("docker-archive:%s", fp.Name())
-		toref, err := alltransports.ParseImageName(torefstr)
-		if err != nil {
-			return err
-		}
-
-		fromrefstr := fmt.Sprintf("containers-storage:%s", args[0])
-		fromref, err := alltransports.ParseImageName(fromrefstr)
-		if err != nil {
-			return err
-		}
-
-		pol := &signature.Policy{
-			Default: signature.PolicyRequirements{
-				signature.NewPRInsecureAcceptAnything(),
-			},
-		}
-		pctx, err := signature.NewPolicyContext(pol)
-		if err != nil {
-			return err
-		}
-
-		if _, err := imgcopy.Image(
-			ctx, pctx, toref, fromref, &imgcopy.Options{},
-		); err != nil {
-			return err
-		}
-
-		// XXX implement ssl please?
-		conn, err := grpc.Dial(url, grpc.WithInsecure())
-		if err != nil {
-			return err
-		}
-
-		nfp, err := os.Open(fp.Name())
-		if err != nil {
-			return err
-		}
-		defer nfp.Close()
-
-		finfo, err := nfp.Stat()
-		if err != nil {
-			return err
-		}
-
-		client := pb.NewTagIOServiceClient(conn)
-		stream, err := client.Push(ctx)
-		if err != nil {
-			return err
-		}
-
-		ireq := &pb.PushRequest{
-			TestOneof: &pb.PushRequest_Request{
-				Request: &pb.Request{
-					Name:      name,
-					Namespace: namespace,
-					Token:     token,
-				},
-			},
-		}
-		if err := stream.Send(ireq); err != nil {
-			return err
-		}
-
-		p := mpb.New(mpb.WithWidth(60))
-		defer p.Wait()
-
-		pbar := p.Add(
-			finfo.Size(),
-			mpb.NewBarFiller(" ▮▮▯ "),
-			mpb.PrependDecorators(decor.Name("Uploading")),
-			mpb.AppendDecorators(decor.CountersKiloByte("%d %d")),
-		)
-
-		content := make([]byte, 1024)
-		for {
-			read, err := nfp.Read(content)
-			if err == io.EOF {
-				if _, err := stream.CloseAndRecv(); err != nil {
-					return err
-				}
-				break
-			} else if err != nil {
-				return err
-			}
-
-			// Sends a chunk of the file.
-			ireq := &pb.PushRequest{
-				TestOneof: &pb.PushRequest_Chunk{
-					Chunk: &pb.Chunk{
-						Content: content,
-					},
-				},
-			}
-			if err := stream.Send(ireq); err != nil {
-				return err
-			}
-			pbar.IncrBy(read)
-		}
-		return nil
-
+		return pushTagImage(tidx, srcref, token)
 	},
 }

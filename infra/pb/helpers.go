@@ -147,3 +147,50 @@ func ReceiveFileClient(to *os.File, stream TagIOService_PullClient) (int, error)
 
 	return fsize, nil
 }
+
+// SendFileClient reads file descriptor and sends over its content through
+// the provided GRPC client.
+func SendFileClient(from *os.File, stream TagIOService_PushClient) (int, error) {
+	prg := mpb.New(mpb.WithWidth(60))
+	defer prg.Wait()
+
+	finfo, err := from.Stat()
+	if err != nil {
+		return 0, err
+	}
+
+	bar := prg.Add(
+		finfo.Size(),
+		mpb.NewBarFiller(" ▮▮▯ "),
+		mpb.PrependDecorators(decor.Name("Pushing")),
+		mpb.AppendDecorators(decor.CountersKiloByte("%d %d")),
+	)
+
+	var written int
+	for {
+		content := make([]byte, 1024)
+		read, err := from.Read(content)
+		if err == io.EOF {
+			if _, err := stream.CloseAndRecv(); err != nil {
+				return 0, err
+			}
+			break
+		} else if err != nil {
+			return 0, err
+		}
+
+		ireq := &PushRequest{
+			TestOneof: &PushRequest_Chunk{
+				Chunk: &Chunk{
+					Content: content,
+				},
+			},
+		}
+		if err := stream.Send(ireq); err != nil {
+			return 0, err
+		}
+		bar.IncrBy(read)
+		written += read
+	}
+	return written, nil
+}

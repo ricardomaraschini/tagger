@@ -1,0 +1,13 @@
+  Assuming one wants to pull an image from a Tag called "server" living 
+  in "myteam" namespace one could use:
+
+  $ kubectl tag pull ip.or.tagger.dns.name:port/myteam/server
+
+  Once the command has been finished you must be able to see this image
+  in your local storage. Important: this command always uses the tag
+  "latest" when storing the image locally. The command above would
+  result on the following local image.
+
+  $ podman images
+  REPOSITORY                                  TAG         IMAGE ID
+  ip.or.tagger.dns.name:port/myteam/server    latest      84deeb10a26d 
