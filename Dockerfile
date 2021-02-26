@@ -1,6 +1,6 @@
 FROM docker.io/library/golang:1.15.3-buster AS builder
 RUN apt-get update -y
-RUN apt-get install -y libgpgme-dev
+RUN apt-get install -y libgpgme-dev libbtrfs-dev libdevmapper-dev
 WORKDIR /go/src/tagger
 COPY . .
 RUN make build
@@ -8,8 +8,6 @@ RUN make build
 
 FROM registry.centos.org/centos:8
 WORKDIR /
-RUN mkdir /data
-RUN chmod 777 /data
 # 8080 pod mutating webhook handler.
 # 8081 quay webhooks handler.
 # 8082 docker webhooks handler.
