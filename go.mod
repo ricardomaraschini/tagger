@@ -1,6 +1,6 @@
 module github.com/ricardomaraschini/tagger
 
-go 1.15
+go 1.16
 
 require (
 	github.com/containers/image/v5 v5.6.0
