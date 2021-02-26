@@ -144,3 +144,15 @@ spec:
       targetPort: 5000
 ```
 
+# tagger-base-image
+
+When running jobs through github actions we leverage a base image hosted
+at quay.io/rmarasch/tagger-base-image:latest, the following Dockerfile is
+used to generate it:
+
+```
+FROM golang:1.16
+RUN apt-get update && apt-get install -y libgpgme-dev libbtrfs-dev libdevmapper-dev
+RUN go get -u golang.org/x/lint/golint
+```
+
