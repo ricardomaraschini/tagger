@@ -39,8 +39,10 @@ func NewImporter(corinf informers.SharedInformerFactory) *Importer {
 }
 
 // getImageStore creates an instance of an ImageStore populated with our internal
-// registry as storage. I have opted to do this here as it is better not to
-// full our New() functions with this kind of thing.
+// registry as storage. I have opted to do this here as it is every function here
+// that needs to use an ImageStore instance and to restrict this whole struct to
+// be used only when there is a cache registry is a no-go (i.e. when not caching
+// images we don't need the ImageStore entity).
 func (i *Importer) getImageStore(ctx context.Context) error {
 	i.Lock()
 	defer i.Unlock()
@@ -64,6 +66,8 @@ func (i *Importer) getImageStore(ctx context.Context) error {
 }
 
 // splitRegistryDomain splits the domain from the repository and image.
+// For example passing in the "quay.io/tagger/tagger:latest" string will
+// result in returned values "quay.io" and "tagger:tagger:latest".
 func (i *Importer) splitRegistryDomain(imgPath string) (string, string) {
 	imageSlices := strings.SplitN(imgPath, "/", 2)
 	if len(imageSlices) < 2 {
@@ -97,8 +101,11 @@ func (i *Importer) registriesToSearch(ctx context.Context, domain string) ([]str
 	return registries, nil
 }
 
-// ImportTag runs an import on provided Tag. We look for the image in all configured
-// unqualified registries using all authentications we can find on the Tag namespace.
+// ImportTag runs an import on provided Tag. By Import here we mean to discover
+// what is the current hash for a given image in a given tag. We look for the image
+// in all configured unqualified registries using all authentications we can find
+// in the Tag namespace. If the tag is set to be cached (spec.cache = true) we
+// push the image to our cache registry.
 func (i *Importer) ImportTag(
 	ctx context.Context, it *imagtagv1.Tag,
 ) (imagtagv1.HashReference, error) {
@@ -128,7 +135,7 @@ func (i *Importer) ImportTag(
 			continue
 		}
 
-		imghash, sysctx, err := i.istore.GetImageHash(ctx, imgref, syscontexts)
+		imghash, sysctx, err := i.istore.GetImageTagHash(ctx, imgref, syscontexts)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
@@ -136,7 +143,7 @@ func (i *Importer) ImportTag(
 
 		if it.Spec.Cache {
 			if err := i.getImageStore(ctx); err != nil {
-				return zero, fmt.Errorf("unable to get registry reference: %w", err)
+				return zero, fmt.Errorf("unable to get image store: %w", err)
 			}
 
 			if imghash, err = i.istore.Load(

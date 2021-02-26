@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 
@@ -42,15 +43,42 @@ func NewTagIO(
 	}
 }
 
+// newTag returns a new tag object as if it is being pushed by the client.
+// From propert is set to stdin ("-") and the Tag is set as cacheable.
+func (t *TagIO) newTag(name string) *imagtagv1.Tag {
+	return &imagtagv1.Tag{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: imagtagv1.TagSpec{
+			From:  "-",
+			Cache: true,
+		},
+	}
+}
+
+// tagOrNew returns or an existing tag or a new one. If the tag exists
+// returns it otherwise creates a new one.
+func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
+	it, err := t.taglis.Tags(ns).Get(name)
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+	if errors.IsNotFound(err) {
+		return t.newTag(name), nil
+	}
+	return it, nil
+}
+
 // Push reads a compressed tag from argument "from" and pushes it to our
 // registry storage. If success it then updates the tag accordingly to
 // indicate the new Generation.
 func (t *TagIO) Push(
 	ctx context.Context, ns, name string, fpath string,
 ) error {
-	it, err := t.taglis.Tags(ns).Get(name)
+	it, err := t.tagOrNew(ns, name)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting tag: %w", err)
 	}
 
 	refstr := fmt.Sprintf("docker-archive://%s", fpath)
@@ -67,6 +95,7 @@ func (t *TagIO) Push(
 	nextgen := it.NextGeneration()
 	it.Spec.Generation = nextgen
 	it.Status.Generation = nextgen
+
 	it.RegisterImportSuccess()
 	it.PrependHashReference(
 		imagtagv1.HashReference{
@@ -77,19 +106,22 @@ func (t *TagIO) Push(
 		},
 	)
 
-	if _, err := t.tagcli.ImagesV1().Tags(ns).Update(
-		ctx, it, metav1.UpdateOptions{},
-	); err != nil {
-		return fmt.Errorf("error updating tag object: %w", err)
+	// from this point on it is an Upsert logic.
+	if it.ObjectMeta.GetResourceVersion() == "" {
+		_, err = t.tagcli.ImagesV1().Tags(ns).Create(
+			ctx, it, metav1.CreateOptions{},
+		)
+		return err
 	}
-	return nil
+	_, err = t.tagcli.ImagesV1().Tags(ns).Update(
+		ctx, it, metav1.UpdateOptions{},
+	)
+	return err
 }
 
-// Pull saves a Tag iamge into a tar file and returns a reader from where
-// the image content can be read. Caller is responsible for cleaning up
-// after the returned value by calling the function we return (2nd return),
-// by issuing a call to the returned func() the tar will be closed and
-// deleted from disk.
+// Pull saves a Tag image into a tar file and returns a reader from where the image
+// content can be read. Caller is responsible for cleaning up after the returned
+// resources by calling the returned function.
 func (t *TagIO) Pull(
 	ctx context.Context, ns string, name string,
 ) (*os.File, func(), error) {

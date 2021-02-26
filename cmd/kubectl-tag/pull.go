@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"strings"
 	"time"
@@ -11,183 +10,117 @@ import (
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/spf13/cobra"
-	"github.com/vbauerster/mpb/v6"
-	"github.com/vbauerster/mpb/v6/decor"
-	"google.golang.org/grpc"
-
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 )
 
 func init() {
 	tagpull.Flags().String("token", "", "User token.")
 	tagpull.MarkFlagRequired("token")
-	tagpull.Flags().String("url", "", "The URL of a tagger instance.")
-	tagpull.MarkFlagRequired("url")
 }
 
-// pullParams gather all parameters needed to pull a tag from a tagger
-// instance into a local file.
-type pullParams struct {
-	url       string
-	token     string
-	namespace string
-	name      string
+func splitDomainRepoAndName(imgPath string) (string, string, string) {
+	slices := strings.SplitN(imgPath, "/", 3)
+	if len(slices) < 3 {
+		return "", "", ""
+	}
+	url := slices[0]
+	repo := slices[1]
+	remainder := slices[2]
+
+	slices = strings.SplitN(remainder, ":", 2)
+	if len(slices) == 2 {
+		return url, repo, slices[0]
+	}
+
+	slices = strings.SplitN(remainder, "@", 2)
+	if len(slices) == 2 {
+		return url, repo, slices[0]
+	}
+
+	return url, repo, remainder
 }
 
 var tagpull = &cobra.Command{
-	Use:   "pull <image tag>",
+	Use:   "pull <image>",
 	Short: "Pull a tag image from a tagger instance",
 	Run: func(c *cobra.Command, args []string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
 		if len(args) != 1 {
 			log.Fatalf("invalid command, missing tag name")
-		}
-		name := args[0]
-
-		url, err := c.Flags().GetString("url")
-		if err != nil {
-			return
 		}
 
 		token, err := c.Flags().GetString("token")
 		if err != nil {
-			return
+			log.Fatal("token flag not valid")
 		}
 
-		namespace, err := Namespace(c)
+		url, namespace, name := splitDomainRepoAndName(args[0])
+		if url == "" {
+			log.Fatalf("invalid image reference: %s", args[0])
+		}
+
+		// XXX ssl please?
+		conn, err := grpc.Dial(url, grpc.WithInsecure())
 		if err != nil {
-			log.Fatalf("error determining current namespace: %s", err)
-			return
+			log.Fatalf("error connecting to tagger: %s", err)
 		}
 
-		if err := pullTag(
-			pullParams{
-				url:       url,
-				token:     token,
-				namespace: namespace,
-				name:      name,
+		client := pb.NewTagIOServiceClient(conn)
+		stream, err := client.Pull(ctx, &pb.Request{
+			Name:      name,
+			Namespace: namespace,
+			Token:     token,
+		})
+		if err != nil {
+			log.Fatalf("error sending request: %s", err)
+		}
+
+		fsh := fs.New("")
+		fp, cleanup, err := fsh.TempFile()
+		if err != nil {
+			log.Fatalf("error creating temp file: %s", err)
+		}
+		defer cleanup()
+
+		if _, err := pb.ReceiveFileClient(fp, stream); err != nil {
+			log.Fatalf("errror receiving file: %s", err)
+		}
+
+		srcref := fmt.Sprintf("docker-archive:%s", fp.Name())
+		fromRef, err := alltransports.ParseImageName(srcref)
+		if err != nil {
+			log.Fatalf("errror parsing local reference: %s", err)
+		}
+
+		dstpath := fmt.Sprintf(
+			"containers-storage:%s/%s/%s:latest",
+			url, namespace, name,
+		)
+
+		toRef, err := alltransports.ParseImageName(dstpath)
+		if err != nil {
+			log.Fatalf("errror parsing storage reference: %s", err)
+		}
+
+		pol := &signature.Policy{
+			Default: signature.PolicyRequirements{
+				signature.NewPRInsecureAcceptAnything(),
 			},
+		}
+		polctx, err := signature.NewPolicyContext(pol)
+		if err != nil {
+			log.Fatalf("errror creating policy context: %s", err)
+		}
+
+		if _, err := imgcopy.Image(
+			ctx, polctx, toRef, fromRef, &imgcopy.Options{},
 		); err != nil {
-			log.Fatalf("error pulling tag: %s", err)
+			log.Fatalf("error copying image: %s", err)
 		}
 	},
-}
-
-// pullTag does a grpc call to the remote tagger instance, awaits for the tag
-// to be exported and retrieves it.
-func pullTag(params pullParams) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-
-	fsh := fs.New("")
-	fp, cleanup, err := fsh.TempFile()
-	if err != nil {
-		return nil
-	}
-	defer cleanup()
-
-	// XXX ssl please?
-	conn, err := grpc.Dial(params.url, grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
-
-	client := pb.NewTagIOServiceClient(conn)
-	stream, err := client.Pull(ctx, &pb.Request{
-		Name:      params.name,
-		Namespace: params.namespace,
-		Token:     params.token,
-	})
-	if err != nil {
-		return err
-	}
-
-	var prevdescr string
-	var pbar *mpb.Bar
-	p := mpb.New(mpb.WithWidth(60))
-	defer p.Wait()
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		if progress := resp.GetProgress(); progress != nil {
-			descr := formatDescription(progress.Description)
-			if prevdescr != descr {
-				prevdescr = descr
-				pbar = p.Add(
-					progress.Size,
-					mpb.NewBarFiller(" ▮▮▯ "),
-					mpb.PrependDecorators(decor.Name(descr)),
-					mpb.AppendDecorators(
-						decor.CountersKiloByte("%d %d"),
-					),
-				)
-			}
-			pbar.SetCurrent(int64(progress.Offset))
-			continue
-		}
-
-		chunk := resp.GetChunk()
-		if _, err := fp.Write(chunk.Content); err != nil {
-			return err
-		}
-	}
-
-	srcref := fmt.Sprintf("docker-archive:%s", fp.Name())
-	fromRef, err := alltransports.ParseImageName(srcref)
-	if err != nil {
-		return err
-	}
-
-	dstpath := fmt.Sprintf(
-		"containers-storage:%s/%s/%s:latest",
-		params.url,
-		params.namespace,
-		params.name,
-	)
-
-	toRef, err := alltransports.ParseImageName(dstpath)
-	if err != nil {
-		return err
-	}
-
-	pol := &signature.Policy{
-		Default: signature.PolicyRequirements{
-			signature.NewPRInsecureAcceptAnything(),
-		},
-	}
-	polctx, err := signature.NewPolicyContext(pol)
-	if err != nil {
-		return err
-	}
-
-	if _, err := imgcopy.Image(
-		ctx, polctx, toRef, fromRef, &imgcopy.Options{},
-	); err != nil {
-		panic(err)
-	}
-
-	return nil
-}
-
-// formatDescription removes "sha256:" prefix of a description and makes it to have
-// a 13 in length.
-func formatDescription(descr string) string {
-	descr = strings.TrimPrefix(descr, "sha256:")
-	strlen := len(descr)
-
-	switch {
-	case strlen > 13:
-		return descr[:13]
-	case strlen < 13:
-		return descr + strings.Repeat(" ", 13-strlen)
-	default:
-		return descr
-	}
 }
