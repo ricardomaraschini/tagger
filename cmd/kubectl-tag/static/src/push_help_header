@@ -1,0 +1,6 @@
+Pushes an image as the new generation of a Tag
+
+This subcommand pushes a local image into a Tag. It leverages tagger protocol
+and communicates by means of GRPC (you need to expose tagger in order to use
+this). What happens here is that we first save a local image into a tar file
+and later we upload this tar file into a tagger instance.

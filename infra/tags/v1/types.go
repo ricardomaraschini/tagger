@@ -33,6 +33,16 @@ func (t *Tag) CurrentReferenceForTag() string {
 	return ""
 }
 
+// NextGeneration returns what the next generation for a given tag should
+// be. It is the last imported generation plus one.
+func (t *Tag) NextGeneration() int64 {
+	var next int64
+	if len(t.Status.References) > 0 {
+		next = t.Status.References[0].Generation + 1
+	}
+	return next
+}
+
 // SpecTagImported returs true if tag generation defined on spec has
 // already been imported (exists in status.References).
 func (t *Tag) SpecTagImported() bool {

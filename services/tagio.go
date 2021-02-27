@@ -1,42 +1,31 @@
 package services
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
-	"strings"
-	"text/template"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 
-	"github.com/containers/image/v5/types"
-	"github.com/ricardomaraschini/tagger/infra/fs"
+	"github.com/containers/image/v5/transports/alltransports"
+
 	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
 	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
 )
 
-// TagIO is an entity that gather operations related to Tag input/output.
-// Input and output is related to a cluster, we allow users to input (import
-// a tag from a different cluster) and output (export a tag to a different
-// cluster. For this entity Pull and Push are functions to be interpreted
-// from the client's point of view, i.e. pull means a client pulling a tag
-// from tagger while push means a client pushing a tag to tagger.
+// TagIO is an entity that gather operations related to Tag images input and
+// output. This entity allow users to pull from or to push to a Tag.
 type TagIO struct {
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
-	syssvc *SysContext
 	impsvc *Importer
-	fstsvc *fs.FS
 }
 
-// NewTagIO returns a new TagIO object, capable of import and export Tags.
+// NewTagIO returns a new TagIO object, capable of import and export Tag images.
 func NewTagIO(
 	corinf informers.SharedInformerFactory,
 	tagcli tagclient.Interface,
@@ -50,171 +39,110 @@ func NewTagIO(
 	return &TagIO{
 		tagcli: tagcli,
 		taglis: taglis,
-		syssvc: NewSysContext(corinf),
 		impsvc: NewImporter(corinf),
-		fstsvc: fs.New("/data"),
 	}
 }
 
-// Push reads a compressed tag from argument "from", uncompress it into a
-// temporary directory and attempts to create a tag based on its content,
-// returns an error if the tag already exists.
+// newTag returns a new tag object as if it is being pushed by the client.
+// From propert is set to stdin ("-") and the Tag is set as cacheable.
+func (t *TagIO) newTag(name string) *imagtagv1.Tag {
+	return &imagtagv1.Tag{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: imagtagv1.TagSpec{
+			From:  "-",
+			Cache: true,
+		},
+	}
+}
+
+// tagOrNew returns or an existing tag or a new one. If the tag exists
+// returns it otherwise creates a new one.
+func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
+	it, err := t.taglis.Tags(ns).Get(name)
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+	if errors.IsNotFound(err) {
+		return t.newTag(name), nil
+	}
+	return it, nil
+}
+
+// Push reads a compressed tag from argument "from" and pushes it to our
+// registry storage. If success it then updates the tag accordingly to
+// indicate the new Generation.
 func (t *TagIO) Push(
-	ctx context.Context, ns, name string, from io.Reader,
+	ctx context.Context, ns, name string, fpath string,
 ) error {
-	if _, err := t.taglis.Tags(ns).Get(name); err == nil {
-		return fmt.Errorf("unable to import tag, already exists")
-	} else if !errors.IsNotFound(err) {
-		return fmt.Errorf("error checking for tag existence: %w", err)
-	}
-
-	tmpdir, cleanup, err := t.fstsvc.TempDir()
+	it, err := t.tagOrNew(ns, name)
 	if err != nil {
-		return fmt.Errorf("unable to create temp dir: %s", err)
-	}
-	defer cleanup()
-
-	if err := t.fstsvc.UnarchiveFile(from, tmpdir); err != nil {
-		return fmt.Errorf("error decompressing tag: %s", err)
+		return fmt.Errorf("error getting tag: %w", err)
 	}
 
-	tagfp := fmt.Sprintf("%s/tag.json", tmpdir)
-	it, err := t.fillAndDecodeTag(tagfp, ns, name)
+	refstr := fmt.Sprintf("docker-archive://%s", fpath)
+	srcref, err := alltransports.ParseImageName(refstr)
 	if err != nil {
-		return fmt.Errorf("unable to parse tag for import: %w", err)
+		return fmt.Errorf("error parsing image name: %w", err)
 	}
 
-	if err := t.impsvc.PushTagFromDir(ctx, it, tmpdir); err != nil {
-		return fmt.Errorf("error pushing tag from dir: %w", err)
+	pushedTo, err := t.impsvc.LoadTagImage(ctx, srcref, nil, ns, name)
+	if err != nil {
+		return fmt.Errorf("error loading image into cache registry: %w", err)
 	}
 
-	if _, err := t.tagcli.ImagesV1().Tags(ns).Create(
-		ctx, it, metav1.CreateOptions{},
-	); err != nil {
-		return fmt.Errorf("unable to save tag: %w", err)
+	nextgen := it.NextGeneration()
+	it.Spec.Generation = nextgen
+	it.Status.Generation = nextgen
+
+	it.RegisterImportSuccess()
+	it.PrependHashReference(
+		imagtagv1.HashReference{
+			Generation:     nextgen,
+			From:           "-",
+			ImportedAt:     metav1.Now(),
+			ImageReference: pushedTo,
+		},
+	)
+
+	// from this point on it is an Upsert logic.
+	if it.ObjectMeta.GetResourceVersion() == "" {
+		_, err = t.tagcli.ImagesV1().Tags(ns).Create(
+			ctx, it, metav1.CreateOptions{},
+		)
+		return err
 	}
-	return nil
+	_, err = t.tagcli.ImagesV1().Tags(ns).Update(
+		ctx, it, metav1.UpdateOptions{},
+	)
+	return err
 }
 
-// Pull saves a Tag into a local tar file and returns a reader closer to
-// it.  Caller is responsible for cleaning up after the returned value by
-// calling the function we return (2nd return), by deferring a call to the
-// returned func() the tar will be closed and deleted from disk.
+// Pull saves a Tag image into a tar file and returns a reader from where the image
+// content can be read. Caller is responsible for cleaning up after the returned
+// resources by calling the returned function.
 func (t *TagIO) Pull(
-	ctx context.Context, ns string, name string, progress chan types.ProgressProperties,
+	ctx context.Context, ns string, name string,
 ) (*os.File, func(), error) {
 	it, err := t.taglis.Tags(ns).Get(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting tag: %w", err)
 	}
 
-	dir, cleandir, err := t.fstsvc.TempDir()
+	fpath, cleanup, err := t.impsvc.SaveTagImage(ctx, it)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error creating temp dir: %w", err)
-	}
-	defer cleandir()
-
-	if err := t.impsvc.PullTagToDir(ctx, it, dir, progress); err != nil {
 		return nil, nil, fmt.Errorf("error pulling tag to dir: %w", err)
 	}
 
-	if err := t.cleanAndEncodeTag(it, dir); err != nil {
-		return nil, nil, fmt.Errorf("error encoding tag: %w", err)
-	}
-
-	tar, cleanfile, err := t.fstsvc.TempFile()
+	fp, err := os.Open(fpath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error creating tar file: %w", err)
+		cleanup()
+		return nil, nil, fmt.Errorf("error opening tar file: %w", err)
 	}
-
-	if err := t.fstsvc.ArchiveDirectory(dir, tar); err != nil {
-		cleanfile()
-		return nil, nil, fmt.Errorf("error compressing tag: %w", err)
+	ncleanup := func() {
+		fp.Close()
+		cleanup()
 	}
-
-	// make sure we rewind the file
-	if _, err := tar.Seek(0, 0); err != nil {
-		cleanfile()
-		return nil, nil, fmt.Errorf("error on tar seek op: %w", err)
-	}
-
-	return tar, cleanfile, nil
-}
-
-// fillAndDecodeTag undo what is done by cleanAndEncodeTag, it receives a file
-// containing a tag with some template entries (.Namespace, .Name and .Registry),
-// parses the template to replace these entries and then unmarshals it, returning
-// the Tag object or an error.
-func (t *TagIO) fillAndDecodeTag(fpath, ns, name string) (*imagtagv1.Tag, error) {
-	inregaddr, _, err := t.syssvc.CacheRegistryAddresses()
-	if err != nil {
-		return nil, fmt.Errorf("fail to get cache registry address: %w", err)
-	}
-
-	tpl, err := template.ParseFiles(fpath)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing tag template: %w", err)
-	}
-
-	tpvals := map[string]string{
-		"Namespace": ns,
-		"Name":      name,
-		"Registry":  inregaddr,
-	}
-	buf := bytes.NewBuffer(nil)
-	if err := tpl.Execute(buf, tpvals); err != nil {
-		return nil, fmt.Errorf("error executing tag template: %w", err)
-	}
-
-	it := &imagtagv1.Tag{}
-	if err := json.NewDecoder(buf).Decode(it); err != nil {
-		return nil, fmt.Errorf("error decoding tag json: %w", err)
-	}
-	return it, nil
-}
-
-// cleanAndEncodeTag json encodes the Tag referred by TagExport and stores it in
-// a file callled tag.json inside the provided directory.
-func (t *TagIO) cleanAndEncodeTag(it *imagtagv1.Tag, dir string) error {
-	tcopy, err := t.cleanTag(it)
-	if err != nil {
-		return fmt.Errorf("unable to clear tag: %w", err)
-	}
-
-	tfpath := fmt.Sprintf("%s/tag.json", dir)
-	tf, err := os.Create(tfpath)
-	if err != nil {
-		return fmt.Errorf("error creating file for encoded tag: %w", err)
-	}
-	defer tf.Close()
-
-	return json.NewEncoder(tf).Encode(tcopy)
-}
-
-// cleanTag changes all references to the cache registry by a template entry so it
-// can be reassembled later on in another cluster. Cleans up the tag namespace and
-// name as well, replacing them by template entries as well.
-func (t *TagIO) cleanTag(it *imagtagv1.Tag) (*imagtagv1.Tag, error) {
-	inregaddr, _, err := t.syssvc.CacheRegistryAddresses()
-	if err != nil {
-		return nil, fmt.Errorf("error cleaning up tag: %w", err)
-	}
-
-	it = it.DeepCopy()
-	namespace := fmt.Sprintf("/%s/", it.Namespace)
-	it.ObjectMeta = metav1.ObjectMeta{
-		Name:      "{{.Name}}",
-		Namespace: "{{.Namespace}}",
-	}
-	for i := range it.Status.References {
-		imgref := it.Status.References[i].ImageReference
-		if !strings.HasPrefix(imgref, inregaddr) {
-			continue
-		}
-
-		imgref = strings.ReplaceAll(imgref, inregaddr, "{{.Registry}}")
-		imgref = strings.ReplaceAll(imgref, namespace, "/{{.Namespace}}/")
-		it.Status.References[i].ImageReference = imgref
-	}
-	return it, nil
+	return fp, ncleanup, nil
 }
