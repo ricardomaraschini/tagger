@@ -2,7 +2,9 @@ package static
 
 // Well, this file is full of lint complains but I don't care.
 
-import _ "embed"
+import (
+	"embed"
+)
 
 //go:embed "src/pull_help_header"
 var pull_help_header string
@@ -15,6 +17,9 @@ var push_help_header string
 
 //go:embed "src/push_help_examples"
 var push_help_examples string
+
+//go:embed src/*
+var FS embed.FS
 
 // Text is a map to all embed text files, indexed by their respective
 // path relative to "src" directory.
