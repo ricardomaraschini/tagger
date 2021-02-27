@@ -3,29 +3,27 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"os"
-	"sync"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
-	"k8s.io/klog/v2"
 
-	"github.com/containers/image/v5/types"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
-// TagImporterExporter is here to make tests easier. You may be looking for
-// its concrete implementation in services/tagio.go.
-type TagImporterExporter interface {
-	Push(context.Context, string, string, io.Reader) error
-	Pull(
-		context.Context, string, string, chan types.ProgressProperties,
-	) (*os.File, func(), error)
+// ImagePusherPuller is here to make tests easier. You may be looking
+// for its concrete implementation in services/tagio.go. The goal of
+// an ImagePusherPuller is to allow us to Push and Pull images to and
+// from our cache registry.
+type ImagePusherPuller interface {
+	Push(context.Context, string, string, string) error
+	Pull(context.Context, string, string) (*os.File, func(), error)
 }
 
 // UserValidator validates an user can access Tags in a given namespace.
@@ -35,23 +33,22 @@ type UserValidator interface {
 	CanAccessTags(context.Context, string, string) error
 }
 
-// TagIO handles requests for exporting and import Tag custom resources.
+// TagIO handles requests for pulling and pushing images pointed by a
+// Tag.
 type TagIO struct {
 	bind   string
-	tagexp TagImporterExporter
+	tagexp ImagePusherPuller
 	usrval UserValidator
 	srv    *grpc.Server
 	fs     *fs.FS
 	pb.UnimplementedTagIOServiceServer
 }
 
-// NewTagIO returns a web hook handler for quay webhooks. We have hardcoded
-// what seems to be a reasonable value in terms of keep alive and connection
-// lifespan management (we may need to better tune this).
-func NewTagIO(
-	tagexp TagImporterExporter,
-	usrval UserValidator,
-) *TagIO {
+// NewTagIO returns a grpc handler for image Pull and Push requests. I
+// have hardcoded what seems to be reasonable values in terms of keep
+// alive and connection lifespan management (we may need to better tune
+// this).
+func NewTagIO(tagexp ImagePusherPuller, usrval UserValidator) *TagIO {
 	aliveopt := grpc.KeepaliveParams(
 		keepalive.ServerParameters{
 			MaxConnectionIdle:     time.Minute,
@@ -65,7 +62,7 @@ func NewTagIO(
 		bind:   ":8083",
 		tagexp: tagexp,
 		usrval: usrval,
-		fs:     fs.New("/data"),
+		fs:     fs.New(""),
 		srv:    grpc.NewServer(aliveopt),
 	}
 	pb.RegisterTagIOServiceServer(tio.srv, tio)
@@ -73,140 +70,74 @@ func NewTagIO(
 	return tio
 }
 
-// sendProgressMessage sends a progress message down the protobuf connection.
-func (t *TagIO) sendProgressMessage(
-	description string,
-	offset uint64,
-	size int64,
-	stream pb.TagIOService_PullServer,
-) error {
-	return stream.Send(
-		&pb.PullResult{
-			TestOneof: &pb.PullResult_Progress{
-				Progress: &pb.Progress{
-					Description: description,
-					Offset:      offset,
-					Size:        size,
-				},
-			},
-		},
-	)
-}
-
-// pullProgressLoop iterates over provided channel sending a progress message
-// down the protobuf line for each received event.
-func (t *TagIO) pullProgressLoop(
-	wg *sync.WaitGroup,
-	progress <-chan types.ProgressProperties,
-	stream pb.TagIOService_PullServer,
-) {
-	defer wg.Done()
-	for evt := range progress {
-		if err := t.sendProgressMessage(
-			evt.Artifact.Digest.String(),
-			evt.Offset,
-			evt.Artifact.Size,
-			stream,
-		); err != nil {
-			klog.Errorf("error sending progress message: %s", err)
-		}
-	}
-}
-
-// Pull handles tag export through grpc. We receive a request informing what is
-// the tag to be pulled (namespace and name) and also a kubernetes token for
-// authentication and authorization. This function writes down the exported tag
-// file in Chunks, client can then reassemble the file downstream.
+// Pull handles an image pull through grpc. We receive a request informing what
+// is the Tag to be pulled from (namespace and name) and also a kubernetes token
+// for authentication and authorization.
 func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
-	var wg = &sync.WaitGroup{}
-
 	ctx := stream.Context()
-	klog.Info("received request to export tag")
+	if err := t.authorizeRequest(ctx, in); err != nil {
+		klog.Errorf("error validating pull request: %s", err)
+		return fmt.Errorf("error validating input: %w", err)
+	}
 
-	if err := t.validateRequest(in); err != nil {
+	fp, cleanup, err := t.tagexp.Pull(ctx, in.GetNamespace(), in.GetName())
+	if err != nil {
+		klog.Errorf("error pulling tag image: %s", err)
+		return fmt.Errorf("error pulling tag image: %w", err)
+	}
+	defer cleanup()
+
+	return pb.SendFileServer(fp, stream)
+}
+
+// Push handles image pushes through grpc. The first message received indicates
+// the image destination (tag's namespace and name) and a authorization token,
+// all subsequent messages are of type Chunk where we can find a slice of bytes.
+func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
+	ctx := stream.Context()
+	in, err := stream.Recv()
+	if err != nil {
+		klog.Errorf("error receiving import request: %s", err)
+		return fmt.Errorf("error receiving import request: %w", err)
+	}
+
+	req := in.GetRequest()
+	if err := t.authorizeRequest(ctx, req); err != nil {
 		klog.Errorf("error validating export request: %s", err)
 		return fmt.Errorf("error validating input: %w", err)
 	}
 
-	name := in.GetName()
-	namespace := in.GetNamespace()
-	token := in.GetToken()
-	if err := t.usrval.CanAccessTags(ctx, namespace, token); err != nil {
-		klog.Errorf("user cannot access tags in namespace: %s", err)
-		return fmt.Errorf("unauthorized")
-	}
-
-	wg.Add(1)
-	progress := make(chan types.ProgressProperties)
-	go t.pullProgressLoop(wg, progress, stream)
-
-	klog.Infof("exporting tag %s/%s", namespace, name)
-	fp, cleanup, err := t.tagexp.Pull(ctx, namespace, name, progress)
+	tmpfile, cleanup, err := t.fs.TempFile()
 	if err != nil {
-		close(progress)
-		klog.Errorf("error exporting tag: %s", err)
-		return fmt.Errorf("error exporting tag: %w", err)
+		klog.Errorf("error creating temp file: %s", err)
+		return fmt.Errorf("error creating temp file: %w", err)
 	}
 	defer cleanup()
-	close(progress)
-	wg.Wait()
 
-	finfo, err := fp.Stat()
+	written, err := pb.ReceiveFileServer(tmpfile, stream)
 	if err != nil {
-		klog.Errorf("error getting tag file info: %s", err)
-		return fmt.Errorf("error getting tag file info: %s", err)
+		klog.Errorf("error receiving image through grpc: %s", err)
+		return fmt.Errorf("error receiving image through grpc: %w", err)
 	}
-	fsize := finfo.Size()
+	klog.Infof("tag image received, size: %d bytes", written)
 
-	var counter int
-	var totread uint64
-	for {
-		content := make([]byte, 1024)
-		read, err := fp.Read(content)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			klog.Errorf("error reading tag file: %s", err)
-			return fmt.Errorf("error reading tag file: %w", err)
-		}
-		totread += uint64(read)
-
-		if counter%50 == 0 {
-			err := t.sendProgressMessage("downloading", totread, fsize, stream)
-			if err != nil {
-				klog.Errorf("error sending progress: %s", err)
-				return fmt.Errorf("error sending progress: %w", err)
-			}
-		}
-
-		if err := stream.Send(
-			&pb.PullResult{
-				TestOneof: &pb.PullResult_Chunk{
-					Chunk: &pb.Chunk{
-						Content: content,
-					},
-				},
-			},
-		); err != nil {
-			klog.Errorf("error sending blob: %s", err)
-			return fmt.Errorf("error sending blob: %w", err)
-		}
-		counter++
+	// Push now pushes the local image file into cache registry.
+	if err := t.tagexp.Push(
+		ctx, req.GetNamespace(), req.GetName(), tmpfile.Name(),
+	); err != nil {
+		klog.Errorf("error importing tag: %s", err)
+		return fmt.Errorf("error importing tag: %w", err)
 	}
-
-	err = t.sendProgressMessage("downloading", uint64(fsize), fsize, stream)
-	if err != nil {
-		klog.Errorf("error sending progress: %s", err)
-		return fmt.Errorf("error sending progress: %w", err)
-	}
-
-	klog.Infof("tag %s/%s exported successfully", namespace, name)
-	return nil
+	return stream.SendAndClose(&pb.PushResult{})
 }
 
-// validateRequest checks if all mandatory fields in a request are present.
-func (t *TagIO) validateRequest(req *pb.Request) error {
+// authorizeRequest checks if all mandatory fields in a request are present.
+// It also does the validation if the token is capable of acessing tags in
+// provided namespace.
+func (t *TagIO) authorizeRequest(ctx context.Context, req *pb.Request) error {
+	if req == nil {
+		return fmt.Errorf("nil protobuf request")
+	}
 	if req.GetName() == "" {
 		return fmt.Errorf("empty name field")
 	}
@@ -216,97 +147,17 @@ func (t *TagIO) validateRequest(req *pb.Request) error {
 	if req.GetToken() == "" {
 		return fmt.Errorf("empty token field")
 	}
-	return nil
-}
-
-// Push handles tag imports through grpc. The first message received indicates
-// the destination for the tag (namespace and name) and a authorization token,
-// all subsequent messages are of type Chunk where we can find a slice of bytes.
-// By gluing Chunks together we have the tag tar file then we can call Import
-// passing the file as parameter.
-func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
-	ctx := stream.Context()
-	klog.Info("received request to import tag")
-
-	tmpfile, cleanup, err := t.fs.TempFile()
-	if err != nil {
-		klog.Errorf("error creating temp file: %s", err)
-		return fmt.Errorf("error creating temp file: %w", err)
-	}
-	defer cleanup()
-
-	in, err := stream.Recv()
-	if err != nil {
-		klog.Errorf("error receiving import request: %s", err)
-		return fmt.Errorf("error receiving import request: %w", err)
-	}
-
-	req := in.GetRequest()
-	if req == nil {
-		klog.Errorf("first message of invalid type chunk")
-		return fmt.Errorf("first message of invalid type chunk")
-	}
-
-	if err := t.validateRequest(req); err != nil {
-		klog.Errorf("error validating export request: %s", err)
-		return fmt.Errorf("error validating input: %w", err)
-	}
-
-	name := req.GetName()
-	namespace := req.GetNamespace()
-	token := req.GetToken()
-	klog.Infof("output tag set to %s/%s", namespace, name)
-	if err := t.usrval.CanAccessTags(ctx, namespace, token); err != nil {
-		klog.Errorf("user cannot access tags in namespace: %s", err)
-		return fmt.Errorf("unauthorized")
-	}
-
-	var fsize int64
-	for {
-		in, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			klog.Errorf("error receiving chunk: %s", err)
-			return fmt.Errorf("error receiving chunk: %w", err)
-		}
-
-		ck := in.GetChunk()
-		if ck == nil {
-			klog.Error("nil chunk received")
-			return fmt.Errorf("nil chunk received")
-		}
-
-		written, err := tmpfile.Write(ck.Content)
-		if err != nil {
-			klog.Errorf("error writing to temp file: %s", err)
-			return fmt.Errorf("error writing to temp file: %w", err)
-		}
-		fsize += int64(written)
-	}
-
-	klog.Infof("tag file received, size: %d bytes", fsize)
-	if _, err := tmpfile.Seek(0, 0); err != nil {
-		klog.Errorf("error file seek: %s", err)
-		return fmt.Errorf("error file seek: %w", err)
-	}
-
-	if err := t.tagexp.Push(ctx, namespace, name, tmpfile); err != nil {
-		klog.Errorf("error importing tag: %s", err)
-		return fmt.Errorf("error importing tag: %w", err)
-	}
-
-	klog.Infof("tag %s/%s imported successfully", namespace, name)
-	return stream.SendAndClose(&pb.PushResult{})
+	return t.usrval.CanAccessTags(
+		ctx, req.GetNamespace(), req.GetToken(),
+	)
 }
 
 // Name returns a name identifier for this controller.
 func (t *TagIO) Name() string {
-	return "tag input/output handler"
+	return "tag images io handler"
 }
 
-// Start puts the http server online. TODO enable ssl on this listener.
+// Start puts the grpc server online. TODO enable ssl on this listener.
 func (t *TagIO) Start(ctx context.Context) error {
 	listener, err := net.Listen("tcp", t.bind)
 	if err != nil {

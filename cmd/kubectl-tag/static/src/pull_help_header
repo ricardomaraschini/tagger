@@ -1,0 +1,9 @@
+Pulls an image from a remote tagger instance
+
+This command requests a remote tagger instance to forward us a certain image.
+Tagger creates a blob with the image and, on receiving, we copy it's content
+into local storage.
+
+This subcommand communicates directly with a tagger instance through GRPC.
+Once tagger is exposed you can pull images using tagger address as a registry
+name.

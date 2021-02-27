@@ -19,7 +19,7 @@ spec:
       serviceAccountName: tagger
       containers:
       - name: tagger
-        image: quay.io/rmarasch/tagger@sha256:8b325ccbdcd3feca481b6ab2e2e9f2f2d8ab45abc9e74482b65e12834e21bb1f
+        image: quay.io/rmarasch/tagger@sha256:870c3f8535d51155a55e0ffc8a738b73ddc8bccd47e3dffbc27d851c0184753b
         volumeMounts:
           - mountPath: "/assets"
             name: certs

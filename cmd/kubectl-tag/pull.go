@@ -2,161 +2,133 @@ package main
 
 import (
 	"context"
-	"io"
-	"log"
-	"os"
-	"strings"
+	"fmt"
 	"time"
 
+	imgcopy "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/signature"
+	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
-	"github.com/vbauerster/mpb/v6"
-	"github.com/vbauerster/mpb/v6/decor"
 	"google.golang.org/grpc"
 
+	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
+	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
 func init() {
-	tagpull.Flags().String("token", "", "User token.")
+	tagpull.Flags().String("token", "", "Kubernetes authentication token.")
 	tagpull.MarkFlagRequired("token")
-	tagpull.Flags().String("output", "", "Output file (where to store the tag).")
-	tagpull.MarkFlagRequired("output")
-	tagpull.Flags().String("url", "", "The URL of a tagger instance.")
-	tagpull.MarkFlagRequired("url")
-}
-
-// pullParams gather all parameters needed to pull a tag from a tagger
-// instance into a local file.
-type pullParams struct {
-	url       string
-	dstfile   string
-	token     string
-	namespace string
-	name      string
 }
 
 var tagpull = &cobra.Command{
-	Use:   "pull <image tag>",
-	Short: "Pull a tag from a tagger instance and into a tar file",
-	Run: func(c *cobra.Command, args []string) {
+	Use:     "pull <tagger.instance:port/namespace/name>",
+	Short:   "Pulls current Tag image",
+	Long:    static.Text["pull_help_header"],
+	Example: static.Text["pull_help_examples"],
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			log.Fatalf("invalid command, missing tag name")
-		}
-		name := args[0]
-
-		url, err := c.Flags().GetString("url")
-		if err != nil {
-			return
+			return fmt.Errorf("invalid number of arguments")
 		}
 
 		token, err := c.Flags().GetString("token")
 		if err != nil {
-			return
+			return err
 		}
 
-		dstfile, err := c.Flags().GetString("output")
+		// first understands what tag is the user referring to.
+		tidx, err := indexFor(args[0])
 		if err != nil {
-			return
+			return err
 		}
 
-		namespace, err := Namespace(c)
+		// now that we know what is the tag we do the grpc call
+		// to retrieve the image and host it locally on disk.
+		srcref, cleanup, err := pullTagImage(tidx, token)
 		if err != nil {
-			log.Fatalf("error determining current namespace: %s", err)
-			return
+			return err
+		}
+		defer cleanup()
+
+		// now we need to understand to where we are copying this
+		// image. we are copying to the local storage so just
+		// grab a reference to it.
+		dstref, err := tidx.localref()
+		if err != nil {
+			return err
 		}
 
-		if err := pullTag(
-			pullParams{
-				url:       url,
-				dstfile:   dstfile,
-				token:     token,
-				namespace: namespace,
-				name:      name,
+		pol := &signature.Policy{
+			Default: signature.PolicyRequirements{
+				signature.NewPRInsecureAcceptAnything(),
 			},
-		); err != nil {
-			log.Fatalf("error pulling tag: %s", err)
 		}
+		polctx, err := signature.NewPolicyContext(pol)
+		if err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+
+		// copy the image into local storage.
+		_, err = imgcopy.Image(
+			ctx, polctx, dstref, srcref, &imgcopy.Options{},
+		)
+		return err
 	},
 }
 
-// pullTag does a grpc call to the remote tagger instance, awaits for the tag
-// to be exported and retrieves it. Content is written to params.dstfile.
-func pullTag(params pullParams) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+// pullTagImage pulls the current generation for a tag identified by tagindex.
+// Returns a function to be called at the end to clean up resources.
+func pullTagImage(idx tagindex, token string) (types.ImageReference, func(), error) {
+	// XXX ssl goes here, please.
+	conn, err := grpc.Dial(idx.server, grpc.WithInsecure())
+	if err != nil {
+		return nil, nil, fmt.Errorf("error connecting: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-
-	fp, err := os.Create(params.dstfile)
-	if err != nil {
-		return err
-	}
-	defer fp.Close()
-
-	// XXX ssl please?
-	conn, err := grpc.Dial(params.url, grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
 
 	client := pb.NewTagIOServiceClient(conn)
 	stream, err := client.Pull(ctx, &pb.Request{
-		Name:      params.name,
-		Namespace: params.namespace,
-		Token:     params.token,
+		Name:      idx.name,
+		Namespace: idx.namespace,
+		Token:     token,
 	})
 	if err != nil {
-		return err
+		return nil, nil, fmt.Errorf("error pulling: %w", err)
 	}
 
-	var prevdescr string
-	var pbar *mpb.Bar
-	p := mpb.New(mpb.WithWidth(60))
-	defer p.Wait()
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		if progress := resp.GetProgress(); progress != nil {
-			descr := formatDescription(progress.Description)
-			if prevdescr != descr {
-				prevdescr = descr
-				pbar = p.Add(
-					progress.Size,
-					mpb.NewBarFiller(" ▮▮▯ "),
-					mpb.PrependDecorators(decor.Name(descr)),
-					mpb.AppendDecorators(
-						decor.CountersKiloByte("%d %d"),
-					),
-				)
-			}
-			pbar.SetCurrent(int64(progress.Offset))
-			continue
-		}
-
-		chunk := resp.GetChunk()
-		if _, err := fp.Write(chunk.Content); err != nil {
-			return err
-		}
+	fsh := fs.New("")
+	fp, cleanup, err := fsh.TempFile()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating temp file: %w", err)
 	}
-	return nil
+
+	if _, err := pb.ReceiveFileClient(fp, stream); err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("error receiving file: %w", err)
+	}
+
+	str := fmt.Sprintf("docker-archive:%s", fp.Name())
+	fromref, err := alltransports.ParseImageName(str)
+	if err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("error parsing reference: %w", err)
+	}
+
+	return fromref, cleanup, nil
 }
 
-// formatDescription removes "sha256:" prefix of a description and makes it to have
-// a 13 in length.
-func formatDescription(descr string) string {
-	descr = strings.TrimPrefix(descr, "sha256:")
-	strlen := len(descr)
-
-	switch {
-	case strlen > 13:
-		return descr[:13]
-	case strlen < 13:
-		return descr + strings.Repeat(" ", 13-strlen)
-	default:
-		return descr
-	}
+// localReferenceForTag returns what should be used when copying an image
+// tag into local storage.
+func localReferenceForTag(tidx tagindex) (types.ImageReference, error) {
+	str := fmt.Sprintf(
+		"containers-storage:%s/%s/%s:latest",
+		tidx.server, tidx.namespace, tidx.name,
+	)
+	return alltransports.ParseImageName(str)
 }
