@@ -1,0 +1,8 @@
+_output/
+.env
+.git/
+.gitignore
+.vscode/
+assets/
+README.md
+LICENSE
