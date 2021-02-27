@@ -1,5 +1,7 @@
 package static
 
+// Well, this file is full of lint complains but I don't care.
+
 import _ "embed"
 
 //go:embed "src/pull_help_header"
