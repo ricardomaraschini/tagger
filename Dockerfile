@@ -2,25 +2,26 @@
 # Builder
 #
 
-FROM registry.fedoraproject.org/fedora:latest AS builder
+FROM docker.io/fedora:latest AS builder
 
-WORKDIR /src
-COPY . .
+RUN dnf install -y fedora-repos-rawhide && \
+    dnf install -y --nogpgcheck --allowerasing --enablerepo=rawhide golang
 
 RUN dnf install -y \
     btrfs-progs-devel \
     device-mapper-devel \
-    golang \
     gpgme-devel \
     make
 
+WORKDIR /src
+COPY . .
 RUN make
 
 #
 # Application
 #
 
-FROM registry.fedoraproject.org/fedora:latest
+FROM docker.io/fedora:latest
 
 COPY --from=builder /src/_output/bin/tagger /usr/local/bin/tagger
 
