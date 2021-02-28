@@ -3,6 +3,7 @@
 ![lint](https://github.com/ricardomaraschini/Tagger/workflows/lint/badge.svg?branch=main)
 ![unit](https://github.com/ricardomaraschini/Tagger/workflows/unit/badge.svg?branch=main)
 ![build](https://github.com/ricardomaraschini/Tagger/workflows/build/badge.svg?branch=main)
+![image](https://github.com/ricardomaraschini/Tagger/workflows/image/badge.svg?branch=main)
 
 Tagger keeps references to externally hosted Docker images internally in a Kubernetes cluster
 by mapping their `tags` (such as `latest`) into their references by `hash`. Allow Kubernetes
