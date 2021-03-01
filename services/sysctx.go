@@ -102,11 +102,11 @@ func NewSysContext(corinf informers.SharedInformerFactory) *SysContext {
 	}
 }
 
-// UnqualifiedRegistries returns the list of unqualified registries
-// configured on the system. XXX here we should return the cluster
-// wide configuration for unqualified registries.
-func (s *SysContext) UnqualifiedRegistries(ctx context.Context) []string {
-	return s.unqualifiedRegistries
+// UnqualifiedRegistries returns the list of unqualified registries configured on
+// the system. XXX this is a place holder as we most likely gonna need to read this
+// from a configuration somewhere.
+func (s *SysContext) UnqualifiedRegistries(ctx context.Context) ([]string, error) {
+	return s.unqualifiedRegistries, nil
 }
 
 // parseCacheRegistryConfig reads configmap local-registry-hosting from kube-public
@@ -268,15 +268,18 @@ func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry
 // RegistriesToSearch returns a list of registries to be used when looking for
 // an image. It is either the provided domain or a list of unqualified domains
 // configured globally and returned by UnqualifiedRegistries(). This function
-// is used when trying to understand what an user means when they simply ask to
-// import an image called "centos:latest" for instance, in what registries do
-// we need to look for this image.
+// is used when trying to understand what an user means when she/he simply asks
+// to import an image called "centos:latest" for instance,  in what registries
+// do we need to look for this image?
 func (s *SysContext) RegistriesToSearch(ctx context.Context, domain string) ([]string, error) {
 	if domain != "" {
 		return []string{domain}, nil
 	}
+	registries, err := s.UnqualifiedRegistries(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	registries := s.UnqualifiedRegistries(ctx)
 	if len(registries) == 0 {
 		return nil, fmt.Errorf("no unqualified registries found")
 	}
