@@ -9,16 +9,51 @@ import (
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func init() {
 	tagpush.Flags().String("token", "", "User Kubernetes access token.")
 	tagpush.MarkFlagRequired("token")
+}
+
+var tagpush = &cobra.Command{
+	Use:     "push <tagger.instance:port/namespace/name>",
+	Short:   "Pushes an image into the next generation of a tag",
+	Long:    static.Text["push_help_header"],
+	Example: static.Text["push_help_examples"],
+	RunE: func(c *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return fmt.Errorf("invalid number of arguments")
+		}
+
+		token, err := c.Flags().GetString("token")
+		if err != nil {
+			return err
+		}
+
+		// first understands what tag is the user referring to.
+		tidx, err := indexFor(args[0])
+		if err != nil {
+			return err
+		}
+
+		// now we save the image from the local storage and into
+		// a tar file.
+
+		srcref, cleanup, err := saveTagImage(tidx)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+
+		return pushTagImage(tidx, srcref, token)
+	},
 }
 
 // saveTagImage saves an image present in the local storage into a local
@@ -103,38 +138,4 @@ func pushTagImage(idx tagindex, from *os.File, token string) error {
 
 	_, err = pb.SendFileClient(from, stream)
 	return err
-}
-
-var tagpush = &cobra.Command{
-	Use:     "push <tagger.instance:port/namespace/name>",
-	Short:   "Pushes an image into the next generation of a tag",
-	Long:    static.Text["push_help_header"],
-	Example: static.Text["push_help_examples"],
-	RunE: func(c *cobra.Command, args []string) error {
-		if len(args) != 1 {
-			return fmt.Errorf("invalid number of arguments")
-		}
-
-		token, err := c.Flags().GetString("token")
-		if err != nil {
-			return err
-		}
-
-		// first understands what tag is the user referring to.
-		tidx, err := indexFor(args[0])
-		if err != nil {
-			return err
-		}
-
-		// now we save the image from the local storage and into
-		// a tar file.
-
-		srcref, cleanup, err := saveTagImage(tidx)
-		if err != nil {
-			return err
-		}
-		defer cleanup()
-
-		return pushTagImage(tidx, srcref, token)
-	},
 }
