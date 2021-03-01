@@ -15,7 +15,7 @@ RUN dnf install -y \
 
 WORKDIR /src
 COPY . .
-RUN make
+RUN make tagger
 
 #
 # Application
