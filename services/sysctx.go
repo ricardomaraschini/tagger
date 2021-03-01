@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -15,6 +16,7 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
+	"github.com/ricardomaraschini/tagger/infra/imagestore"
 	"gopkg.in/yaml.v2"
 )
 
@@ -77,9 +79,11 @@ type LocalRegistryHostingV1 struct {
 // with things such as configured docker authentications or unqualified
 // registries configs.
 type SysContext struct {
+	sync.Mutex
 	sclister              corelister.SecretLister
 	cmlister              corelister.ConfigMapLister
 	unqualifiedRegistries []string
+	istore                *imagestore.Registry
 }
 
 // NewSysContext returns a new SysContext helper.
@@ -235,4 +239,46 @@ func (s *SysContext) DefaultPolicyContext() (*signature.PolicyContext, error) {
 		},
 	}
 	return signature.NewPolicyContext(pol)
+}
+
+// GetRegistryStore creates an instance of an Registry store entity configured
+// to use our internal registry as underlying storage.
+func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry, error) {
+	s.Lock()
+	defer s.Unlock()
+	if s.istore != nil {
+		return s.istore, nil
+	}
+
+	sysctx := s.CacheRegistryContext(ctx)
+	regaddr, _, err := s.CacheRegistryAddresses()
+	if err != nil {
+		return nil, fmt.Errorf("unable to discover cache registry: %w", err)
+	}
+
+	defpol, err := s.DefaultPolicyContext()
+	if err != nil {
+		return nil, fmt.Errorf("error reading default policy: %w", err)
+	}
+
+	s.istore = imagestore.NewRegistry(regaddr, sysctx, defpol)
+	return s.istore, nil
+}
+
+// RegistriesToSearch returns a list of registries to be used when looking for
+// an image. It is either the provided domain or a list of unqualified domains
+// configured globally and returned by UnqualifiedRegistries(). This function
+// is used when trying to understand what an user means when they simply ask to
+// import an image called "centos:latest" for instance, in what registries do
+// we need to look for this image.
+func (s *SysContext) RegistriesToSearch(ctx context.Context, domain string) ([]string, error) {
+	if domain != "" {
+		return []string{domain}, nil
+	}
+
+	registries := s.UnqualifiedRegistries(ctx)
+	if len(registries) == 0 {
+		return nil, fmt.Errorf("no unqualified registries found")
+	}
+	return registries, nil
 }

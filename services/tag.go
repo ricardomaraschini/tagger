@@ -141,8 +141,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 
 // NewGenerationForImageRef looks through all image tags we have and creates a
 // new generation in all of those who point to the provided image path. Image
-// path looks like "quay.io/repo/image:tag". TODO add unqualified registries
-// support and consider also empty tag as "latest".
+// path looks like "quay.io/repo/image:tag".
 func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) error {
 	tags, err := t.taglis.List(labels.Everything())
 	if err != nil {
@@ -176,12 +175,9 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 	return nil
 }
 
-// Upgrade increments the expected (spec) generation for a tag. This function updates
-// the object through the kubernetes api.
-func (t *Tag) Upgrade(
-	ctx context.Context, namespace string, name string,
-) (*imagtagv1.Tag, error) {
-	it, err := t.tagcli.ImagesV1().Tags(namespace).Get(
+// Upgrade increments the expected (spec) generation for a tag.
+func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
+	it, err := t.tagcli.ImagesV1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -193,7 +189,7 @@ func (t *Tag) Upgrade(
 	}
 
 	it.Spec.Generation++
-	if it, err = t.tagcli.ImagesV1().Tags(namespace).Update(
+	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -202,13 +198,10 @@ func (t *Tag) Upgrade(
 	return it, nil
 }
 
-// Downgrade increments the expected (spec) generation for a tag. This function
-// updates the object through the kubernetes api.
-func (t *Tag) Downgrade(
-	ctx context.Context, namespace string, name string,
-) (*imagtagv1.Tag, error) {
-	it, err := t.tagcli.ImagesV1().Tags(namespace).Get(
-		context.Background(), name, metav1.GetOptions{},
+// Downgrade decrements the expected (spec) generation for a tag.
+func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
+	it, err := t.tagcli.ImagesV1().Tags(ns).Get(
+		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error getting tag: %w", err)
@@ -219,7 +212,7 @@ func (t *Tag) Downgrade(
 		return nil, fmt.Errorf("unable to downgrade, currently at oldest generation")
 	}
 
-	if it, err = t.tagcli.ImagesV1().Tags(namespace).Update(
+	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -230,10 +223,8 @@ func (t *Tag) Downgrade(
 // NewGeneration creates a new generation for a tag. The new generation is set
 // to 'last import generation + 1'. If no generation was imported then the next
 // generation is zero.
-func (t *Tag) NewGeneration(
-	ctx context.Context, namespace string, name string,
-) (*imagtagv1.Tag, error) {
-	it, err := t.tagcli.ImagesV1().Tags(namespace).Get(
+func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
+	it, err := t.tagcli.ImagesV1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -246,7 +237,7 @@ func (t *Tag) NewGeneration(
 	}
 	it.Spec.Generation = nextGen
 
-	if it, err = t.tagcli.ImagesV1().Tags(namespace).Update(
+	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -254,7 +245,8 @@ func (t *Tag) NewGeneration(
 	return it, nil
 }
 
-// Get returns a tag by namespace and name pair.
+// Get returns a Tag object. Returned object is already a copy of the cached
+// object and may be modified by caller as needed.
 func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
 	tag, err := t.taglis.Tags(ns).Get(name)
 	if err != nil {
@@ -263,7 +255,7 @@ func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) 
 	return tag.DeepCopy(), nil
 }
 
-// AddEventHandler adds a handler to tag related events.
+// AddEventHandler adds a handler to Tag related events.
 func (t *Tag) AddEventHandler(handler cache.ResourceEventHandler) {
 	t.taginf.Images().V1().Tags().Informer().AddEventHandler(handler)
 }
