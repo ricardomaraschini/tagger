@@ -53,7 +53,7 @@ func NewDeployment(
 }
 
 // UpdateDeploymentsForTag updates all deployments using provided tag. Triggers
-// redeployment on deployments that have changed.
+// redeployment on Deployments that need (some image reference has changed).
 func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
 	deploys, err := d.DeploymentsForTag(ctx, it)
 	if err != nil {
@@ -136,12 +136,10 @@ func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 		return nil
 	}
 
-	if _, err := d.corcli.AppsV1().Deployments(dep.Namespace).Update(
+	_, err := d.corcli.AppsV1().Deployments(dep.Namespace).Update(
 		ctx, dep, metav1.UpdateOptions{},
-	); err != nil {
-		return fmt.Errorf("unable to update tag: %w", err)
-	}
-	return nil
+	)
+	return err
 }
 
 // Get returns a deployment by namespace/name pair.

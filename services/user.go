@@ -25,7 +25,7 @@ func NewUser(corcli corecli.Interface) *User {
 }
 
 // CanAccessTags returns nil if provided token is able to access Tag entities
-// in provided namespace.
+// in a namespace.
 func (u *User) CanAccessTags(ctx context.Context, ns, token string) error {
 	tkreview := &authev1.TokenReview{
 		Spec: authev1.TokenReviewSpec{
@@ -50,7 +50,7 @@ func (u *User) CanAccessTags(ctx context.Context, ns, token string) error {
 			ResourceAttributes: &authov1.ResourceAttributes{
 				Namespace: ns,
 				Resource:  "tags",
-				Verb:      "get",
+				Verb:      "update",
 				Group:     "images.io",
 			},
 		},
