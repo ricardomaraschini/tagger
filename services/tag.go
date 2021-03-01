@@ -348,11 +348,11 @@ func (t *Tag) ImportTag(
 	return zero, fmt.Errorf("unable to import image: %w", errors)
 }
 
-// getImageTagHash attempts to fetch image hash remotely using provided system
-// context.  By image hash I mean the full image path with its hash, something
-// like: quay.io/tagger/tagger@sha256:... The ideia here is that the "from"
-// reference points to a image by tag (e.g. quay.io/tagger/taggger:latest).
-func (t *Tag) getImageTagHash(
+// getHashWithContext attempts to fetch image hash remotely using provided system
+// context. By image hash I mean the full image path with its hash, something like
+// quay.io/tagger/tagger@sha256:... The ideia here is that the "from" reference
+// points to a image by tag (e.g. quay.io/tagger/taggger:latest).
+func (t *Tag) getHashWithContext(
 	ctx context.Context, from types.ImageReference, sysctx *types.SystemContext,
 ) (types.ImageReference, error) {
 	img, err := from.NewImage(ctx, sysctx)
@@ -381,8 +381,8 @@ func (t *Tag) getImageTagHash(
 
 // GetImageTagHash attempts to obtain the hash for a given image on a remote registry.
 // It runs through provided system contexts trying all of them. If no SystemContext
-// is present it does one attemp without authentication. Returns the image reference
-// and the SystemContext that worked (the one whose credentials work) or an error.
+// is present it does one attempt without authentication. Returns the image reference
+// and the SystemContext that worked or an error.
 func (t *Tag) GetImageTagHash(
 	ctx context.Context, imgref types.ImageReference, sysctxs []*types.SystemContext,
 ) (types.ImageReference, *types.SystemContext, error) {
@@ -393,7 +393,7 @@ func (t *Tag) GetImageTagHash(
 
 	var errors *multierror.Error
 	for _, sysctx := range sysctxs {
-		imghash, err := t.getImageTagHash(ctx, imgref, sysctx)
+		imghash, err := t.getHashWithContext(ctx, imgref, sysctx)
 		if err == nil {
 			return imghash, sysctx, nil
 		}
