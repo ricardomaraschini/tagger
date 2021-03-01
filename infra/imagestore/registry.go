@@ -13,7 +13,9 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/fs"
 )
 
-// Registry wraps cals for iteracting with our backend registry.
+// Registry wraps calls for iteracting with our backend registry. It
+// provides an implementation capable of pushing to and pulling from
+// an image registry.
 type Registry struct {
 	fs      *fs.FS
 	regaddr string
@@ -22,9 +24,9 @@ type Registry struct {
 }
 
 // NewRegistry creates an entity capable of load objects to or save objects
-// from from a backend registry. When calling Load we push an image to the
-// registry, when calling Save we pull the image from the registry and store
-// into a local tar file.
+// from from a backend registry. When calling Load we push an image into the
+// the registry, when calling Save we pull the image from the registry and
+// store into a local tar file.
 func NewRegistry(
 	regaddr string,
 	sysctx *types.SystemContext,
@@ -38,10 +40,10 @@ func NewRegistry(
 	}
 }
 
-// Load pushes an image into the backend registry into namespace/name index.
-// Uses srcctx (of type types.SystemContext) when reading image from srcref,
-// so when copying from one remote registry into our cache registry srcctx
-// must contain all needed authentication information.
+// Load pushes an image reference into the backend registry using repo/name
+// as its destination. Uses srcctx (of type types.SystemContext) when reading
+// image from srcref, so when copying from one remote registry into our cache
+// registry srcctx must contain all needed authentication information.
 func (i *Registry) Load(
 	ctx context.Context,
 	srcref types.ImageReference,
@@ -77,8 +79,8 @@ func (i *Registry) Load(
 
 // Save pulls an image from our cache registry, stores it in a temporary tar
 // file on disk.  Returns an ImageReference pointing to the local tar file
-// and a function the caller needs to call in order to clean up (property
-// close tar file and delete it from disk).
+// and a function the caller needs to call in order to clean up after our
+// mess (property close tar file and delete it from disk).
 func (i *Registry) Save(
 	ctx context.Context, ref types.ImageReference,
 ) (types.ImageReference, func(), error) {
@@ -99,14 +101,15 @@ func (i *Registry) Save(
 	return dstref, cleanup, nil
 }
 
-// NewLocalReference returns an image reference pointing to a local tar file. Also
-// returns a clean up function that must be called to free resources.
+// NewLocalReference returns an image reference pointing to a local tar file.
+// Also returns a clean up function that must be called to free resources.
 func (i *Registry) NewLocalReference() (types.ImageReference, func(), error) {
 	tfile, cleanup, err := i.fs.TempFile()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating temp file: %w", err)
 	}
 	fpath := fmt.Sprintf("docker-archive:%s", tfile.Name())
+
 	ref, err := alltransports.ParseImageName(fpath)
 	if err != nil {
 		cleanup()
