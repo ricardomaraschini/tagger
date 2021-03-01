@@ -165,31 +165,3 @@ func (t *TagIO) Pull(ctx context.Context, ns, name string) (*os.File, func(), er
 	}
 	return fp, ncleanup, nil
 }
-
-// SaveTagImage pulls current generation of a given Tag into a local tar file.
-func (t *TagIO) SaveTagImage(
-	ctx context.Context, it *imagtagv1.Tag,
-) (string, func(), error) {
-	istore, err := t.syssvc.GetRegistryStore(ctx)
-	if err != nil {
-		return "", nil, fmt.Errorf("error creating image store: %w", err)
-	}
-
-	imgref := it.CurrentReferenceForTag()
-	if len(imgref) == 0 {
-		return "", nil, fmt.Errorf("reference for current generation not found")
-	}
-
-	from := fmt.Sprintf("docker://%s", imgref)
-	fromRef, err := alltransports.ParseImageName(from)
-	if err != nil {
-		return "", nil, fmt.Errorf("error parsing image reference: %w", err)
-	}
-
-	toRef, cleanup, err := istore.Save(ctx, fromRef)
-	if err != nil {
-		return "", nil, fmt.Errorf("error saving image locally: %w", err)
-	}
-
-	return toRef.StringWithinTransport(), cleanup, nil
-}
