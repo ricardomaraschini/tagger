@@ -19,7 +19,7 @@ import (
 	"github.com/containers/image/v5/types"
 )
 
-func TestAuthsFor(t *testing.T) {
+func Test_authsFor(t *testing.T) {
 	auths, _ := json.Marshal(
 		dockerAuthConfig{
 			Auths: map[string]types.DockerAuthConfig{
@@ -171,7 +171,7 @@ func TestAuthsFor(t *testing.T) {
 			ref, _ := reference.ParseDockerRef(tt.image)
 			imgref, _ := docker.NewReference(ref)
 
-			auths, err := sysctx.AuthsFor(ctx, imgref, "default")
+			auths, err := sysctx.authsFor(ctx, imgref, "default")
 			if err != nil {
 				if len(tt.err) == 0 {
 					t.Errorf("unexpected error %s", err)

@@ -172,7 +172,7 @@ func (s *SysContext) CacheRegistryContext(ctx context.Context) *types.SystemCont
 func (s *SysContext) SystemContextsFor(
 	ctx context.Context, imgref types.ImageReference, namespace string,
 ) ([]*types.SystemContext, error) {
-	auths, err := s.AuthsFor(ctx, imgref, namespace)
+	auths, err := s.authsFor(ctx, imgref, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error reading auths: %w", err)
 	}
@@ -187,10 +187,10 @@ func (s *SysContext) SystemContextsFor(
 	return ctxs, nil
 }
 
-// AuthsFor return configured authentications for the registry hosting
+// authsFor return configured authentications for the registry hosting
 // the image reference. Namespace is the namespace from where read docker
 // authentications.
-func (s *SysContext) AuthsFor(
+func (s *SysContext) authsFor(
 	ctx context.Context, imgref types.ImageReference, namespace string,
 ) ([]*types.DockerAuthConfig, error) {
 	secrets, err := s.sclister.Secrets(namespace).List(labels.Everything())
@@ -270,7 +270,8 @@ func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry
 // configured globally and returned by UnqualifiedRegistries(). This function
 // is used when trying to understand what an user means when she/he simply asks
 // to import an image called "centos:latest" for instance,  in what registries
-// do we need to look for this image?
+// do we need to look for this image? This is the place where we can implement
+// a mirror search.
 func (s *SysContext) RegistriesToSearch(ctx context.Context, domain string) ([]string, error) {
 	if domain != "" {
 		return []string{domain}, nil
