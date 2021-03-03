@@ -15,7 +15,9 @@ import (
 
 // Registry wraps calls for iteracting with our backend registry. It
 // provides an implementation capable of pushing to and pulling from
-// an image registry.
+// an image registry. To push an image towards the registry one needs
+// to call Load, to push it to a local tar file a Save call should be
+// made.
 type Registry struct {
 	fs      *fs.FS
 	regaddr string
@@ -23,10 +25,10 @@ type Registry struct {
 	regctx  *types.SystemContext
 }
 
-// NewRegistry creates an entity capable of load objects to or save objects
-// from from a backend registry. When calling Load we push an image into the
-// the registry, when calling Save we pull the image from the registry and
-// store into a local tar file.
+// NewRegistry creates an entity capable of load objects to or save
+// objects from a backend registry. When calling Load we push an image
+// into the registry, when calling Save we pull the image from the
+// registry and store into a local tar file.
 func NewRegistry(
 	regaddr string,
 	sysctx *types.SystemContext,
