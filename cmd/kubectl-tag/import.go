@@ -6,11 +6,19 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
 )
 
+func init() {
+	tagimport.Flags().StringP("namespace", "n", "", "Namespace to use")
+}
+
 var tagimport = &cobra.Command{
-	Use:   "import <image tag>",
-	Short: "Imports a new generation for a tag",
+	Use:     "import <image tag>",
+	Short:   "Imports a new generation for a tag",
+	Long:    static.Text["import_help_header"],
+	Example: static.Text["import_help_examples"],
 	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("provide an image tag")

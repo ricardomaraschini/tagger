@@ -18,14 +18,38 @@ var push_help_header string
 //go:embed "src/push_help_examples"
 var push_help_examples string
 
+//go:embed "src/import_help_header"
+var import_help_header string
+
+//go:embed "src/import_help_examples"
+var import_help_examples string
+
+//go:embed "src/upgrade_help_header"
+var upgrade_help_header string
+
+//go:embed "src/upgrade_help_examples"
+var upgrade_help_examples string
+
+//go:embed "src/downgrade_help_header"
+var downgrade_help_header string
+
+//go:embed "src/downgrade_help_examples"
+var downgrade_help_examples string
+
 //go:embed src/*
 var FS embed.FS
 
 // Text is a map to all embed text files, indexed by their respective
 // path relative to "src" directory.
 var Text = map[string]string{
-	"pull_help_header":   pull_help_header,
-	"pull_help_examples": pull_help_examples,
-	"push_help_header":   push_help_header,
-	"push_help_examples": push_help_examples,
+	"pull_help_header":        pull_help_header,
+	"pull_help_examples":      pull_help_examples,
+	"push_help_header":        push_help_header,
+	"push_help_examples":      push_help_examples,
+	"import_help_header":      import_help_header,
+	"import_help_examples":    import_help_examples,
+	"upgrade_help_header":     upgrade_help_header,
+	"upgrade_help_examples":   upgrade_help_examples,
+	"downgrade_help_header":   downgrade_help_header,
+	"downgrade_help_examples": downgrade_help_examples,
 }

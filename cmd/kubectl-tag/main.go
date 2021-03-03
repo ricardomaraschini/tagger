@@ -22,10 +22,6 @@ func main() {
 	unshare.MaybeReexecUsingUserNamespace(true)
 
 	root := &cobra.Command{Use: "kubectl-tag"}
-	root.PersistentFlags().StringP(
-		"namespace", "n", "", "Namespace to use",
-	)
-
 	root.AddCommand(tagupgrade)
 	root.AddCommand(tagdowngrade)
 	root.AddCommand(tagimport)

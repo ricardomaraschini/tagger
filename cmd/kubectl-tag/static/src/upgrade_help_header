@@ -1,0 +1,9 @@
+Moves to the next Generation of a Tag
+
+This command moves a Tag one Generation upwards. If a Tag has 3 
+Generations (3,4 and 5) and is currently pointing to Generation 3, an
+upgrade will make it point to Generation 4. Deployments leveraging
+this Tag will be automatically updated.
+
+Upon reaching the most recent Generation an upgrade has the same 
+effect of an "import" (see kubectl tag help import).
