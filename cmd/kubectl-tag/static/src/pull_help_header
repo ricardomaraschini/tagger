@@ -7,3 +7,6 @@ into local storage.
 This subcommand communicates directly with a tagger instance through GRPC.
 Once tagger is exposed you can pull images using tagger address as a registry
 name.
+
+In order to pull images from a Kubernetes cluster you need to be authenticated
+using a token.
