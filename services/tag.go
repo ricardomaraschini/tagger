@@ -312,13 +312,13 @@ func (t *Tag) ImportTag(
 			continue
 		}
 
-		syscontexts, err := t.syssvc.SystemContextsFor(ctx, imgref, it.Namespace)
+		sysctxs, err := t.syssvc.SystemContextsFor(ctx, imgref, it.Namespace)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
 		}
 
-		imghash, sysctx, err := t.GetImageTagHash(ctx, imgref, syscontexts)
+		imghash, sysctx, err := t.HashReferenceByTag(ctx, imgref, sysctxs)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
@@ -348,11 +348,11 @@ func (t *Tag) ImportTag(
 	return zero, fmt.Errorf("unable to import image: %w", errors)
 }
 
-// getHashWithContext attempts to fetch image hash remotely using provided system
-// context. By image hash I mean the full image path with its hash, something like
-// quay.io/tagger/tagger@sha256:... The ideia here is that the "from" reference
-// points to a image by tag (e.g. quay.io/tagger/taggger:latest).
-func (t *Tag) getHashWithContext(
+// getImageHash attempts to fetch image hash remotely using provided system context.
+// Hash is full image path with its hash, something like reg.io/repo/img@sha256:...
+// The ideia here is that the "from" reference points to a image by tag, something
+// like reg.io/repo/img:latest.
+func (t *Tag) getImageHash(
 	ctx context.Context, from types.ImageReference, sysctx *types.SystemContext,
 ) (types.ImageReference, error) {
 	img, err := from.NewImage(ctx, sysctx)
@@ -379,11 +379,13 @@ func (t *Tag) getHashWithContext(
 	return hashref, nil
 }
 
-// GetImageTagHash attempts to obtain the hash for a given image on a remote registry.
-// It runs through provided system contexts trying all of them. If no SystemContext
-// is present it does one attempt without authentication. Returns the image reference
-// and the SystemContext that worked or an error.
-func (t *Tag) GetImageTagHash(
+// HashReferenceByTag attempts to obtain the hash for a given image on a remote registry.
+// It receives an image reference pointing to an image by its tag (reg.io/repo/img:tag)
+// and returns a image reference by hash (reg.io/repo/img@sha256:abc...). It runs through
+// provided system contexts trying all of them. If no SystemContext is present it does one
+// attempt without authentication. Returns the image reference and the SystemContext that
+// worked or an error.
+func (t *Tag) HashReferenceByTag(
 	ctx context.Context, imgref types.ImageReference, sysctxs []*types.SystemContext,
 ) (types.ImageReference, *types.SystemContext, error) {
 	// if no contexts then we do an attempt without using any credentials.
@@ -393,7 +395,7 @@ func (t *Tag) GetImageTagHash(
 
 	var errors *multierror.Error
 	for _, sysctx := range sysctxs {
-		imghash, err := t.getHashWithContext(ctx, imgref, sysctx)
+		imghash, err := t.getImageHash(ctx, imgref, sysctx)
 		if err == nil {
 			return imghash, sysctx, nil
 		}
