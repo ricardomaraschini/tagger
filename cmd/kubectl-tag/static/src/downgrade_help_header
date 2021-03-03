@@ -1,0 +1,6 @@
+Moves to the previous Generation of a Tag
+
+This command moves a Tag one Generation downwards. If a Tag has 3 
+Generations (3,4 and 5) and is currently pointing to Generation 5, an
+downgrade will make it point to Generation 4. Deployments leveraging
+this Tag will be automatically updated.
