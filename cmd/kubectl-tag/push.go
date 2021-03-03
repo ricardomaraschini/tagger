@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"k8s.io/client-go/tools/clientcmd"
+
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -17,11 +19,6 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
-func init() {
-	tagpush.Flags().String("token", "", "User Kubernetes access token.")
-	tagpush.MarkFlagRequired("token")
-}
-
 var tagpush = &cobra.Command{
 	Use:     "push <tagger.instance:port/namespace/name>",
 	Short:   "Pushes an image into the next generation of a tag",
@@ -32,9 +29,13 @@ var tagpush = &cobra.Command{
 			return fmt.Errorf("invalid number of arguments")
 		}
 
-		token, err := c.Flags().GetString("token")
+		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
 			return err
+		}
+
+		if config.BearerToken == "" {
+			return fmt.Errorf("empty token, you need a kubernetes token to push")
 		}
 
 		// first understands what tag is the user referring to.
@@ -52,7 +53,7 @@ var tagpush = &cobra.Command{
 		}
 		defer cleanup()
 
-		return pushTagImage(tidx, srcref, token)
+		return pushTagImage(tidx, srcref, config.BearerToken)
 	},
 }
 

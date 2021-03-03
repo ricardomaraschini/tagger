@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
+
+	"k8s.io/client-go/tools/clientcmd"
 
 	imgcopy "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
@@ -17,11 +20,6 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/pb"
 )
 
-func init() {
-	tagpull.Flags().String("token", "", "Kubernetes authentication token.")
-	tagpull.MarkFlagRequired("token")
-}
-
 var tagpull = &cobra.Command{
 	Use:     "pull <tagger.instance:port/namespace/name>",
 	Short:   "Pulls current Tag image",
@@ -32,9 +30,13 @@ var tagpull = &cobra.Command{
 			return fmt.Errorf("invalid number of arguments")
 		}
 
-		token, err := c.Flags().GetString("token")
+		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
 			return err
+		}
+
+		if config.BearerToken == "" {
+			return fmt.Errorf("empty token, you need a kubernetes token to pull")
 		}
 
 		// first understands what tag is the user referring to.
@@ -45,7 +47,7 @@ var tagpull = &cobra.Command{
 
 		// now that we know what is the tag we do the grpc call
 		// to retrieve the image and host it locally on disk.
-		srcref, cleanup, err := pullTagImage(tidx, token)
+		srcref, cleanup, err := pullTagImage(tidx, config.BearerToken)
 		if err != nil {
 			return err
 		}
