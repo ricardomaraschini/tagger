@@ -66,6 +66,7 @@ spec:
                 properties:
                   when:
                     type: string
+                    nullable: true
                   succeed:
                     type: boolean
                   reason:
