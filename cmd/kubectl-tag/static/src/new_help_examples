@@ -1,0 +1,6 @@
+  Assuming one wants to create a new Tag called "mytag" in "production"
+  namespace, tracking images from "quay.io/repo/name:latest" and caching
+  it into the cluster:
+
+  $ kubectl tag new --from quay.io/repo/name:latest --cache mytag -n production
+

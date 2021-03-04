@@ -403,3 +403,22 @@ func (t *Tag) HashReferenceByTag(
 	}
 	return nil, nil, fmt.Errorf("unable to get hash for image tag: %w", errors)
 }
+
+// NewTag creates a new Tag objects.
+func (t *Tag) NewTag(
+	ctx context.Context, namespace, name, from string, cache bool,
+) error {
+	it := &imagtagv1.Tag{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: imagtagv1.TagSpec{
+			From:  from,
+			Cache: cache,
+		},
+	}
+	_, err := t.tagcli.ImagesV1().Tags(namespace).Create(
+		ctx, it, metav1.CreateOptions{},
+	)
+	return err
+}

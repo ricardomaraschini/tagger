@@ -36,6 +36,12 @@ var downgrade_help_header string
 //go:embed "src/downgrade_help_examples"
 var downgrade_help_examples string
 
+//go:embed "src/new_help_header"
+var new_help_header string
+
+//go:embed "src/new_help_examples"
+var new_help_examples string
+
 //go:embed src/*
 var FS embed.FS
 
@@ -52,4 +58,6 @@ var Text = map[string]string{
 	"upgrade_help_examples":   upgrade_help_examples,
 	"downgrade_help_header":   downgrade_help_header,
 	"downgrade_help_examples": downgrade_help_examples,
+	"new_help_header":         new_help_header,
+	"new_help_examples":       new_help_examples,
 }
