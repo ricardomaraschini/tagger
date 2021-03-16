@@ -5,15 +5,60 @@
 ![build](https://github.com/ricardomaraschini/Tagger/workflows/build/badge.svg?branch=main)
 ![image](https://github.com/ricardomaraschini/Tagger/workflows/image/badge.svg?branch=main)
 
-Tagger keeps references to externally hosted Docker images internally in a Kubernetes cluster
-by mapping their `tags` (such as `latest`) into their respective `hash` references. It also
-allows Kubernetes administrators to automatically mirror these images if needed. If wanted
-Tagger also provides integration with Docker Hub and Quay webhooks.
+### Motivation
+
+Keeping track of all Container Images in use in a Kubernetes cluster is a complicated task.
+Container Images may come from numerous different Image Registries. In some cases, controlling
+how a stable version of a given Container Image looks escapes the user's authority. To add to
+this, Container Runtimes rely on remote registries (from the cluster's point of view) when
+obtaining Container Images, potentially making the process of pulling their blobs (manifests,
+config, and layers) slower.
+
+The notion of indexing Container Image versions by Tags is helpful. Still, it does not provide
+users with the right confidence to always use the intended Container Image – today's "latest"
+tag might not be tomorrow's "latest" tag. In addition to that, these Image Registries allow
+access to Container Images by their Manifest content's hash (i.e., usually sha256), which gives
+users the confidence at a cost in semantics.
+
+When releasing a new version of an application to Push and to Deploy are split into two distinct
+steps. Both the pusher and the puller need access to the same Image Registry, adding complexity.
+Credentials are one example of the concerns. Other factors may pop up when running, for instance,
+in an air-gapped environment, where the cluster may not reach external Image Registries.
+
+Tagger aims to overcome these caveats. For instance, by providing a direct mapping between a
+Container Image tag (e.g., "latest") and its correspondent Manifest content's hash, users can
+then refer to the Container Image by its tag – and be sure to use that specific version. More
+than that, when allied with an Internal Image Registry, Tagger can also automatically mirror
+Container Images into the cluster.
+
+While using Tagger, Deployments can refer to Container Images by an arbitrarily defined name,
+such as "my-app", and Tagger will make sure that they use the right Container Image through its
+internal "tag to Manifest content's hash" mapping.
+
+For each new "release" of a given Container Image, Tagger creates a new Generation for it,
+making it easy to roll back to previously pushed "releases" of the same Container Image in case
+of problems.
+
+When integrated with an Internal Registry, Tagger allows users to push or pull Images directly
+without requiring an external Image Registry. It works as a layer between the user and the
+Internal Registry. Every time a new "release" of Container Images is pushed, all Deployments are
+updated automatically. Users don't need to know about the Internal Registry existence, if they
+are logged-in to the Kubernetes cluster, they can obtain old or provide new "Generations" for a
+Container Image.
+
+In summary, Tagger mirrors remote Container Images into a Kubernetes cluster indexing them in
+different Generations (allowing easy navigation through these multiple Generations), provides an
+interface allowing users to pull and push images directly to the Kubernetes cluster and provides
+full integration with Kubernetes Deployments (automatic triggers new rollouts on Container Image
+changes).
 
 ### TLDR
 
-I have recorded a presentation (hands-on) about some of the features implemented by Tagger.
-You can find it at https://youtu.be/CBbfZqLDL3o, please check it out.
+I have recorded two presentations (hands-on) about some of the features implemented by Tagger.
+You can find them below, please check them out.
+
+https://youtu.be/CBbfZqLDL3o
+https://youtu.be/F-C4wAG09Xg
 
 ### Some concepts
 
