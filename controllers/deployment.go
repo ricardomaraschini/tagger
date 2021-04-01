@@ -36,7 +36,10 @@ type Deployment struct {
 
 // NewDeployment returns a new controller for Deployments. This controller
 // keeps track of deployments being created and assure that they contain the
-// right annotations if they leverage tags.
+// right annotations if they leverage tags. Tags are also observed by this
+// controller so when they get updates we also update all Deployments that
+// leverage a Tag. Events for both Deployments and Tags are placed on the
+// same workqueue.
 func NewDeployment(depsvc DeploymentSyncer, tagsvc TagSyncer) *Deployment {
 	ctrl := &Deployment{
 		queue:  workqueue.NewDelayingQueue(),
@@ -53,7 +56,9 @@ func (d *Deployment) Name() string {
 	return "deployment"
 }
 
-// enqueueEvent enqueues an event.
+// enqueueEvent enqueues an event. Receives a string indicating the event
+// source kind (deployment or tag) and uses it when creating a queue key.
+// Keys inside the queue are stored as "kind/namespace/name".
 func (d *Deployment) enqueueEvent(kind string, o interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(o)
 	if err != nil {
@@ -64,10 +69,9 @@ func (d *Deployment) enqueueEvent(kind string, o interface{}) {
 	d.queue.Add(key)
 }
 
-// dephandlers return a event handler that will be called by the informer
-// whenever an event occurs. This handler basically enqueues everything
-// in our work queue. There is no handler for deployments deletion, we
-// don't care about deletes just yet.
+// dephandlers returns a event handler that will be called by the informer
+// whenever a Deployment event occurs. This handler basically enqueues
+// everything in our work queue.
 func (d *Deployment) dephandlers() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
@@ -80,10 +84,9 @@ func (d *Deployment) dephandlers() cache.ResourceEventHandler {
 	}
 }
 
-// taghandlers return a event handler that will be called by the informer
-// whenever an event occurs. This handler basically enqueues everything
-// in our work queue. There is no handler for deployments deletion, we
-// don't care about deletes just yet.
+// taghandlers returns a event handler that will be called by the informer
+// whenever a Tag event occurs. This handler basically enqueues everything
+// in our work queue.
 func (d *Deployment) taghandlers() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
@@ -96,9 +99,10 @@ func (d *Deployment) taghandlers() cache.ResourceEventHandler {
 	}
 }
 
-// parseEventKey parses an event key and return the kind (tag or deployment), the namespace
-// and the name of the object that originated the event. Raw events are expected to be a
-// string in the format "kind/namespace/name".
+// parseEventKey parses an event key and return the kind ("tag" or "deployment"),
+// the namespace, and the name of the object that originated the event. rawevt
+// is expected to be a string in the format "kind/namespace/name". We user empty
+// interface here to make integration with workqueue cleaner.
 func (d *Deployment) parseEventKey(rawevt interface{}) (string, string, string, error) {
 	strevt, ok := rawevt.(string)
 	if !ok {
@@ -110,6 +114,7 @@ func (d *Deployment) parseEventKey(rawevt interface{}) (string, string, string, 
 		return "", "", "", fmt.Errorf("event is invalid: %v", rawevt)
 	}
 
+	// we only expect events only for kinds "deployment" or "tag".
 	if slices[0] != "deployment" && slices[0] != "tag" {
 		return "", "", "", fmt.Errorf("invalid event kind: %v", rawevt)
 	}
@@ -117,7 +122,8 @@ func (d *Deployment) parseEventKey(rawevt interface{}) (string, string, string, 
 	return slices[0], slices[1], slices[2], nil
 }
 
-// eventProcessor reads our events calling syncDeployment for all of them.
+// eventProcessor reads our events calling syncDeployment or syncTag for all of
+// them. Events on the queue are expected to be in the "kind/namespace/name" format.
 func (d *Deployment) eventProcessor(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
@@ -126,7 +132,7 @@ func (d *Deployment) eventProcessor(wg *sync.WaitGroup) {
 			return
 		}
 
-		kind, ns, name, err := d.parseEventKey(rawevt)
+		kind, namespace, name, err := d.parseEventKey(rawevt)
 		if err != nil {
 			klog.Errorf("error parsing event: %s", err)
 			d.queue.Done(rawevt)
@@ -139,7 +145,7 @@ func (d *Deployment) eventProcessor(wg *sync.WaitGroup) {
 		}
 
 		klog.Infof("processing event %v", rawevt)
-		if err := syncfn(ns, name); err != nil {
+		if err := syncfn(namespace, name); err != nil {
 			klog.Errorf("error processing %v: %v", rawevt, err)
 			d.queue.Done(rawevt)
 			d.queue.AddAfter(rawevt, 5*time.Second)
@@ -152,7 +158,7 @@ func (d *Deployment) eventProcessor(wg *sync.WaitGroup) {
 }
 
 // syncTag process an event for a tag. We look for all deployments leveraging
-// this tag and update them to use the right generation.
+// the tag and update them to use the right generation.
 func (d *Deployment) syncTag(namespace, name string) error {
 	ctx, cancel := context.WithTimeout(d.appctx, time.Minute)
 	defer cancel()
