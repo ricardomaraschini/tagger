@@ -55,6 +55,12 @@ func NewDeployment(
 // UpdateDeploymentsForTag updates all deployments using provided tag. Triggers
 // redeployment on Deployments that need (some image reference has changed).
 func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
+	// if the current reference does not exist it is most likely being
+	// imported. bail out here.
+	if it.CurrentReferenceForTag() == "" {
+		return nil
+	}
+
 	deploys, err := d.DeploymentsForTag(ctx, it)
 	if err != nil {
 		return fmt.Errorf("fail to get deployments for tag: %w", err)

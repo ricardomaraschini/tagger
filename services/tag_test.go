@@ -172,7 +172,7 @@ func TestSync(t *testing.T) {
 			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
 			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
 
-			svc := NewTag(corcli, corinf, tagcli, taginf)
+			svc := NewTag(corinf, tagcli, taginf)
 
 			corinf.Start(ctx.Done())
 			taginf.Start(ctx.Done())
@@ -180,7 +180,6 @@ func TestSync(t *testing.T) {
 				ctx.Done(),
 				corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 				corinf.Core().V1().Secrets().Informer().HasSynced,
-				corinf.Apps().V1().Deployments().Informer().HasSynced,
 				taginf.Images().V1().Tags().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")

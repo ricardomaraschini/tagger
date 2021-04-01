@@ -15,6 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
+
+	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 )
 
 type depsvc struct {
@@ -38,6 +40,10 @@ func (d *depsvc) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	return nil
 }
 
+func (d *depsvc) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
+	return nil
+}
+
 func (d *depsvc) Get(ctx context.Context, ns, name string) (*appsv1.Deployment, error) {
 	return d.corcli.AppsV1().Deployments(ns).Get(
 		ctx, name, metav1.GetOptions{},
@@ -54,6 +60,13 @@ func (d *depsvc) AddEventHandler(handler cache.ResourceEventHandler) {
 	d.corinf.Apps().V1().Deployments().Informer().AddEventHandler(handler)
 }
 
+type noopEventGenerator struct {
+	*tagsvc
+}
+
+func (n noopEventGenerator) AddEventHandler(handler cache.ResourceEventHandler) {
+}
+
 func TestDeploymentCreated(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
@@ -64,7 +77,7 @@ func TestDeploymentCreated(t *testing.T) {
 		corinf: corinf,
 	}
 
-	ctrl := NewDeployment(svc)
+	ctrl := NewDeployment(svc, noopEventGenerator{})
 	corinf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(
@@ -121,7 +134,7 @@ func TestDeploymentSync(t *testing.T) {
 		corinf: corinf,
 	}
 
-	ctrl := NewDeployment(svc)
+	ctrl := NewDeployment(svc, noopEventGenerator{})
 	corinf.Start(ctx.Done())
 
 	if !cache.WaitForCacheSync(
