@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
-	corecli "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -32,7 +31,6 @@ type Tag struct {
 	tagcli tagclient.Interface
 	taglis taglist.TagLister
 	taginf taginform.SharedInformerFactory
-	depsvc *Deployment
 	syssvc *SysContext
 }
 
@@ -41,7 +39,6 @@ type Tag struct {
 // up to the caller to decide what is needed for each specific case. So far this
 // is the best approach, I still plan to review this.
 func NewTag(
-	corcli corecli.Interface,
 	corinf informers.SharedInformerFactory,
 	tagcli tagclient.Interface,
 	taginf taginform.SharedInformerFactory,
@@ -55,7 +52,6 @@ func NewTag(
 		taginf: taginf,
 		tagcli: tagcli,
 		taglis: taglis,
-		depsvc: NewDeployment(corcli, corinf, taginf),
 		syssvc: NewSysContext(corinf),
 	}
 }
@@ -132,17 +128,18 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 		klog.Infof("tag %s/%s imported.", it.Namespace, it.Name)
 	}
 
-	genMismatch := it.Spec.Generation != it.Status.Generation
-	if !alreadyImported || genMismatch {
-		it.Status.Generation = it.Spec.Generation
-		if it, err = t.tagcli.ImagesV1().Tags(it.Namespace).Update(
-			ctx, it, metav1.UpdateOptions{},
-		); err != nil {
-			return fmt.Errorf("error updating image stream: %w", err)
-		}
+	genmatch := it.Spec.Generation == it.Status.Generation
+	if alreadyImported && genmatch {
+		return nil
 	}
 
-	return t.depsvc.UpdateDeploymentsForTag(ctx, it)
+	it.Status.Generation = it.Spec.Generation
+	if _, err = t.tagcli.ImagesV1().Tags(it.Namespace).Update(
+		ctx, it, metav1.UpdateOptions{},
+	); err != nil {
+		return fmt.Errorf("error updating tag: %w", err)
+	}
+	return nil
 }
 
 // NewGenerationForImageRef looks through all image tags we have and creates a
