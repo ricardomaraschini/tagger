@@ -76,13 +76,13 @@ func (t *Tag) ValidateTagGeneration() error {
 }
 
 // PrependHashReference prepends ref into tag's HashReference slice. The resulting
-// slice contains at most 5 references.
+// slice contains at most 10 references.
 func (t *Tag) PrependHashReference(ref HashReference) {
 	newRefs := []HashReference{ref}
 	newRefs = append(newRefs, t.Status.References...)
-	// TODO make this value (5) configurable.
-	if len(newRefs) > 5 {
-		newRefs = newRefs[:5]
+	// TODO make this value (10) configurable.
+	if len(newRefs) > 10 {
+		newRefs = newRefs[:10]
 	}
 	t.Status.References = newRefs
 }
