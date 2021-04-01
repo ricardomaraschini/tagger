@@ -46,8 +46,8 @@ func NewDeployment(depsvc DeploymentSyncer, tagsvc TagSyncer) *Deployment {
 		depsvc: depsvc,
 		tagsvc: tagsvc,
 	}
-	depsvc.AddEventHandler(ctrl.dephandlers())
-	tagsvc.AddEventHandler(ctrl.taghandlers())
+	depsvc.AddEventHandler(ctrl.dephandler())
+	tagsvc.AddEventHandler(ctrl.taghandler())
 	return ctrl
 }
 
@@ -69,10 +69,10 @@ func (d *Deployment) enqueueEvent(kind string, o interface{}) {
 	d.queue.Add(key)
 }
 
-// dephandlers returns a event handler that will be called by the informer
+// dephandler returns a event handler that will be called by the informer
 // whenever a Deployment event occurs. This handler basically enqueues
 // everything in our work queue.
-func (d *Deployment) dephandlers() cache.ResourceEventHandler {
+func (d *Deployment) dephandler() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
 			d.enqueueEvent("deployment", o)
@@ -84,10 +84,10 @@ func (d *Deployment) dephandlers() cache.ResourceEventHandler {
 	}
 }
 
-// taghandlers returns a event handler that will be called by the informer
+// taghandler returns a event handler that will be called by the informer
 // whenever a Tag event occurs. This handler basically enqueues everything
 // in our work queue.
-func (d *Deployment) taghandlers() cache.ResourceEventHandler {
+func (d *Deployment) taghandler() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
 			d.enqueueEvent("tag", o)
@@ -101,7 +101,7 @@ func (d *Deployment) taghandlers() cache.ResourceEventHandler {
 
 // parseEventKey parses an event key and return the kind ("tag" or "deployment"),
 // the namespace, and the name of the object that originated the event. rawevt
-// is expected to be a string in the format "kind/namespace/name". We user empty
+// is expected to be a string in the format "kind/namespace/name". We use empty
 // interface here to make integration with workqueue cleaner.
 func (d *Deployment) parseEventKey(rawevt interface{}) (string, string, string, error) {
 	strevt, ok := rawevt.(string)
@@ -114,7 +114,7 @@ func (d *Deployment) parseEventKey(rawevt interface{}) (string, string, string, 
 		return "", "", "", fmt.Errorf("event is invalid: %v", rawevt)
 	}
 
-	// we only expect events only for kinds "deployment" or "tag".
+	// we expect events only for kinds "deployment" and "tag".
 	if slices[0] != "deployment" && slices[0] != "tag" {
 		return "", "", "", fmt.Errorf("invalid event kind: %v", rawevt)
 	}
@@ -123,7 +123,7 @@ func (d *Deployment) parseEventKey(rawevt interface{}) (string, string, string, 
 }
 
 // eventProcessor reads our events calling syncDeployment or syncTag for all of
-// them. Events on the queue are expected to be in the "kind/namespace/name" format.
+// them. Events on the queue are expected to be in "kind/namespace/name" format.
 func (d *Deployment) eventProcessor(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
