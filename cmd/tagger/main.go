@@ -70,7 +70,7 @@ func main() {
 
 	// create our service layer
 	depsvc := services.NewDeployment(corcli, corinf, taginf)
-	tagsvc := services.NewTag(corcli, corinf, tagcli, taginf)
+	tagsvc := services.NewTag(corinf, tagcli, taginf)
 	tiosvc := services.NewTagIO(corinf, tagcli, taginf)
 	usrsvc := services.NewUser(corcli)
 	mtrsvc := services.NewMetrics()
@@ -80,7 +80,7 @@ func main() {
 	mtctrl := controllers.NewMutatingWebHook(tagsvc)
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)
-	dpctrl := controllers.NewDeployment(depsvc)
+	dpctrl := controllers.NewDeployment(depsvc, tagsvc)
 	tioctr := controllers.NewTagIO(tiosvc, usrsvc)
 	moctrl := controllers.NewMetric()
 

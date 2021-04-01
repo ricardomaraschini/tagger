@@ -47,7 +47,7 @@ func CreateTagService() (*services.Tag, error) {
 		return nil, err
 	}
 
-	return services.NewTag(nil, nil, tagcli, nil), nil
+	return services.NewTag(nil, tagcli, nil), nil
 }
 
 // Namespace returns the namespace provided through the --namespace/-n command
