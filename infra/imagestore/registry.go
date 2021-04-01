@@ -82,7 +82,7 @@ func (i *Registry) Load(
 // Save pulls an image from our cache registry, stores it in a temporary tar
 // file on disk.  Returns an ImageReference pointing to the local tar file
 // and a function the caller needs to call in order to clean up after our
-// mess (property close tar file and delete it from disk).
+// mess (properly close tar file and delete it from disk).
 func (i *Registry) Save(
 	ctx context.Context, ref types.ImageReference,
 ) (types.ImageReference, func(), error) {
