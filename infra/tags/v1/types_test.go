@@ -36,6 +36,11 @@ func TestPrependHashReference(t *testing.T) {
 		{
 			name: "full current generations slice",
 			current: []HashReference{
+				{Generation: 9},
+				{Generation: 8},
+				{Generation: 7},
+				{Generation: 6},
+				{Generation: 5},
 				{Generation: 4},
 				{Generation: 3},
 				{Generation: 2},
@@ -43,9 +48,14 @@ func TestPrependHashReference(t *testing.T) {
 				{Generation: 0},
 			},
 			reference: HashReference{
-				Generation: 5,
+				Generation: 10,
 			},
 			expected: []HashReference{
+				{Generation: 10},
+				{Generation: 9},
+				{Generation: 8},
+				{Generation: 7},
+				{Generation: 6},
 				{Generation: 5},
 				{Generation: 4},
 				{Generation: 3},
