@@ -25,11 +25,11 @@ steps. Both the pusher and the puller need access to the same Image Registry, ad
 Credentials are one example of the concerns. Other factors may pop up when running, for instance,
 in an air-gapped environment, where the cluster may not reach external Image Registries.
 
-Tagger aims to overcome these caveats. For instance, by providing a direct mapping between a
-Container Image tag (e.g., "latest") and its correspondent Manifest content's hash, users can
-then refer to the Container Image by its tag – and be sure to use that specific version. More
-than that, when allied with an Internal Image Registry, Tagger can also automatically mirror
-Container Images into the cluster.
+Tagger aims to overcome these caveats by providing an image management abstraction layer. For
+instance, by providing a direct mapping between a Container Image tag (e.g., "latest") and its
+correspondent Manifest content's hash, users can then refer to the Container Image by its tag
+– and be sure to use that specific version. More than that, when allied with an Internal Image
+Registry, Tagger can also automatically mirror Container Images into the cluster.
 
 While using Tagger, Deployments can refer to Container Images by an arbitrarily defined name,
 such as "my-app", and Tagger will make sure that they use the right Container Image through its
