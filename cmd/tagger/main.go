@@ -33,12 +33,12 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	sigs := make(chan os.Signal)
-	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
+	ctx, stop := signal.NotifyContext(
+		context.Background(), syscall.SIGTERM, syscall.SIGINT,
+	)
 	go func() {
-		<-sigs
-		cancel()
+		<-ctx.Done()
+		stop()
 	}()
 
 	klog.Info(` _|_  __,   __,  __,  _   ,_    `)
