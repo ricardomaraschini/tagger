@@ -47,6 +47,12 @@ func (q *QuayWebHook) Name() string {
 	return "quay webhook"
 }
 
+// RequiresLeaderElection returns if this controller requires or not a
+// leader lease to run.
+func (q *QuayWebHook) RequiresLeaderElection() bool {
+	return false
+}
+
 // ServeHTTP handles requests coming in from quay.io.
 func (q *QuayWebHook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var payload QuayRequestPayload

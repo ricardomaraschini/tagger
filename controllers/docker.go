@@ -55,6 +55,12 @@ func (d *DockerWebHook) Name() string {
 	return "docker hub webhook"
 }
 
+// RequiresLeaderElection returns if this controller requires or not a
+// leader lease to run.
+func (d *DockerWebHook) RequiresLeaderElection() bool {
+	return false
+}
+
 // ServeHTTP handles requests coming in from docker.io.
 func (d *DockerWebHook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var payload DockerRequestPayload

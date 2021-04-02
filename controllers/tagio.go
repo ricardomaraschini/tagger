@@ -157,6 +157,12 @@ func (t *TagIO) Name() string {
 	return "tag images io handler"
 }
 
+// RequiresLeaderElection returns if this controller requires or not a
+// leader lease to run.
+func (t *TagIO) RequiresLeaderElection() bool {
+	return false
+}
+
 // Start puts the grpc server online. TODO enable ssl on this listener.
 func (t *TagIO) Start(ctx context.Context) error {
 	listener, err := net.Listen("tcp", t.bind)
