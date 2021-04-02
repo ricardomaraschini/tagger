@@ -56,6 +56,12 @@ func (d *Deployment) Name() string {
 	return "deployment"
 }
 
+// RequiresLeaderElection returns if this controller requires or not a
+// leader lease to run.
+func (d *Deployment) RequiresLeaderElection() bool {
+	return true
+}
+
 // enqueueEvent enqueues an event. Receives a string indicating the event
 // source kind (deployment or tag) and uses it when creating a queue key.
 // Keys inside the queue are stored as "kind/namespace/name".

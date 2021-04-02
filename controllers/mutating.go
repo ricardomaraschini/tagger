@@ -56,6 +56,12 @@ func (m *MutatingWebHook) Name() string {
 	return "mutating webhook"
 }
 
+// RequiresLeaderElection returns if this controller requires or not a
+// leader lease to run.
+func (m *MutatingWebHook) RequiresLeaderElection() bool {
+	return false
+}
+
 // responseError writes on the response an AdmissionReview with response status
 // set to an error. If AdmissionReview contains an UID that is inserted into
 // the reply.

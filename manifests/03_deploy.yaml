@@ -31,6 +31,14 @@ spec:
           value: "true"
         - name: CACHE_REGISTRY_ADDRESS
           value: "my-local-registry.io:5000"
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
       volumes:
       - name: certs
         secret:
