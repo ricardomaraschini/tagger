@@ -61,6 +61,12 @@ func (t *Tag) Name() string {
 	return "tag"
 }
 
+// RequiresLeaderElection returns if this controller requires or not a
+// leader lease to run.
+func (t *Tag) RequiresLeaderElection() bool {
+	return true
+}
+
 // enqueueEvent generates a key using "namespace/name" for the event received
 // and then enqueues this index to be processed.
 func (t *Tag) enqueueEvent(o interface{}) {

@@ -28,6 +28,12 @@ func (m *Metric) Name() string {
 	return "metrics http server"
 }
 
+// RequiresLeaderElection returns if this controller requires or not a
+// leader lease to run.
+func (m *Metric) RequiresLeaderElection() bool {
+	return false
+}
+
 // Start puts the metrics http server online.
 func (m *Metric) Start(ctx context.Context) error {
 	server := &http.Server{

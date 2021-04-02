@@ -11,15 +11,24 @@ kind: ClusterRole
 metadata:
   name: tagger
 rules:
-- apiGroups: 
+- apiGroups:
   - ""
-  resources: 
-  - configmaps
+  resources:
   - secrets
   verbs:
   - watch
   - get
   - list
+- apiGroups: 
+  - ""
+  resources: 
+  - configmaps
+  verbs:
+  - watch
+  - get
+  - list
+  - create
+  - update
 - apiGroups: 
   - apps
   resources: 
