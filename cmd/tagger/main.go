@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -21,13 +20,6 @@ import (
 	itaginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 	"github.com/ricardomaraschini/tagger/services"
 )
-
-// Controller interface is implemented by all our controllers. Designs a
-// process or thread that can be started with a context.
-type Controller interface {
-	Start(ctx context.Context) error
-	Name() string
-}
 
 func main() {
 	klog.InitFlags(nil)
@@ -101,19 +93,10 @@ func main() {
 	}
 	klog.Info("caches in sync, moving on.")
 
-	var wg sync.WaitGroup
-	ctrls := []Controller{mtctrl, qyctrl, dkctrl, dpctrl, itctrl, moctrl, tioctr}
-	for _, ctrl := range ctrls {
-		wg.Add(1)
-		go func(c Controller) {
-			defer wg.Done()
-			klog.Infof("starting controller for %q", c.Name())
-			if err := c.Start(ctx); err != nil {
-				klog.Errorf("%q failed: %s", c.Name(), err)
-				return
-			}
-			klog.Infof("%q controller ended.", c.Name())
-		}(ctrl)
+	starter := NewStarter(
+		corcli, mtctrl, qyctrl, dkctrl, dpctrl, itctrl, moctrl, tioctr,
+	)
+	if err := starter.Start(ctx); err != nil {
+		klog.Errorf("unable to start controllers: %s", err)
 	}
-	wg.Wait()
 }
