@@ -101,8 +101,8 @@ func TestTagCreated(t *testing.T) {
 			Name:      "atag",
 		},
 		Spec: imagtagv1.TagSpec{
-			From:  "centos:7",
-			Cache: true,
+			From:   "centos:7",
+			Mirror: true,
 		},
 	}
 
@@ -164,8 +164,8 @@ func TestTagUpdated(t *testing.T) {
 			Name:      "atag",
 		},
 		Spec: imagtagv1.TagSpec{
-			From:  "centos:7",
-			Cache: true,
+			From:   "centos:7",
+			Mirror: true,
 		},
 	}
 
@@ -243,8 +243,8 @@ func TestTagParallel(t *testing.T) {
 				Name:      fmt.Sprintf("tag-%d", i),
 			},
 			Spec: imagtagv1.TagSpec{
-				From:  "centos:7",
-				Cache: true,
+				From:   "centos:7",
+				Mirror: true,
 			},
 		}
 		if _, err := tagcli.ImagesV1().Tags("namespace").Create(
@@ -302,8 +302,8 @@ func TestTagDeleted(t *testing.T) {
 			Name:      "atag",
 		},
 		Spec: imagtagv1.TagSpec{
-			From:  "centos:7",
-			Cache: true,
+			From:   "centos:7",
+			Mirror: true,
 		},
 	}
 

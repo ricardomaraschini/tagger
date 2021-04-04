@@ -20,7 +20,7 @@ import (
 // ImagePusherPuller is here to make tests easier. You may be looking
 // for its concrete implementation in services/tagio.go. The goal of
 // an ImagePusherPuller is to allow us to Push and Pull images to and
-// from our cache registry.
+// from our mirror registry.
 type ImagePusherPuller interface {
 	Push(context.Context, string, string, string) error
 	Pull(context.Context, string, string) (*os.File, func(), error)
@@ -121,7 +121,7 @@ func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
 	}
 	klog.Infof("tag image received, size: %d bytes", written)
 
-	// Push now pushes the local image file into cache registry.
+	// Push now pushes the local image file into mirror registry.
 	if err := t.tagexp.Push(
 		ctx, req.GetNamespace(), req.GetName(), tmpfile.Name(),
 	); err != nil {

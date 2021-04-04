@@ -109,9 +109,9 @@ func (s *SysContext) UnqualifiedRegistries(ctx context.Context) ([]string, error
 	return s.unqualifiedRegistries, nil
 }
 
-// parseCacheRegistryConfig reads configmap local-registry-hosting from kube-public
+// parseMirrorRegistryConfig reads configmap local-registry-hosting from kube-public
 // namespace, parses its content and returns the local registry configuration.
-func (s *SysContext) parseCacheRegistryConfig() (*LocalRegistryHostingV1, error) {
+func (s *SysContext) parseMirrorRegistryConfig() (*LocalRegistryHostingV1, error) {
 	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
 	if err != nil {
 		return nil, fmt.Errorf("error getting registry configmap: %w", err)
@@ -129,39 +129,39 @@ func (s *SysContext) parseCacheRegistryConfig() (*LocalRegistryHostingV1, error)
 	return cfg, nil
 }
 
-// CacheRegistryAddresses returns the configured registry address used
-// for caching images during tags. This is implemented to comply with
+// MirrorRegistryAddresses returns the configured registry address used
+// for mirroring images during tags. This is implemented to comply with
 // KEP at https://github.com/kubernetes/enhancements/ repository, see
 // keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
-// We evaluate if CACHE_REGISTRY_ADDRESS environment variable is set
+// We evaluate if MIRROR_REGISTRY_ADDRESS environment variable is set
 // before moving on to the implementation following the KEP. This returns
 // one address for connections starting from within the cluster and another
 // for connections started from the cluster container runtime.
-func (s *SysContext) CacheRegistryAddresses() (string, string, error) {
-	if addr := os.Getenv("CACHE_REGISTRY_ADDRESS"); len(addr) > 0 {
+func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
+	if addr := os.Getenv("MIRROR_REGISTRY_ADDRESS"); len(addr) > 0 {
 		return addr, addr, nil
 	}
 
-	cfg, err := s.parseCacheRegistryConfig()
+	cfg, err := s.parseMirrorRegistryConfig()
 	if err != nil {
-		return "", "", fmt.Errorf("fail to parse cache registry config: %w", err)
+		return "", "", fmt.Errorf("fail to parse mirror registry config: %w", err)
 	}
 	return cfg.HostFromClusterNetwork, cfg.HostFromContainerRuntime, nil
 }
 
-// CacheRegistryContext returns the context to be used when talking to
-// the the registry used for caching tags.
-func (s *SysContext) CacheRegistryContext(ctx context.Context) *types.SystemContext {
+// MirrorRegistryContext returns the context to be used when talking to
+// the the registry used for mirroring tags.
+func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemContext {
 	insecure := types.OptionalBoolFalse
-	if os.Getenv("CACHE_REGISTRY_INSECURE") != "" {
+	if os.Getenv("MIRROR_REGISTRY_INSECURE") != "" {
 		insecure = types.OptionalBoolTrue
 	}
 	return &types.SystemContext{
 		DockerInsecureSkipTLSVerify: insecure,
 		DockerAuthConfig: &types.DockerAuthConfig{
-			Username:      os.Getenv("CACHE_REGISTRY_USERNAME"),
-			Password:      os.Getenv("CACHE_REGISTRY_PASSWORD"),
-			IdentityToken: os.Getenv("CACHE_REGISTRY_TOKEN"),
+			Username:      os.Getenv("MIRROR_REGISTRY_USERNAME"),
+			Password:      os.Getenv("MIRROR_REGISTRY_PASSWORD"),
+			IdentityToken: os.Getenv("MIRROR_REGISTRY_TOKEN"),
 		},
 	}
 }
@@ -250,10 +250,10 @@ func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry
 		return s.istore, nil
 	}
 
-	sysctx := s.CacheRegistryContext(ctx)
-	regaddr, _, err := s.CacheRegistryAddresses()
+	sysctx := s.MirrorRegistryContext(ctx)
+	regaddr, _, err := s.MirrorRegistryAddresses()
 	if err != nil {
-		return nil, fmt.Errorf("unable to discover cache registry: %w", err)
+		return nil, fmt.Errorf("unable to discover mirror registry: %w", err)
 	}
 
 	defpol, err := s.DefaultPolicyContext()
