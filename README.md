@@ -55,9 +55,12 @@ changes).
 ### TLDR
 
 I have recorded two presentations (hands-on) about some of the features implemented by Tagger.
-You can find them below, please check them out.
+You can find them below, please check them out. Bear in mind that some things showed up in the
+presentation may be different of the current implementation, the single source of truth on how
+things work is this documentation.
 
 https://youtu.be/CBbfZqLDL3o
+
 https://youtu.be/F-C4wAG09Xg
 
 ### Some concepts
@@ -73,9 +76,9 @@ may be considered a "fixed point in time" for a given image tag).
 Every time one "tags" an image Tagger creates a new Generation for that image tag, making it
 easier for the user, later on, to downgrade to previously tagged Generations of the same image.
 
-### Caching (mirroring) images
+### Mirroring images
 
-Tagger allows administrators to Tag and cache images locally within the cluster. You need to
+Tagger allows administrators to Tag and mirror images locally within the cluster. You need to
 have an image registry running inside the cluster (or anywhere else) and ask `Tagger` to do
 the mirror.  By doing so a copy of the remote image is going to be made into the internal
 registry and all Deployments leveraging such image will automatically start to use the mirrored
@@ -101,7 +104,7 @@ metadata:
 spec:
   from: quay.io/company/myapp:latest
   generation: 0
-  cache: false
+  mirror: false
 ```
 
 Once such _custom resource_ is created (with `kubectl create`, for example) Tagger will act
@@ -149,7 +152,7 @@ On a Tag `.spec` property these fields are valid:
 | ---------- | --------------------------------------------------------------------------------- |
 | from       | Indicates the source of the image (from where Tagger should import it)            |
 | generation | Points to the desired generation for the Tag, more on this below                  |
-| cache      | Informs if a Tag should be mirrored to another registry, more on this below       |
+| mirror     | Informs if a Tag should be mirrored to another registry, more on this below       |
 
 #### Tag generation
 
@@ -168,30 +171,29 @@ Tagger provides a `kubectl` plugin that allows importing a new Generation by sim
 triggering a new rollout of the pods, pointing to the new (upgraded) or old (downgraded) image
 hash.
 
-#### Caching images locally
+#### Mirroring images locally
 
-For all purposes caching means mirroring, if set in a tag Tagger will mirror the image content
-into another registry provided by the user. `Deployments` leveraging a cached Tag will be
-automatically updated to point to the cached image. To cache (mirror) a Tag simply set its
-`spec.cache` property to `true`.
+If mirroring is set in a tag Tagger will mirror the image content into another registry provided
+by the user. `Deployments` leveraging a mirrored Tag will be automatically updated to point to the
+mirrored image. To mirror a Tag simply set its `spec.mirror` property to `true`.
 
-To cache images locally one needs to inform Tagger about the mirror registry location. There are
+To mirror images locally one needs to inform Tagger about the mirror registry location. There are
 two ways of doing so, the first one is by following a Kubernetes enhancement proposed laid down
 [here](https://bit.ly/3rxCRqH). This enhancement proposal still does not cover things such as
 authentication thus should not be used in production. Tagger can also be informed of the mirror
 registry location through environment variables, as follow:
 
 
-| Name                    | Description                                                          |
-| ----------------------- | -------------------------------------------------------------------- |
-| CACHE_REGISTRY_ADDRESS  | The internal registry URL                                            |
-| CACHE_REGISTRY_USERNAME | Username Tagger should use when accessing the internal registry      |
-| CACHE_REGISTRY_PASSWORD | The password to be used by Tagger                                    |
-| CACHE_REGISTRY_INSECURE | Allows Tagger to access insecure registry if set to `true`           |
+| Name                     | Description                                                         |
+| ------------------------ | ------------------------------------------------------------------- |
+| MIRROR_REGISTRY_ADDRESS  | The internal registry URL                                           |
+| MIRROR_REGISTRY_USERNAME | Username Tagger should use when accessing the internal registry     |
+| MIRROR_REGISTRY_PASSWORD | The password to be used by Tagger                                   |
+| MIRROR_REGISTRY_INSECURE | Allows Tagger to access insecure registry if set to `true`          |
 
-Cached Tags are stored in a repository with the Namespace's name used for the Tag, for example, a
-Tag living in the `development` namespace will be cached (mirrored) in
-`internal.registry/development/` repository.
+Mirrored Tags are stored in a repository with the Namespace's name used for the Tag, for example,
+a Tag living in the `development` namespace will be mirrored in `internal.registry/development/`
+repository.
 
 #### Importing images from private registries
 
