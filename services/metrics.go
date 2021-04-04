@@ -26,7 +26,7 @@ func init() {
 				Help:    "Duration of a tag import",
 				Buckets: []float64{1, 2, 3, 5, 8, 10, 30, 60, 90, 120, 150, 180},
 			},
-			[]string{"cached"},
+			[]string{"mirrored"},
 		),
 		actwrkr: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "tag_current_active_workers",
@@ -68,12 +68,12 @@ func (m *Metric) ReportImportSuccess() {
 }
 
 // ReportImportDuration registers a new import duration on a prometheus metric.
-func (m *Metric) ReportImportDuration(dur time.Duration, cached bool) {
-	cachedstr := "no"
-	if cached {
-		cachedstr = "yes"
+func (m *Metric) ReportImportDuration(dur time.Duration, mirrored bool) {
+	str := "no"
+	if mirrored {
+		str = "yes"
 	}
-	m.impdura.WithLabelValues(cachedstr).Observe(dur.Seconds())
+	m.impdura.WithLabelValues(str).Observe(dur.Seconds())
 }
 
 // ReportWorker registers work activivy state. If active is true it means a running

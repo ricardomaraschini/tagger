@@ -44,7 +44,7 @@ func NewRegistry(
 
 // Load pushes an image reference into the backend registry using repo/name
 // as its destination. Uses srcctx (of type types.SystemContext) when reading
-// image from srcref, so when copying from one remote registry into our cache
+// image from srcref, so when copying from one remote registry into our mirror
 // registry srcctx must contain all needed authentication information.
 func (i *Registry) Load(
 	ctx context.Context,
@@ -79,10 +79,10 @@ func (i *Registry) Load(
 	return alltransports.ParseImageName(refstr)
 }
 
-// Save pulls an image from our cache registry, stores it in a temporary tar
-// file on disk.  Returns an ImageReference pointing to the local tar file
-// and a function the caller needs to call in order to clean up after our
-// mess (properly close tar file and delete it from disk).
+// Save pulls an image from our mirror registry, stores it in a temporary
+// tar file on disk.  Returns an ImageReference pointing to the local tar
+// file and a function the caller needs to call in order to clean up after
+// our mess (properly close tar file and delete it from disk).
 func (i *Registry) Save(
 	ctx context.Context, ref types.ImageReference,
 ) (types.ImageReference, func(), error) {

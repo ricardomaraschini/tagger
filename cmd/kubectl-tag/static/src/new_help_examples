@@ -1,6 +1,6 @@
   Assuming one wants to create a new Tag called "mytag" in "production"
-  namespace, tracking images from "quay.io/repo/name:latest" and caching
+  namespace, tracking images from "quay.io/repo/name:latest" and mirroring
   it into the cluster:
 
-  $ kubectl tag new --from quay.io/repo/name:latest --cache mytag -n production
+  $ kubectl tag new --from quay.io/repo/name:latest --mirror mytag -n production
 

@@ -60,13 +60,13 @@ func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
 			Name: name,
 		},
 		Spec: imagtagv1.TagSpec{
-			Cache: true,
+			Mirror: true,
 		},
 	}, nil
 }
 
 // Push expects "fpath" to point to a valid docker image stored on disk as a tar
-// file, reads it and then pushes it to our cache registry through an image store
+// file, reads it and then pushes it to our mirror registry through an image store
 // implementation (see infra/imagestore/registry.go).
 func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	istore, err := t.syssvc.GetRegistryStore(ctx)

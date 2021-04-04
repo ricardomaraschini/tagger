@@ -21,9 +21,9 @@ spec:
       jsonPath: .spec.generation
       name: generation
       type: integer
-    - description: Cache enabled
-      jsonPath: .spec.cache
-      name: cache
+    - description: Mirroring
+      jsonPath: .spec.mirror
+      name: mirror
       type: boolean
     - description: Current image source
       jsonPath: .spec.from
@@ -40,7 +40,7 @@ spec:
                 type: string
               generation:
                 type: integer
-              cache:
+              mirror:
                 type: boolean
           status:
             type: object
