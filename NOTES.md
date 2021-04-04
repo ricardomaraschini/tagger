@@ -7,7 +7,7 @@ metadata:
   name: nginx
 spec:
   from: docker.io/rmarasch/simple-web-server:latest
-  cache: true
+  mirror: true
 ```
 
 # Deployment using a tag

@@ -284,8 +284,8 @@ func (t *Tag) splitRegistryDomain(imgPath string) (string, string) {
 // ImportTag runs an import on provided Tag. By Import here we mean to discover
 // what is the current hash for a given image in a given tag. We look for the image
 // in all configured unqualified registries using all authentications we can find
-// for the registry in the Tag namespace. If the tag is set to be cached we push the
-// image to our cache registry.
+// for the registry in the Tag namespace. If the tag is set to be mirrored we push
+// the image to our mirror registry.
 func (t *Tag) ImportTag(
 	ctx context.Context, it *imagtagv1.Tag,
 ) (imagtagv1.HashReference, error) {
@@ -321,7 +321,7 @@ func (t *Tag) ImportTag(
 			continue
 		}
 
-		if it.Spec.Cache {
+		if it.Spec.Mirror {
 			istore, err := t.syssvc.GetRegistryStore(ctx)
 			if err != nil {
 				return zero, fmt.Errorf("unable to get image store: %w", err)
@@ -330,7 +330,7 @@ func (t *Tag) ImportTag(
 			if imghash, err = istore.Load(
 				ctx, imghash, sysctx, it.Namespace, it.Name,
 			); err != nil {
-				return zero, fmt.Errorf("fail to cache image: %w", err)
+				return zero, fmt.Errorf("fail to mirror image: %w", err)
 			}
 		}
 
@@ -403,15 +403,15 @@ func (t *Tag) HashReferenceByTag(
 
 // NewTag creates a new Tag objects.
 func (t *Tag) NewTag(
-	ctx context.Context, namespace, name, from string, cache bool,
+	ctx context.Context, namespace, name, from string, mirror bool,
 ) error {
 	it := &imagtagv1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 		Spec: imagtagv1.TagSpec{
-			From:  from,
-			Cache: cache,
+			From:   from,
+			Mirror: mirror,
 		},
 	}
 	_, err := t.tagcli.ImagesV1().Tags(namespace).Create(

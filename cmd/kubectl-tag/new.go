@@ -13,12 +13,12 @@ import (
 func init() {
 	tagnew.Flags().StringP("namespace", "n", "", "Namespace to use")
 	tagnew.Flags().StringP("from", "f", "", "From where to import the tag")
-	tagnew.Flags().Bool("cache", false, "Cache the image into internal registry (mirror)")
+	tagnew.Flags().Bool("mirror", false, "Mirror the image into internal registry (mirror)")
 	tagnew.MarkFlagRequired("from")
 }
 
 var tagnew = &cobra.Command{
-	Use:     "new --from reg.io/repo/name:tag --cache -n namespace tagname",
+	Use:     "new --from reg.io/repo/name:tag --mirror -n namespace tagname",
 	Short:   "Imports a new generation for a tag",
 	Long:    static.Text["new_help_header"],
 	Example: static.Text["new_help_examples"],
@@ -40,7 +40,7 @@ var tagnew = &cobra.Command{
 			return err
 		}
 
-		cache, err := c.Flags().GetBool("cache")
+		mirror, err := c.Flags().GetBool("mirror")
 		if err != nil {
 			return err
 		}
@@ -50,6 +50,6 @@ var tagnew = &cobra.Command{
 			return err
 		}
 
-		return svc.NewTag(ctx, ns, args[0], from, cache)
+		return svc.NewTag(ctx, ns, args[0], from, mirror)
 	},
 }

@@ -110,7 +110,7 @@ func (t *Tag) RegisterImportSuccess() {
 // remote images.
 type TagSpec struct {
 	From       string `json:"from"`
-	Cache      bool   `json:"cache"`
+	Mirror     bool   `json:"mirror"`
 	Generation int64  `json:"generation"`
 }
 
