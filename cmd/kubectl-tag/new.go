@@ -13,7 +13,7 @@ import (
 func init() {
 	tagnew.Flags().StringP("namespace", "n", "", "Namespace to use")
 	tagnew.Flags().StringP("from", "f", "", "From where to import the tag")
-	tagnew.Flags().Bool("mirror", false, "Mirror the image into internal registry (mirror)")
+	tagnew.Flags().Bool("mirror", false, "Mirror the image into internal registry")
 	tagnew.MarkFlagRequired("from")
 }
 
