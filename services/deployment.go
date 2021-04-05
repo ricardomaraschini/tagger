@@ -55,8 +55,9 @@ func NewDeployment(
 // UpdateDeploymentsForTag updates all deployments using provided tag. Triggers
 // redeployment on Deployments that need (some image reference has changed).
 func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
+	// Current generation is most likely being imported.
 	if it.CurrentReferenceForTag() == "" {
-		return fmt.Errorf("generation for tag not found")
+		return nil
 	}
 
 	deploys, err := d.DeploymentsForTag(ctx, it)
@@ -100,7 +101,7 @@ func (d *Deployment) DeploymentsForTag(
 
 // Sync verifies if the provided deployment leverages tags, if affirmative it
 // creates an annotation into its template pointing to reference pointed by the
-// tag. TODO add other containers here as well.
+// tag.
 func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	if _, ok := dep.Annotations["image-tag"]; !ok {
 		return nil
@@ -116,7 +117,9 @@ func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 		dep.Spec.Template.Annotations["image-tag"] = "true"
 	}
 
-	for _, cont := range dep.Spec.Template.Spec.Containers {
+	containers := dep.Spec.Template.Spec.Containers
+	containers = append(containers, dep.Spec.Template.Spec.InitContainers...)
+	for _, cont := range containers {
 		it, err := d.taglis.Tags(dep.Namespace).Get(cont.Image)
 		if err != nil {
 			if errors.IsNotFound(err) {

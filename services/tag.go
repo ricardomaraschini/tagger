@@ -64,17 +64,24 @@ func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error
 		return nil, nil
 	}
 
-	// TODO We need to check other types of containers within a pod. Here
-	// we are going only for the containers on spec.containers.
-	nconts := []corev1.Container{}
+	regcont := []corev1.Container{}
 	for _, c := range pod.Spec.Containers {
 		if ref, ok := pod.Annotations[c.Image]; ok {
 			c.Image = ref
 		}
-		nconts = append(nconts, c)
+		regcont = append(regcont, c)
+	}
+
+	inicont := []corev1.Container{}
+	for _, c := range pod.Spec.InitContainers {
+		if ref, ok := pod.Annotations[c.Image]; ok {
+			c.Image = ref
+		}
+		inicont = append(inicont, c)
 	}
 	changed := pod.DeepCopy()
-	changed.Spec.Containers = nconts
+	changed.Spec.Containers = regcont
+	changed.Spec.InitContainers = inicont
 
 	origData, err := json.Marshal(pod)
 	if err != nil {
@@ -224,7 +231,7 @@ func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, e
 }
 
 // NewGeneration creates a new generation for a tag. The new generation is set
-// to 'last import generation + 1'. If no generation was imported then the next
+// to 'last imported generation + 1'. If no generation was imported then the next
 // generation is zero.
 func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
 	it, err := t.tagcli.ImagesV1().Tags(ns).Get(
