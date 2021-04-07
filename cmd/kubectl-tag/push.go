@@ -17,6 +17,7 @@ import (
 	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
+	"github.com/ricardomaraschini/tagger/infra/progbar"
 )
 
 var tagpush = &cobra.Command{
@@ -124,19 +125,29 @@ func pushTagImage(idx tagindex, from *os.File, token string) error {
 	// we first send over a communication to indicate we are
 	// willing to send an image. That will bail out if the
 	// provided info is wrong.
-	ireq := &pb.PushRequest{
-		TestOneof: &pb.PushRequest_Request{
-			Request: &pb.Request{
-				Name:      idx.name,
-				Namespace: idx.namespace,
-				Token:     token,
+	header := &pb.Header{
+		Name:      idx.name,
+		Namespace: idx.namespace,
+		Token:     token,
+	}
+
+	if err := stream.Send(
+		&pb.Packet{
+			TestOneof: &pb.Packet_Header{
+				Header: header,
 			},
 		},
-	}
-	if err := stream.Send(ireq); err != nil {
+	); err != nil {
 		return err
 	}
 
-	_, err = pb.SendFileClient(from, stream)
+	pbar := progbar.New("Pushing")
+	defer pbar.Wait()
+
+	if err := pb.Send(from, stream, pbar); err != nil {
+		return err
+	}
+
+	_, err = stream.CloseAndRecv()
 	return err
 }
