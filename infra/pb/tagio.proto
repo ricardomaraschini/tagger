@@ -3,31 +3,22 @@ option go_package = "github.com/ricardomaraschini/tagger/imagetags/pb";
 
 package pb;
 
-message Request {
+message Packet {
+	oneof test_oneof {
+		Header header = 1;
+		Progress progress = 2;
+		Chunk chunk = 4;
+	}
+}
+
+message Header {
 	string namespace = 1;
 	string name = 2;
 	string token = 3;
 }
 
-message PushRequest {
-	oneof test_oneof {
-		Request request = 1;
-		Chunk chunk = 2;
-	}
-}
-
-message PushResult {
-}
-
-message PullResult {
-	oneof test_oneof {
-		Progress progress = 1;
-		Chunk chunk = 2;
-	}
-}
-
 message Progress {
-	uint64 offset = 1;
+	int64 offset = 1;
 	int64 size = 2;
 }
 
@@ -36,6 +27,6 @@ message Chunk {
 }
 
 service TagIOService {
-	rpc Pull(Request) returns (stream PullResult);
-	rpc Push(stream PushRequest) returns (PushResult);
+	rpc Pull(Packet) returns (stream Packet);
+	rpc Push(stream Packet) returns (Packet);
 }
