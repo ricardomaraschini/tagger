@@ -4,17 +4,32 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"github.com/vbauerster/mpb/v6"
-	"github.com/vbauerster/mpb/v6/decor"
 )
+
+// PacketReceiver is anything capable of returning a Packet.
+type PacketReceiver interface {
+	Recv() (*Packet, error)
+}
+
+// PacketSender is something capable of sending a Packet struct.
+type PacketSender interface {
+	Send(*Packet) error
+}
+
+// ProgressTracker is the interface used to track progress during a send (push) or
+// receive (pull) of a file. SetMax is called only once and prior to and SetCurrent
+// call.
+type ProgressTracker interface {
+	SetMax(int64)
+	SetCurrent(int64)
+}
 
 // SendProgressMessage sends a progress message down the protobuf connection.
 // This message contains the total file size and the current offset.
-func SendProgressMessage(offset uint64, size int64, stream TagIOService_PullServer) error {
-	return stream.Send(
-		&PullResult{
-			TestOneof: &PullResult_Progress{
+func SendProgressMessage(offset int64, size int64, sender PacketSender) error {
+	return sender.Send(
+		&Packet{
+			TestOneof: &Packet_Progress{
 				Progress: &Progress{
 					Offset: offset,
 					Size:   size,
@@ -24,46 +39,58 @@ func SendProgressMessage(offset uint64, size int64, stream TagIOService_PullServ
 	)
 }
 
-// ReceiveFileServer reads messages from stream and write its content into provided
-// file descriptor.
-func ReceiveFileServer(to *os.File, stream TagIOService_PushServer) (int, error) {
-	var fsize int
+// Receive receives Packets from provided PacketReceiver and writes their content into
+// a file descriptor. Progress is reported through a ProgressTracker.
+func Receive(from PacketReceiver, to *os.File, tracker ProgressTracker) error {
+	var fsize int64
+	var tracktotal bool
 	for {
-		in, err := stream.Recv()
+		in, err := from.Recv()
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
-			return 0, fmt.Errorf("error receiving chunk: %w", err)
+			return fmt.Errorf("error receiving chunk: %w", err)
+		}
+
+		progress := in.GetProgress()
+		if progress != nil {
+			if !tracktotal {
+				tracker.SetMax(progress.Size)
+				tracktotal = true
+			}
+			tracker.SetCurrent(int64(progress.Offset))
+			continue
 		}
 
 		ck := in.GetChunk()
 		if ck == nil {
-			return 0, fmt.Errorf("nil chunk received")
+			return fmt.Errorf("nil chunk received")
 		}
 
 		written, err := to.Write(ck.Content)
 		if err != nil {
-			return 0, fmt.Errorf("error writing to temp file: %w", err)
+			return fmt.Errorf("error writing to temp file: %w", err)
 		}
-		fsize += written
+		fsize += int64(written)
 	}
-	return fsize, nil
+	tracker.SetCurrent(fsize)
+	return nil
 }
 
-// SendFileServer sends a file from disk through a pull grpc server. File is
-// split into chunks of 1024 bytes. From time to time this function also
-// sends over the wire a progress message, informing the total file size
-// and the current offset.
-func SendFileServer(from *os.File, stream TagIOService_PullServer) error {
+// Send sends a file from disk through a PacketSender. File is split into chunks of 1024 bytes.
+// From time to time this function also sends over the wire a progress message, informing the
+// total file size and the current offset.
+func Send(from *os.File, to PacketSender, tracker ProgressTracker) error {
 	finfo, err := from.Stat()
 	if err != nil {
 		return fmt.Errorf("error getting file info: %s", err)
 	}
 	fsize := finfo.Size()
+	tracker.SetMax(finfo.Size())
 
 	var counter int
-	var totread uint64
+	var totread int64
 	for {
 		content := make([]byte, 1024)
 		read, err := from.Read(content)
@@ -73,18 +100,17 @@ func SendFileServer(from *os.File, stream TagIOService_PullServer) error {
 			}
 			return fmt.Errorf("error reading file: %w", err)
 		}
-		totread += uint64(read)
+		totread += int64(read)
 
 		if counter%50 == 0 {
-			err := SendProgressMessage(totread, fsize, stream)
-			if err != nil {
+			if err := SendProgressMessage(totread, fsize, to); err != nil {
 				return fmt.Errorf("error sending progress: %w", err)
 			}
 		}
 
-		if err := stream.Send(
-			&PullResult{
-				TestOneof: &PullResult_Chunk{
+		if err := to.Send(
+			&Packet{
+				TestOneof: &Packet_Chunk{
 					Chunk: &Chunk{
 						Content: content,
 					},
@@ -93,104 +119,8 @@ func SendFileServer(from *os.File, stream TagIOService_PullServer) error {
 		); err != nil {
 			return fmt.Errorf("error sending chunk: %w", err)
 		}
+		tracker.SetCurrent(totread)
 		counter++
 	}
 	return nil
-}
-
-// ReceiveFileClient reads messages from stream and writes its content into provided
-// file descriptor.
-func ReceiveFileClient(to *os.File, stream TagIOService_PullClient) (int, error) {
-	var bar *mpb.Bar
-	prg := mpb.New(mpb.WithWidth(60))
-	defer prg.Wait()
-
-	var fsize int
-	var tsize int64
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return 0, err
-		}
-
-		if progress := resp.GetProgress(); progress != nil {
-			if bar == nil {
-				tsize = progress.Size
-				bar = prg.Add(
-					progress.Size,
-					mpb.NewBarFiller(" ▮▮▯ "),
-					mpb.PrependDecorators(decor.Name("Pulling")),
-					mpb.AppendDecorators(decor.CountersKiloByte("%d %d")),
-				)
-			}
-			bar.SetCurrent(int64(progress.Offset))
-			continue
-		}
-
-		chunk := resp.GetChunk()
-		written, err := to.Write(chunk.Content)
-		if err != nil {
-			return 0, err
-		}
-		fsize += written
-	}
-
-	if bar != nil {
-		bar.SetCurrent(tsize)
-	}
-
-	if _, err := to.Seek(0, 0); err != nil {
-		return 0, err
-	}
-
-	return fsize, nil
-}
-
-// SendFileClient reads file descriptor and sends over its content through
-// the provided GRPC client.
-func SendFileClient(from *os.File, stream TagIOService_PushClient) (int, error) {
-	prg := mpb.New(mpb.WithWidth(60))
-	defer prg.Wait()
-
-	finfo, err := from.Stat()
-	if err != nil {
-		return 0, err
-	}
-
-	bar := prg.Add(
-		finfo.Size(),
-		mpb.NewBarFiller(" ▮▮▯ "),
-		mpb.PrependDecorators(decor.Name("Pushing")),
-		mpb.AppendDecorators(decor.CountersKiloByte("%d %d")),
-	)
-
-	var written int
-	for {
-		content := make([]byte, 1024)
-		read, err := from.Read(content)
-		if err == io.EOF {
-			if _, err := stream.CloseAndRecv(); err != nil {
-				return 0, err
-			}
-			break
-		} else if err != nil {
-			return 0, err
-		}
-
-		ireq := &PushRequest{
-			TestOneof: &PushRequest_Chunk{
-				Chunk: &Chunk{
-					Content: content,
-				},
-			},
-		}
-		if err := stream.Send(ireq); err != nil {
-			return 0, err
-		}
-		bar.IncrBy(read)
-		written += read
-	}
-	return written, nil
 }

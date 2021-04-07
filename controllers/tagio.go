@@ -15,6 +15,7 @@ import (
 
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
+	"github.com/ricardomaraschini/tagger/infra/progbar"
 )
 
 // ImagePusherPuller is here to make tests easier. You may be looking
@@ -73,21 +74,22 @@ func NewTagIO(tagexp ImagePusherPuller, usrval UserValidator) *TagIO {
 // Pull handles an image pull through grpc. We receive a request informing what
 // is the Tag to be pulled from (namespace and name) and also a kubernetes token
 // for authentication and authorization.
-func (t *TagIO) Pull(in *pb.Request, stream pb.TagIOService_PullServer) error {
+func (t *TagIO) Pull(in *pb.Packet, stream pb.TagIOService_PullServer) error {
+	head := in.GetHeader()
 	ctx := stream.Context()
-	if err := t.authorizeRequest(ctx, in); err != nil {
+	if err := t.authorizeRequest(ctx, head); err != nil {
 		klog.Errorf("error validating pull request: %s", err)
 		return fmt.Errorf("error validating input: %w", err)
 	}
 
-	fp, cleanup, err := t.tagexp.Pull(ctx, in.GetNamespace(), in.GetName())
+	fp, cleanup, err := t.tagexp.Pull(ctx, head.GetNamespace(), head.GetName())
 	if err != nil {
 		klog.Errorf("error pulling tag image: %s", err)
 		return fmt.Errorf("error pulling tag image: %w", err)
 	}
 	defer cleanup()
 
-	return pb.SendFileServer(fp, stream)
+	return pb.Send(fp, stream, progbar.NewNoOp())
 }
 
 // Push handles image pushes through grpc. The first message received indicates
@@ -101,8 +103,8 @@ func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
 		return fmt.Errorf("error receiving import request: %w", err)
 	}
 
-	req := in.GetRequest()
-	if err := t.authorizeRequest(ctx, req); err != nil {
+	head := in.GetHeader()
+	if err := t.authorizeRequest(ctx, head); err != nil {
 		klog.Errorf("error validating export request: %s", err)
 		return fmt.Errorf("error validating input: %w", err)
 	}
@@ -114,41 +116,39 @@ func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
 	}
 	defer cleanup()
 
-	written, err := pb.ReceiveFileServer(tmpfile, stream)
-	if err != nil {
+	if err := pb.Receive(stream, tmpfile, progbar.NewNoOp()); err != nil {
 		klog.Errorf("error receiving image through grpc: %s", err)
 		return fmt.Errorf("error receiving image through grpc: %w", err)
 	}
-	klog.Infof("tag image received, size: %d bytes", written)
 
 	// Push now pushes the local image file into mirror registry.
 	if err := t.tagexp.Push(
-		ctx, req.GetNamespace(), req.GetName(), tmpfile.Name(),
+		ctx, head.GetNamespace(), head.GetName(), tmpfile.Name(),
 	); err != nil {
 		klog.Errorf("error importing tag: %s", err)
 		return fmt.Errorf("error importing tag: %w", err)
 	}
-	return stream.SendAndClose(&pb.PushResult{})
+	return stream.SendAndClose(&pb.Packet{})
 }
 
 // authorizeRequest checks if all mandatory fields in a request are present.
 // It also does the validation if the token is capable of acessing tags in
 // provided namespace.
-func (t *TagIO) authorizeRequest(ctx context.Context, req *pb.Request) error {
-	if req == nil {
+func (t *TagIO) authorizeRequest(ctx context.Context, head *pb.Header) error {
+	if head == nil {
 		return fmt.Errorf("nil protobuf request")
 	}
-	if req.GetName() == "" {
+	if head.GetName() == "" {
 		return fmt.Errorf("empty name field")
 	}
-	if req.GetNamespace() == "" {
+	if head.GetNamespace() == "" {
 		return fmt.Errorf("empty namespace field")
 	}
-	if req.GetToken() == "" {
+	if head.GetToken() == "" {
 		return fmt.Errorf("empty token field")
 	}
 	return t.usrval.CanAccessTags(
-		ctx, req.GetNamespace(), req.GetToken(),
+		ctx, head.GetNamespace(), head.GetToken(),
 	)
 }
 

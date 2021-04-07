@@ -18,6 +18,7 @@ import (
 	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
 	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
+	"github.com/ricardomaraschini/tagger/infra/progbar"
 )
 
 var tagpull = &cobra.Command{
@@ -95,11 +96,21 @@ func pullTagImage(idx tagindex, token string) (types.ImageReference, func(), err
 	defer cancel()
 
 	client := pb.NewTagIOServiceClient(conn)
-	stream, err := client.Pull(ctx, &pb.Request{
+
+	header := &pb.Header{
 		Name:      idx.name,
 		Namespace: idx.namespace,
 		Token:     token,
-	})
+	}
+
+	stream, err := client.Pull(
+		ctx,
+		&pb.Packet{
+			TestOneof: &pb.Packet_Header{
+				Header: header,
+			},
+		},
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error pulling: %w", err)
 	}
@@ -110,7 +121,10 @@ func pullTagImage(idx tagindex, token string) (types.ImageReference, func(), err
 		return nil, nil, fmt.Errorf("error creating temp file: %w", err)
 	}
 
-	if _, err := pb.ReceiveFileClient(fp, stream); err != nil {
+	pbar := progbar.New("Pulling")
+	defer pbar.Wait()
+
+	if err := pb.Receive(stream, fp, pbar); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("error receiving file: %w", err)
 	}
