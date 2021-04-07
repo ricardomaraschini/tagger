@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TagIOServiceClient interface {
-	Pull(ctx context.Context, in *Request, opts ...grpc.CallOption) (TagIOService_PullClient, error)
+	Pull(ctx context.Context, in *Packet, opts ...grpc.CallOption) (TagIOService_PullClient, error)
 	Push(ctx context.Context, opts ...grpc.CallOption) (TagIOService_PushClient, error)
 }
 
@@ -30,7 +30,7 @@ func NewTagIOServiceClient(cc grpc.ClientConnInterface) TagIOServiceClient {
 	return &tagIOServiceClient{cc}
 }
 
-func (c *tagIOServiceClient) Pull(ctx context.Context, in *Request, opts ...grpc.CallOption) (TagIOService_PullClient, error) {
+func (c *tagIOServiceClient) Pull(ctx context.Context, in *Packet, opts ...grpc.CallOption) (TagIOService_PullClient, error) {
 	stream, err := c.cc.NewStream(ctx, &TagIOService_ServiceDesc.Streams[0], "/pb.TagIOService/Pull", opts...)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func (c *tagIOServiceClient) Pull(ctx context.Context, in *Request, opts ...grpc
 }
 
 type TagIOService_PullClient interface {
-	Recv() (*PullResult, error)
+	Recv() (*Packet, error)
 	grpc.ClientStream
 }
 
@@ -54,8 +54,8 @@ type tagIOServicePullClient struct {
 	grpc.ClientStream
 }
 
-func (x *tagIOServicePullClient) Recv() (*PullResult, error) {
-	m := new(PullResult)
+func (x *tagIOServicePullClient) Recv() (*Packet, error) {
+	m := new(Packet)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -72,8 +72,8 @@ func (c *tagIOServiceClient) Push(ctx context.Context, opts ...grpc.CallOption) 
 }
 
 type TagIOService_PushClient interface {
-	Send(*PushRequest) error
-	CloseAndRecv() (*PushResult, error)
+	Send(*Packet) error
+	CloseAndRecv() (*Packet, error)
 	grpc.ClientStream
 }
 
@@ -81,15 +81,15 @@ type tagIOServicePushClient struct {
 	grpc.ClientStream
 }
 
-func (x *tagIOServicePushClient) Send(m *PushRequest) error {
+func (x *tagIOServicePushClient) Send(m *Packet) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *tagIOServicePushClient) CloseAndRecv() (*PushResult, error) {
+func (x *tagIOServicePushClient) CloseAndRecv() (*Packet, error) {
 	if err := x.ClientStream.CloseSend(); err != nil {
 		return nil, err
 	}
-	m := new(PushResult)
+	m := new(Packet)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (x *tagIOServicePushClient) CloseAndRecv() (*PushResult, error) {
 // All implementations must embed UnimplementedTagIOServiceServer
 // for forward compatibility
 type TagIOServiceServer interface {
-	Pull(*Request, TagIOService_PullServer) error
+	Pull(*Packet, TagIOService_PullServer) error
 	Push(TagIOService_PushServer) error
 	mustEmbedUnimplementedTagIOServiceServer()
 }
@@ -109,7 +109,7 @@ type TagIOServiceServer interface {
 type UnimplementedTagIOServiceServer struct {
 }
 
-func (UnimplementedTagIOServiceServer) Pull(*Request, TagIOService_PullServer) error {
+func (UnimplementedTagIOServiceServer) Pull(*Packet, TagIOService_PullServer) error {
 	return status.Errorf(codes.Unimplemented, "method Pull not implemented")
 }
 func (UnimplementedTagIOServiceServer) Push(TagIOService_PushServer) error {
@@ -129,7 +129,7 @@ func RegisterTagIOServiceServer(s grpc.ServiceRegistrar, srv TagIOServiceServer)
 }
 
 func _TagIOService_Pull_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(Request)
+	m := new(Packet)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func _TagIOService_Pull_Handler(srv interface{}, stream grpc.ServerStream) error
 }
 
 type TagIOService_PullServer interface {
-	Send(*PullResult) error
+	Send(*Packet) error
 	grpc.ServerStream
 }
 
@@ -145,7 +145,7 @@ type tagIOServicePullServer struct {
 	grpc.ServerStream
 }
 
-func (x *tagIOServicePullServer) Send(m *PullResult) error {
+func (x *tagIOServicePullServer) Send(m *Packet) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -154,8 +154,8 @@ func _TagIOService_Push_Handler(srv interface{}, stream grpc.ServerStream) error
 }
 
 type TagIOService_PushServer interface {
-	SendAndClose(*PushResult) error
-	Recv() (*PushRequest, error)
+	SendAndClose(*Packet) error
+	Recv() (*Packet, error)
 	grpc.ServerStream
 }
 
@@ -163,12 +163,12 @@ type tagIOServicePushServer struct {
 	grpc.ServerStream
 }
 
-func (x *tagIOServicePushServer) SendAndClose(m *PushResult) error {
+func (x *tagIOServicePushServer) SendAndClose(m *Packet) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *tagIOServicePushServer) Recv() (*PushRequest, error) {
-	m := new(PushRequest)
+func (x *tagIOServicePushServer) Recv() (*Packet, error) {
+	m := new(Packet)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
