@@ -7,7 +7,7 @@ message Packet {
 	oneof test_oneof {
 		Header header = 1;
 		Progress progress = 2;
-		Chunk chunk = 4;
+		Chunk chunk = 3;
 	}
 }
 
