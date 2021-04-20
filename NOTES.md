@@ -156,3 +156,8 @@ RUN apt-get update && apt-get install -y libgpgme-dev libbtrfs-dev libdevmapper-
 RUN go get -u golang.org/x/lint/golint
 ```
 
+# ubuntu kubectl-tag dependencies
+
+```
+$ sudo apt install uidmap 
+```
