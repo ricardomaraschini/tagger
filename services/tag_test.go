@@ -452,6 +452,31 @@ func TestUpgrade(t *testing.T) {
 			},
 		},
 		{
+			name:         "already at the newest generation",
+			tagName:      "atag",
+			tagNamespace: "atagnamespace",
+			expgen:       2,
+			err:          "currently at newest generation",
+			tagObjects: []runtime.Object{
+				&imagtagv1.Tag{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "atag",
+						Namespace: "atagnamespace",
+					},
+					Spec: imagtagv1.TagSpec{
+						Generation: 2,
+					},
+					Status: imagtagv1.TagStatus{
+						References: []imagtagv1.HashReference{
+							{
+								Generation: 2,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name:         "happy path",
 			tagName:      "atag",
 			tagNamespace: "atagnamespace",
@@ -467,6 +492,9 @@ func TestUpgrade(t *testing.T) {
 					},
 					Status: imagtagv1.TagStatus{
 						References: []imagtagv1.HashReference{
+							{
+								Generation: 3,
+							},
 							{
 								Generation: 2,
 							},
