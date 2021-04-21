@@ -198,7 +198,12 @@ func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, err
 		return nil, fmt.Errorf("pending tag import")
 	}
 
+	// we only go as far as setting spec to the newest generation.
 	it.Spec.Generation++
+	if !it.SpecTagImported() {
+		return nil, fmt.Errorf("currently at newest generation")
+	}
+
 	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
@@ -219,7 +224,7 @@ func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, e
 
 	it.Spec.Generation--
 	if !it.SpecTagImported() {
-		return nil, fmt.Errorf("unable to downgrade, currently at oldest generation")
+		return nil, fmt.Errorf("currently at oldest generation")
 	}
 
 	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
