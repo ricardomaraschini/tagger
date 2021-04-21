@@ -164,9 +164,9 @@ someone pushed a new version of the image to the registry), in this case, a bump
 inform Tagger that a new import of the image needs to happen thus creating a new generation on
 Tag's status (generation 1).
 
-Tagger provides a `kubectl` plugin that allows importing a new Generation by simply issuing
-`kubectl tag upgrade <tagname>`. Similar to `upgrade` one can also `downgrade` a Tag by running
-`kubectl tag downgrade <tagname>`, thus making the Tag point to an older generation. All
+Tagger provides a `kubectl` plugin that allows upgrades from one generation into the next newest
+one: `kubectl tag upgrade <tagname>`. Similar to `upgrade` one can also `downgrade` a Tag by
+running `kubectl tag downgrade <tagname>`, thus making the Tag point to an older generation. All
 `Deployments` using the upgraded or downgraded Tag will get automatically updated thus
 triggering a new rollout of the pods, pointing to the new (upgraded) or old (downgraded) image
 hash.

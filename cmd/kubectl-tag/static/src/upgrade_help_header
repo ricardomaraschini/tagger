@@ -5,5 +5,5 @@ Generations (3,4 and 5) and is currently pointing to Generation 3, an
 upgrade will make it point to Generation 4. Deployments leveraging
 this Tag will be automatically updated.
 
-Upon reaching the most recent Generation an upgrade has the same 
-effect of an "import" (see kubectl tag help import).
+Upon reaching the most recent imported Generation an upgrade is not
+possible anymore and an error is returned.
