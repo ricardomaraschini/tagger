@@ -37,7 +37,7 @@ func (p *ProgressBar) SetMax(max int64) {
 	p.pbar = p.prog.Add(
 		max,
 		mpb.NewBarFiller(" ▮▮▯ "),
-		mpb.PrependDecorators(decor.Name("Pushing")),
+		mpb.PrependDecorators(decor.Name(p.desc)),
 		mpb.AppendDecorators(decor.CountersKiloByte("%d %d")),
 	)
 }
