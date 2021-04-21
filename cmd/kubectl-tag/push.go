@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -25,24 +26,24 @@ var tagpush = &cobra.Command{
 	Short:   "Pushes an image into the next generation of a tag",
 	Long:    static.Text["push_help_header"],
 	Example: static.Text["push_help_examples"],
-	RunE: func(c *cobra.Command, args []string) error {
+	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
-			return fmt.Errorf("invalid number of arguments")
+			log.Fatal("invalid number of arguments")
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		if config.BearerToken == "" {
-			return fmt.Errorf("empty token, you need a kubernetes token to push")
+			log.Fatal("empty token, you need a kubernetes token to push")
 		}
 
 		// first understands what tag is the user referring to.
 		tidx, err := indexFor(args[0])
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		// now we save the image from the local storage and into
@@ -50,11 +51,13 @@ var tagpush = &cobra.Command{
 
 		srcref, cleanup, err := saveTagImage(tidx)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 		defer cleanup()
 
-		return pushTagImage(tidx, srcref, config.BearerToken)
+		if err := pushTagImage(tidx, srcref, config.BearerToken); err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 

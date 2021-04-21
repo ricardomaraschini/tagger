@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -11,7 +10,7 @@ import (
 )
 
 func init() {
-	tagupgrade.Flags().StringP("namespace", "n", "", "Namespace to use")
+	tagupgrade.Flags().StringP("namespace", "n", "", "namespace to use")
 }
 
 var tagupgrade = &cobra.Command{
@@ -19,27 +18,26 @@ var tagupgrade = &cobra.Command{
 	Short:   "Moves a tag to a newer generation",
 	Long:    static.Text["upgrade_help_header"],
 	Example: static.Text["upgrade_help_examples"],
-	RunE: func(c *cobra.Command, args []string) error {
+	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
-			return fmt.Errorf("provide an image tag")
+			log.Fatal("provide an image tag")
 		}
 
-		svc, err := CreateTagService()
+		svc, err := createTagService()
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
-		ns, err := Namespace(c)
+		ns, err := namespace(c)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		it, err := svc.Upgrade(context.Background(), ns, args[0])
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		log.Printf("tag %s upgraded (gen %d)", args[0], it.Spec.Generation)
-		return nil
 	},
 }
