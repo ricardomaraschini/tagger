@@ -17,9 +17,19 @@ type tagindex struct {
 
 // localref returns an ImageReference pointing to the local storage.
 func (t tagindex) localref() (types.ImageReference, error) {
+	runtime, err := containerRuntime()
+	if err != nil {
+		return nil, err
+	}
+
+	transport := "containers-storage"
+	if runtime == DockerRuntime {
+		transport = "docker-daemon"
+	}
+
 	str := fmt.Sprintf(
-		"containers-storage:%s/%s/%s:latest",
-		t.server, t.namespace, t.name,
+		"%s:%s/%s/%s:latest",
+		transport, t.server, t.namespace, t.name,
 	)
 	return alltransports.ParseImageName(str)
 }

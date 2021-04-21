@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -26,31 +27,31 @@ var tagpull = &cobra.Command{
 	Short:   "Pulls current Tag image",
 	Long:    static.Text["pull_help_header"],
 	Example: static.Text["pull_help_examples"],
-	RunE: func(c *cobra.Command, args []string) error {
+	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
-			return fmt.Errorf("invalid number of arguments")
+			log.Fatal("invalid number of arguments")
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		if config.BearerToken == "" {
-			return fmt.Errorf("empty token, you need a kubernetes token to pull")
+			log.Fatal("empty token, you need a kubernetes token to pull")
 		}
 
 		// first understands what tag is the user referring to.
 		tidx, err := indexFor(args[0])
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		// now that we know what is the tag we do the grpc call
 		// to retrieve the image and host it locally on disk.
 		srcref, cleanup, err := pullTagImage(tidx, config.BearerToken)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 		defer cleanup()
 
@@ -59,7 +60,7 @@ var tagpull = &cobra.Command{
 		// grab a reference to it.
 		dstref, err := tidx.localref()
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		pol := &signature.Policy{
@@ -69,17 +70,18 @@ var tagpull = &cobra.Command{
 		}
 		polctx, err := signature.NewPolicyContext(pol)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 
 		// copy the image into local storage.
-		_, err = imgcopy.Image(
+		if _, err := imgcopy.Image(
 			ctx, polctx, dstref, srcref, &imgcopy.Options{},
-		)
-		return err
+		); err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 
@@ -137,14 +139,4 @@ func pullTagImage(idx tagindex, token string) (types.ImageReference, func(), err
 	}
 
 	return fromref, cleanup, nil
-}
-
-// localReferenceForTag returns what should be used when copying an image
-// tag into local storage.
-func localReferenceForTag(tidx tagindex) (types.ImageReference, error) {
-	str := fmt.Sprintf(
-		"containers-storage:%s/%s/%s:latest",
-		tidx.server, tidx.namespace, tidx.name,
-	)
-	return alltransports.ParseImageName(str)
 }
