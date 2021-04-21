@@ -2,17 +2,25 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"os/exec"
 
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/unshare"
+	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
 
 	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
 	"github.com/ricardomaraschini/tagger/services"
+)
+
+// List of container runtimes.
+const (
+	UnknownRuntime = iota
+	PodmanRuntime
+	DockerRuntime
 )
 
 func main() {
@@ -28,13 +36,11 @@ func main() {
 	root.AddCommand(tagpull)
 	root.AddCommand(tagpush)
 	root.AddCommand(tagnew)
-	if err := root.Execute(); err != nil {
-		log.Print(err)
-	}
+	root.Execute()
 }
 
-// CreateTagService creates and returns a services.Tag struct.
-func CreateTagService() (*services.Tag, error) {
+// createTagService creates and returns a services.Tag struct.
+func createTagService() (*services.Tag, error) {
 	cfgpath := os.Getenv("KUBECONFIG")
 
 	config, err := clientcmd.BuildConfigFromFlags("", cfgpath)
@@ -50,9 +56,9 @@ func CreateTagService() (*services.Tag, error) {
 	return services.NewTag(nil, tagcli, nil), nil
 }
 
-// Namespace returns the namespace provided through the --namespace/-n command
+// namespace returns the namespace provided through the --namespace/-n command
 // line flag or the default one as extracted from kube configuration.
-func Namespace(c *cobra.Command) (string, error) {
+func namespace(c *cobra.Command) (string, error) {
 	nsflag := c.Flag("namespace")
 	if nsflag != nil && nsflag.Value.String() != "" {
 		return nsflag.Value.String(), nil
@@ -63,4 +69,26 @@ func Namespace(c *cobra.Command) (string, error) {
 		return "", err
 	}
 	return cfg.Contexts[cfg.CurrentContext].Namespace, nil
+}
+
+// containerRuntime returns the container runtime installed in the operating
+// system. We do an attempt to look for a binary called 'podman' or 'docker'
+// in the host PATH environment variable.
+func containerRuntime() (int, error) {
+	var errors *multierror.Error
+
+	_, err := exec.LookPath("podman")
+	if err == nil {
+		return PodmanRuntime, nil
+	}
+	errors = multierror.Append(errors, err)
+
+	_, err = exec.LookPath("docker")
+	if err == nil {
+		return DockerRuntime, nil
+	}
+	errors = multierror.Append(errors, err)
+
+	err = fmt.Errorf("unable to determine container runtime: %w", errors)
+	return UnknownRuntime, err
 }
