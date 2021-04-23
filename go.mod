@@ -8,7 +8,6 @@ require (
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/go-multierror v1.1.0
-	github.com/mattbaird/jsonpatch v0.0.0-20200820163806-098863c1fc24
 	github.com/prometheus/client_golang v1.1.0
 	github.com/spf13/cobra v1.0.0
 	github.com/vbauerster/mpb/v6 v6.0.2
