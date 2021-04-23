@@ -238,9 +238,6 @@ github.com/klauspost/compress/zstd/internal/xxhash
 github.com/klauspost/pgzip
 # github.com/konsorten/go-windows-terminal-sequences v1.0.3
 github.com/konsorten/go-windows-terminal-sequences
-# github.com/mattbaird/jsonpatch v0.0.0-20200820163806-098863c1fc24
-## explicit
-github.com/mattbaird/jsonpatch
 # github.com/mattn/go-runewidth v0.0.10
 github.com/mattn/go-runewidth
 # github.com/mattn/go-shellwords v1.0.10

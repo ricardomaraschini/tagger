@@ -64,16 +64,18 @@ func main() {
 	depsvc := services.NewDeployment(corcli, corinf, taginf)
 	tagsvc := services.NewTag(corinf, tagcli, taginf)
 	tiosvc := services.NewTagIO(corinf, tagcli, taginf)
+	podsvc := services.NewPod(corcli, corinf)
 	usrsvc := services.NewUser(corcli)
 	mtrsvc := services.NewMetrics()
 
 	// create controller layer
 	itctrl := controllers.NewTag(tagsvc, mtrsvc)
-	mtctrl := controllers.NewMutatingWebHook(tagsvc)
+	mtctrl := controllers.NewMutatingWebHook()
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)
 	dpctrl := controllers.NewDeployment(depsvc, tagsvc)
 	tioctr := controllers.NewTagIO(tiosvc, usrsvc)
+	pdctrl := controllers.NewPod(podsvc)
 	moctrl := controllers.NewMetric()
 
 	// starts up all informers and waits for their cache to sync up,
@@ -86,6 +88,7 @@ func main() {
 		ctx.Done(),
 		corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 		corinf.Core().V1().Secrets().Informer().HasSynced,
+		corinf.Core().V1().Pods().Informer().HasSynced,
 		corinf.Apps().V1().Deployments().Informer().HasSynced,
 		taginf.Images().V1().Tags().Informer().HasSynced,
 	) {
@@ -94,7 +97,9 @@ func main() {
 	klog.Info("caches in sync, moving on.")
 
 	starter := NewStarter(
-		corcli, mtctrl, qyctrl, dkctrl, dpctrl, itctrl, moctrl, tioctr,
+		corcli, mtctrl, qyctrl,
+		dkctrl, dpctrl, itctrl,
+		moctrl, tioctr, pdctrl,
 	)
 	if err := starter.Start(ctx); err != nil {
 		klog.Errorf("unable to start controllers: %s", err)
