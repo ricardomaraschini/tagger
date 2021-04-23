@@ -74,8 +74,8 @@ func (p *Pod) handler() cache.ResourceEventHandler {
 	}
 }
 
-// eventProcessor reads our events calling syncDeployment or syncTag for all of
-// them. Events on the queue are expected to be in "kind/namespace/name" format.
+// eventProcessor reads our events calling syncPod for all of them. Events
+// on the queue are expected to be strings in "namespace/name" format.
 func (p *Pod) eventProcessor(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
@@ -91,22 +91,24 @@ func (p *Pod) eventProcessor(wg *sync.WaitGroup) {
 			continue
 		}
 
-		klog.Infof("processing event %v", rawevt)
+		klog.Infof("processing event for pod %v", rawevt)
 		if err := p.syncPod(namespace, name); err != nil {
-			klog.Errorf("error processing %v: %v", rawevt, err)
+			klog.Errorf("error processing event for pod %v: %v", rawevt, err)
 			p.queue.Done(rawevt)
 			p.queue.AddAfter(rawevt, 5*time.Second)
 			continue
 		}
-		klog.Infof("processed event %v", rawevt)
+		klog.Infof("processed event for pof %v", rawevt)
 
 		p.queue.Done(rawevt)
 	}
 }
 
-// syncPod process an event for a pod.
+// syncPod process an event for a pod. We retrieve the pod object using
+// PodSyncer and call PodSyncer.Sync. If the pod does not exist we ignore
+// the event.
 func (p *Pod) syncPod(namespace, name string) error {
-	ctx, cancel := context.WithTimeout(p.appctx, time.Minute)
+	ctx, cancel := context.WithTimeout(p.appctx, 5*time.Second)
 	defer cancel()
 
 	pod, err := p.podsvc.Get(ctx, namespace, name)

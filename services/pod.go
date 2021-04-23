@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// Pod gather all actions related to deployment objects.
+// Pod gather all actions related to pod objects.
 type Pod struct {
 	corcli corecli.Interface
 	corinf informers.SharedInformerFactory
@@ -37,7 +37,8 @@ func NewPod(
 
 // Sync verifies if the provided pod uses a tag, if it does use a tag
 // we update its image reference to point to the current version of
-// the tag.
+// the tag. By syncing a pod we mean: copy tag references present in
+// pod annotations and put them in the image property of the container.
 func (p *Pod) Sync(ctx context.Context, pod *corev1.Pod) error {
 	if _, ok := pod.Annotations["image-tag"]; !ok {
 		return nil
@@ -81,7 +82,7 @@ func (p *Pod) Get(ctx context.Context, ns, name string) (*corev1.Pod, error) {
 	return pod.DeepCopy(), nil
 }
 
-// AddEventHandler adds a handler to Pod related events.
+// AddEventHandler adds provided handler to Pod related events.
 func (p *Pod) AddEventHandler(handler cache.ResourceEventHandler) {
 	p.corinf.Core().V1().Pods().Informer().AddEventHandler(handler)
 }
