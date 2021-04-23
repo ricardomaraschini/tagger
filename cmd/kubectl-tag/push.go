@@ -78,7 +78,7 @@ func saveTagImage(tidx tagindex) (*os.File, func(), error) {
 		return nil, nil, err
 	}
 
-	srcref, err := tidx.localref()
+	srcref, err := tidx.localStorageRef()
 	if err != nil {
 		cleanup()
 		return nil, nil, err
