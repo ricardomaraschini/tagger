@@ -47,7 +47,9 @@ var tagpull = &cobra.Command{
 		}
 
 		// now that we know what is the tag we do the grpc call
-		// to retrieve the image and host it locally on disk.
+		// to retrieve the image. The output here is a local tar
+		// file from where we can load the image into runtime's
+		// local storage.
 		srcref, cleanup, err := pullTagImage(
 			c.Context(), tidx, config.BearerToken,
 		)
@@ -56,9 +58,6 @@ var tagpull = &cobra.Command{
 		}
 		defer cleanup()
 
-		// now we need to understand to where we are copying this
-		// image. we are copying to the local storage so just
-		// grab a reference to it.
 		dstref, err := tidx.localStorageRef()
 		if err != nil {
 			log.Fatal(err)
@@ -74,7 +73,7 @@ var tagpull = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		// copy the image into local storage.
+		// copy the image into runtime's local storage.
 		if _, err := imgcopy.Image(
 			c.Context(), polctx, dstref, srcref, &imgcopy.Options{},
 		); err != nil {
@@ -84,7 +83,9 @@ var tagpull = &cobra.Command{
 }
 
 // pullTagImage pulls the current generation for a tag identified by tagindex.
-// Returns a function to be called at the end to clean up resources.
+// Returns a reference to the locally stored image (on disk) and a function to
+// be called at the end to clean up our mess. If this function returns an error
+// then callers don't need to call the clean-up function.
 func pullTagImage(
 	ctx context.Context, idx tagindex, token string,
 ) (types.ImageReference, func(), error) {
@@ -94,14 +95,13 @@ func pullTagImage(
 		return nil, nil, fmt.Errorf("error connecting: %w", err)
 	}
 
-	client := pb.NewTagIOServiceClient(conn)
-
 	header := &pb.Header{
 		Name:      idx.name,
 		Namespace: idx.namespace,
 		Token:     token,
 	}
 
+	client := pb.NewTagIOServiceClient(conn)
 	stream, err := client.Pull(
 		ctx,
 		&pb.Packet{
