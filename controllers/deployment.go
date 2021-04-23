@@ -26,7 +26,9 @@ type DeploymentSyncer interface {
 	AddEventHandler(cache.ResourceEventHandler)
 }
 
-// Deployment controller handles events related to deployment creations.
+// Deployment controller handles events related to deployment. Here we
+// also observe events related to tags as we need to update deployments
+// whenever a tag is updated.
 type Deployment struct {
 	depsvc DeploymentSyncer
 	tagsvc TagSyncer
