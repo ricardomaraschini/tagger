@@ -7,97 +7,16 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	coreinf "k8s.io/client-go/informers"
 	corfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/mattbaird/jsonpatch"
-
 	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
 	taginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
 )
-
-func TestPatchForPod(t *testing.T) {
-	for _, tt := range []struct {
-		name     string
-		pod      corev1.Pod
-		expected []jsonpatch.JsonPatchOperation
-		err      string
-	}{
-		{
-			name: "pod without annotation",
-			pod:  corev1.Pod{},
-		},
-		{
-			name: "happy path",
-			expected: []jsonpatch.JsonPatchOperation{
-				{
-					Operation: "replace",
-					Path:      "/spec/containers/0/image",
-					Value:     "image ref",
-				},
-			},
-			pod: corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "my-pod",
-					Annotations: map[string]string{
-						"image-tag": "true",
-						"imagetag":  "image ref",
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Image: "imagetag",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "pod without image tag annotation yet",
-			pod: corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "my-pod",
-					Annotations: map[string]string{
-						"image-tag": "true",
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Image: "imagetag",
-						},
-					},
-				},
-			},
-		},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := &Tag{}
-			patch, err := svc.PatchForPod(tt.pod)
-			if err != nil {
-				if len(tt.err) == 0 {
-					t.Errorf("unexpected error: %s", err)
-				} else if !strings.Contains(err.Error(), tt.err) {
-					t.Errorf("expecting %q, %q received instead", tt.err, err)
-				}
-			} else if len(tt.err) > 0 {
-				t.Errorf("expecting error %q, nil received instead", tt.err)
-			}
-
-			if !reflect.DeepEqual(tt.expected, patch) {
-				t.Errorf("patch mismatch: %v, %v", tt.expected, patch)
-			}
-		})
-	}
-}
 
 func TestSync(t *testing.T) {
 	for _, tt := range []struct {

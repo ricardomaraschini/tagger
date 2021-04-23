@@ -2,12 +2,10 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
@@ -18,7 +16,6 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
-	"github.com/mattbaird/jsonpatch"
 
 	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
 	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
@@ -54,55 +51,6 @@ func NewTag(
 		taglis: taglis,
 		syssvc: NewSysContext(corinf),
 	}
-}
-
-// PatchForPod creates and returns a json patch to be applied on top of a pod
-// in order to make it point to an already imported image tag. May returns nil
-// if no patch is needed (i.e. pod does not use image tag).
-func (t *Tag) PatchForPod(pod corev1.Pod) ([]jsonpatch.JsonPatchOperation, error) {
-	if _, ok := pod.Annotations["image-tag"]; !ok {
-		return nil, nil
-	}
-
-	regcont := []corev1.Container{}
-	for _, c := range pod.Spec.Containers {
-		if ref, ok := pod.Annotations[c.Image]; ok {
-			c.Image = ref
-		}
-		regcont = append(regcont, c)
-	}
-
-	inicont := []corev1.Container{}
-	for _, c := range pod.Spec.InitContainers {
-		if ref, ok := pod.Annotations[c.Image]; ok {
-			c.Image = ref
-		}
-		inicont = append(inicont, c)
-	}
-	changed := pod.DeepCopy()
-	changed.Spec.Containers = regcont
-	changed.Spec.InitContainers = inicont
-
-	origData, err := json.Marshal(pod)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling original pod: %w", err)
-	}
-	changedData, err := json.Marshal(changed)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling updated pod: %w", err)
-	}
-
-	patch, err := jsonpatch.CreatePatch(origData, changedData)
-	if err != nil {
-		return nil, fmt.Errorf("fail creating patch for pod: %w", err)
-	}
-
-	// make sure we always return the zero value for a slice and not
-	// an empty one.
-	if len(patch) == 0 {
-		return nil, nil
-	}
-	return patch, nil
 }
 
 // Sync manages image tag updates, assuring we have the tag imported.
