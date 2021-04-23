@@ -58,7 +58,7 @@ var tagpull = &cobra.Command{
 		// now we need to understand to where we are copying this
 		// image. we are copying to the local storage so just
 		// grab a reference to it.
-		dstref, err := tidx.localref()
+		dstref, err := tidx.localStorageRef()
 		if err != nil {
 			log.Fatal(err)
 		}

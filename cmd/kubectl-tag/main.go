@@ -3,24 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/unshare"
-	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
 
 	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
 	"github.com/ricardomaraschini/tagger/services"
-)
-
-// List of container runtimes.
-const (
-	UnknownRuntime = iota
-	PodmanRuntime
-	DockerRuntime
 )
 
 func main() {
@@ -69,26 +60,4 @@ func namespace(c *cobra.Command) (string, error) {
 		return "", err
 	}
 	return cfg.Contexts[cfg.CurrentContext].Namespace, nil
-}
-
-// containerRuntime returns the container runtime installed in the operating
-// system. We do an attempt to look for a binary called 'podman' or 'docker'
-// in the host PATH environment variable.
-func containerRuntime() (int, error) {
-	var errors *multierror.Error
-
-	_, err := exec.LookPath("podman")
-	if err == nil {
-		return PodmanRuntime, nil
-	}
-	errors = multierror.Append(errors, err)
-
-	_, err = exec.LookPath("docker")
-	if err == nil {
-		return DockerRuntime, nil
-	}
-	errors = multierror.Append(errors, err)
-
-	err = fmt.Errorf("unable to determine container runtime: %w", errors)
-	return UnknownRuntime, err
 }
