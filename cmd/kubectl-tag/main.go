@@ -21,12 +21,9 @@ func main() {
 	unshare.MaybeReexecUsingUserNamespace(true)
 
 	root := &cobra.Command{Use: "kubectl-tag"}
-	root.AddCommand(tagupgrade)
-	root.AddCommand(tagdowngrade)
-	root.AddCommand(tagimport)
-	root.AddCommand(tagpull)
-	root.AddCommand(tagpush)
-	root.AddCommand(tagnew)
+	root.AddCommand(
+		tagupgrade, tagdowngrade, tagimport, tagpull, tagpush, tagnew,
+	)
 	root.Execute()
 }
 
