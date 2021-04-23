@@ -19,6 +19,7 @@ import (
 )
 
 // MutatingWebHook handles Mutation requests from kubernetes api.
+// I.E. validate Tag objects.
 type MutatingWebHook struct {
 	key     string
 	cert    string
@@ -26,8 +27,10 @@ type MutatingWebHook struct {
 	decoder runtime.Decoder
 }
 
-// NewMutatingWebHook returns a web hook handler for kubernetes api mutation
-// requests.
+// NewMutatingWebHook returns a web hook handler for kubernetes api
+// mutation requests. This webhook validate tag objects when user saves
+// them. XXX I have repurposed this to only validate tags, I think this
+// could be an Admission WebHook instead.
 func NewMutatingWebHook() *MutatingWebHook {
 	runtimeScheme := runtime.NewScheme()
 	codecs := serializer.NewCodecFactory(runtimeScheme)
@@ -83,7 +86,7 @@ func (m *MutatingWebHook) responseError(
 }
 
 // responseAuthorized informs kubernetes the object creation is authorized
-// without modifications (patch to be applied).
+// without modifications.
 func (m *MutatingWebHook) responseAuthorized(w http.ResponseWriter, req *admnv1.AdmissionReview) {
 	var ruid types.UID
 	if req.Request != nil {
