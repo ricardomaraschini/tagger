@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -33,7 +32,7 @@ var tagupgrade = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		it, err := svc.Upgrade(context.Background(), ns, args[0])
+		it, err := svc.Upgrade(c.Context(), ns, args[0])
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -33,7 +32,7 @@ var tagimport = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		it, err := svc.NewGeneration(context.Background(), ns, args[0])
+		it, err := svc.NewGeneration(c.Context(), ns, args[0])
 		if err != nil {
 			log.Fatal(err)
 		}

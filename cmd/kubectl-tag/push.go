@@ -48,8 +48,7 @@ var tagpush = &cobra.Command{
 
 		// now we save the image from the local storage and into
 		// a tar file.
-
-		srcref, cleanup, err := saveTagImage(tidx)
+		srcref, cleanup, err := saveTagImage(c.Context(), tidx)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -64,7 +63,7 @@ var tagpush = &cobra.Command{
 // saveTagImage saves an image present in the local storage into a local
 // tar file. This function returns a "cleanup" func that must be called
 // to release used resources.
-func saveTagImage(tidx tagindex) (*os.File, func(), error) {
+func saveTagImage(ctx context.Context, tidx tagindex) (*os.File, func(), error) {
 	fsh := fs.New("")
 	fp, cleanup, err := fsh.TempFile()
 	if err != nil {
@@ -95,16 +94,12 @@ func saveTagImage(tidx tagindex) (*os.File, func(), error) {
 		return nil, nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
 	if _, err := imgcopy.Image(
 		ctx, pctx, dstref, srcref, &imgcopy.Options{},
 	); err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-
 	return fp, cleanup, err
 }
 

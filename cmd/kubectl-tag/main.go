@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -20,11 +23,16 @@ func main() {
 	}
 	unshare.MaybeReexecUsingUserNamespace(true)
 
+	ctx, cancel := signal.NotifyContext(
+		context.Background(), syscall.SIGTERM, syscall.SIGINT,
+	)
+	defer cancel()
+
 	root := &cobra.Command{Use: "kubectl-tag"}
 	root.AddCommand(
 		tagupgrade, tagdowngrade, tagimport, tagpull, tagpush, tagnew,
 	)
-	root.Execute()
+	root.ExecuteContext(ctx)
 }
 
 // createTagService creates and returns a services.Tag struct.
