@@ -2,10 +2,19 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	"github.com/hashicorp/go-multierror"
+)
+
+// List of container runtimes.
+const (
+	UnknownRuntime = iota
+	PodmanRuntime
+	DockerRuntime
 )
 
 // tagindex provides identification for a single tag.
@@ -15,9 +24,33 @@ type tagindex struct {
 	name      string
 }
 
-// localref returns an ImageReference pointing to the local storage.
-func (t tagindex) localref() (types.ImageReference, error) {
-	runtime, err := containerRuntime()
+// containerRuntime returns the container runtime installed in the operating
+// system. We do an attempt to look for a binary called 'podman' or 'docker'
+// in the host PATH environment variable.
+func (t tagindex) containerRuntime() (int, error) {
+	var errors *multierror.Error
+
+	_, err := exec.LookPath("podman")
+	if err == nil {
+		return PodmanRuntime, nil
+	}
+	errors = multierror.Append(errors, err)
+
+	_, err = exec.LookPath("docker")
+	if err == nil {
+		return DockerRuntime, nil
+	}
+	errors = multierror.Append(errors, err)
+
+	err = fmt.Errorf("unable to determine container runtime: %w", errors)
+	return UnknownRuntime, err
+}
+
+// localStorageRef returns an ImageReference pointing to the local storage.
+// The returned reference points or to podman or docker storage, according
+// to what is installed in the system.
+func (t tagindex) localStorageRef() (types.ImageReference, error) {
+	runtime, err := t.containerRuntime()
 	if err != nil {
 		return nil, err
 	}
