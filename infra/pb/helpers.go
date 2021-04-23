@@ -3,7 +3,6 @@ package pb
 import (
 	"fmt"
 	"io"
-	"os"
 )
 
 // PacketReceiver is anything capable of returning a Packet.
@@ -80,17 +79,12 @@ func Receive(from PacketReceiver, to io.Writer, tracker ProgressTracker) error {
 	return nil
 }
 
-// Send sends a file from disk through a PacketSender. File is split into chunks of 1024 bytes.
-// From time to time this function also sends over the wire a progress message, informing the
-// total file size and the current offset.
-func Send(from *os.File, to PacketSender, tracker ProgressTracker) error {
-	finfo, err := from.Stat()
-	if err != nil {
-		return fmt.Errorf("error getting file info: %s", err)
-	}
-	fsize := finfo.Size()
-	tracker.SetMax(finfo.Size())
-
+// Send sends contents of provided Reader through a PacketSender. Content is split
+// into chunks of 1024 bytes. From time to time this function also sends over the
+// wire a progress message, informing the total file size and the current offset.
+func Send(
+	from io.Reader, totalSize int64, to PacketSender, tracker ProgressTracker,
+) error {
 	var counter int
 	var totread int64
 	for {
@@ -105,7 +99,7 @@ func Send(from *os.File, to PacketSender, tracker ProgressTracker) error {
 		totread += int64(read)
 
 		if counter%50 == 0 {
-			if err := SendProgressMessage(totread, fsize, to); err != nil {
+			if err := SendProgressMessage(totread, totalSize, to); err != nil {
 				return fmt.Errorf("error sending progress: %w", err)
 			}
 		}

@@ -87,9 +87,17 @@ func (t *TagIO) Pull(in *pb.Packet, stream pb.TagIOService_PullServer) error {
 		klog.Errorf("error pulling tag image: %s", err)
 		return fmt.Errorf("error pulling tag image: %w", err)
 	}
-	defer cleanup()
 
-	return pb.Send(fp, stream, progbar.NewNoOp())
+	finfo, err := fp.Stat()
+	if err != nil {
+		cleanup()
+		klog.Errorf("error calculating total image size: %s", err)
+		return fmt.Errorf("error calculating total image size: %s", err)
+	}
+	defer cleanup()
+	fsize := finfo.Size()
+
+	return pb.Send(fp, fsize, stream, progbar.NewNoOp())
 }
 
 // Push handles image pushes through grpc. The first message received indicates

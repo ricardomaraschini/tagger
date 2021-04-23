@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -54,7 +53,9 @@ var tagpush = &cobra.Command{
 		}
 		defer cleanup()
 
-		if err := pushTagImage(tidx, srcref, config.BearerToken); err != nil {
+		if err := pushTagImage(
+			c.Context(), tidx, srcref, config.BearerToken,
+		); err != nil {
 			log.Fatal(err)
 		}
 	},
@@ -104,15 +105,14 @@ func saveTagImage(ctx context.Context, tidx tagindex) (*os.File, func(), error) 
 }
 
 // pushTagImages sends an image through GRPC to a tagger instance.
-func pushTagImage(idx tagindex, from *os.File, token string) error {
+func pushTagImage(
+	ctx context.Context, idx tagindex, from *os.File, token string,
+) error {
 	// XXX implement ssl please
 	conn, err := grpc.Dial(idx.server, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 
 	client := pb.NewTagIOServiceClient(conn)
 	stream, err := client.Push(ctx)
@@ -139,10 +139,17 @@ func pushTagImage(idx tagindex, from *os.File, token string) error {
 		return err
 	}
 
+	finfo, err := from.Stat()
+	if err != nil {
+		return err
+	}
+	fsize := finfo.Size()
+
 	pbar := progbar.New("Pushing")
+	pbar.SetMax(fsize)
 	defer pbar.Wait()
 
-	if err := pb.Send(from, stream, pbar); err != nil {
+	if err := pb.Send(from, fsize, stream, pbar); err != nil {
 		return err
 	}
 
