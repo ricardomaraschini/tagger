@@ -1,9 +1,7 @@
 package main
 
 import (
-	"context"
 	"log"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -27,9 +25,6 @@ var tagnew = &cobra.Command{
 			log.Fatal("provide an image tag name")
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
 		svc, err := createTagService()
 		if err != nil {
 			log.Fatal(err)
@@ -51,7 +46,9 @@ var tagnew = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		if err := svc.NewTag(ctx, ns, args[0], from, mirror); err != nil {
+		if err := svc.NewTag(
+			c.Context(), ns, args[0], from, mirror,
+		); err != nil {
 			log.Fatal(err)
 		}
 	},

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -49,7 +48,9 @@ var tagpull = &cobra.Command{
 
 		// now that we know what is the tag we do the grpc call
 		// to retrieve the image and host it locally on disk.
-		srcref, cleanup, err := pullTagImage(tidx, config.BearerToken)
+		srcref, cleanup, err := pullTagImage(
+			c.Context(), tidx, config.BearerToken,
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -73,12 +74,9 @@ var tagpull = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-
 		// copy the image into local storage.
 		if _, err := imgcopy.Image(
-			ctx, polctx, dstref, srcref, &imgcopy.Options{},
+			c.Context(), polctx, dstref, srcref, &imgcopy.Options{},
 		); err != nil {
 			log.Fatal(err)
 		}
@@ -87,15 +85,14 @@ var tagpull = &cobra.Command{
 
 // pullTagImage pulls the current generation for a tag identified by tagindex.
 // Returns a function to be called at the end to clean up resources.
-func pullTagImage(idx tagindex, token string) (types.ImageReference, func(), error) {
+func pullTagImage(
+	ctx context.Context, idx tagindex, token string,
+) (types.ImageReference, func(), error) {
 	// XXX ssl goes here, please.
 	conn, err := grpc.Dial(idx.server, grpc.WithInsecure())
 	if err != nil {
 		return nil, nil, fmt.Errorf("error connecting: %w", err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 
 	client := pb.NewTagIOServiceClient(conn)
 
