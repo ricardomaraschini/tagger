@@ -40,8 +40,8 @@ func SendProgressMessage(offset int64, size int64, sender PacketSender) error {
 }
 
 // Receive receives Packets from provided PacketReceiver and writes their content into
-// a file descriptor. Progress is reported through a ProgressTracker.
-func Receive(from PacketReceiver, to *os.File, tracker ProgressTracker) error {
+// a provided Writer. Progress is reported through a ProgressTracker.
+func Receive(from PacketReceiver, to io.Writer, tracker ProgressTracker) error {
 	var fsize int64
 	var tracktotal bool
 	for {
@@ -53,6 +53,8 @@ func Receive(from PacketReceiver, to *os.File, tracker ProgressTracker) error {
 			return fmt.Errorf("error receiving chunk: %w", err)
 		}
 
+		// check if the received message is a progress indication, notify
+		// the provided ProgressTracker and moves on to the next message.
 		progress := in.GetProgress()
 		if progress != nil {
 			if !tracktotal {

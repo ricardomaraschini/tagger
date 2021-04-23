@@ -17,7 +17,9 @@ const (
 	DockerRuntime
 )
 
-// tagindex provides identification for a single tag.
+// tagindex provides identification for a single tag. Here 'server' is the
+// tagger url (i.e. the cluster), namespace and name uniquely identify a
+// tag on the cluster.
 type tagindex struct {
 	server    string
 	namespace string
@@ -72,6 +74,7 @@ func (t tagindex) localStorageRef() (types.ImageReference, error) {
 func indexFor(ipath string) (tagindex, error) {
 	var zero tagindex
 
+	// we expect the path to be at least "server:port/namespace/name".
 	slices := strings.SplitN(ipath, "/", 3)
 	if len(slices) < 3 {
 		return zero, fmt.Errorf("unexpected image path layout")
@@ -83,8 +86,8 @@ func indexFor(ipath string) (tagindex, error) {
 		name:      slices[2],
 	}
 
-	// this is a different way of adressing images, but by appending
-	// an "@sha256:" after the image name. we also ignore it.
+	// user has requested a tag by its hash, we don't care about the
+	// hash part, we only care about the namespace and the name.
 	slices = strings.SplitN(tidx.name, "@", 2)
 	if len(slices) == 2 {
 		tidx.name = slices[0]
