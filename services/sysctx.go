@@ -166,7 +166,7 @@ func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemCon
 	}
 }
 
-// SystemContextsFor builds a series of types.SystemContexts, one of them
+// SystemContextsFor builds a series of types.SystemContexts, all of them
 // using one of the auth credentials present in the namespace. The last
 // entry is always a nil SystemContext, this last entry means "no auth".
 func (s *SysContext) SystemContextsFor(
