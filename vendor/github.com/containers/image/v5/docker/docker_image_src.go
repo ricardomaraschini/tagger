@@ -53,7 +53,7 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref dockerRef
 	// contain the image, it will be used for all future pull actions.  Always try the
 	// non-mirror original location last; this both transparently handles the case
 	// of no mirrors configured, and ensures we return the error encountered when
-	// acessing the upstream location if all endpoints fail.
+	// accessing the upstream location if all endpoints fail.
 	pullSources, err := registry.PullSourcesFromReference(ref.ref)
 	if err != nil {
 		return nil, err
@@ -64,6 +64,11 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref dockerRef
 	}
 	attempts := []attempt{}
 	for _, pullSource := range pullSources {
+		if sys != nil && sys.DockerLogMirrorChoice {
+			logrus.Infof("Trying to access %q", pullSource.Reference)
+		} else {
+			logrus.Debugf("Trying to access %q", pullSource.Reference)
+		}
 		logrus.Debugf("Trying to access %q", pullSource.Reference)
 		s, err := newImageSourceAttempt(ctx, sys, ref, pullSource)
 		if err == nil {
@@ -238,11 +243,15 @@ func (s *dockerImageSource) getExternalBlob(ctx context.Context, urls []string) 
 		return nil, 0, errors.New("internal error: getExternalBlob called with no URLs")
 	}
 	for _, url := range urls {
+		// NOTE: we must not authenticate on additional URLs as those
+		//       can be abused to leak credentials or tokens.  Please
+		//       refer to CVE-2020-15157 for more information.
 		resp, err = s.c.makeRequestToResolvedURL(ctx, "GET", url, nil, nil, -1, noAuth, nil)
 		if err == nil {
 			if resp.StatusCode != http.StatusOK {
 				err = errors.Errorf("error fetching external blob from %q: %d (%s)", url, resp.StatusCode, http.StatusText(resp.StatusCode))
 				logrus.Debug(err)
+				resp.Body.Close()
 				continue
 			}
 			break
@@ -282,6 +291,7 @@ func (s *dockerImageSource) GetBlob(ctx context.Context, info types.BlobInfo, ca
 		return nil, 0, err
 	}
 	if err := httpResponseToError(res, "Error fetching blob"); err != nil {
+		res.Body.Close()
 		return nil, 0, err
 	}
 	cache.RecordKnownLocation(s.physicalRef.Transport(), bicTransportScope(s.physicalRef), info.Digest, newBICLocationReference(s.physicalRef))
@@ -297,12 +307,12 @@ func (s *dockerImageSource) GetSignatures(ctx context.Context, instanceDigest *d
 		return nil, err
 	}
 	switch {
-	case s.c.signatureBase != nil:
-		return s.getSignaturesFromLookaside(ctx, instanceDigest)
 	case s.c.supportsSignatures:
 		return s.getSignaturesFromAPIExtension(ctx, instanceDigest)
+	case s.c.signatureBase != nil:
+		return s.getSignaturesFromLookaside(ctx, instanceDigest)
 	default:
-		return [][]byte{}, nil
+		return nil, errors.Errorf("Internal error: X-Registry-Supports-Signatures extension not supported, and lookaside should not be empty configuration")
 	}
 }
 
@@ -336,9 +346,6 @@ func (s *dockerImageSource) getSignaturesFromLookaside(ctx context.Context, inst
 	signatures := [][]byte{}
 	for i := 0; ; i++ {
 		url := signatureStorageURL(s.c.signatureBase, manifestDigest, i)
-		if url == nil {
-			return nil, errors.Errorf("Internal error: signatureStorageURL with non-nil base returned nil")
-		}
 		signature, missing, err := s.getOneSignature(ctx, url)
 		if err != nil {
 			return nil, err
@@ -474,24 +481,19 @@ func deleteImage(ctx context.Context, sys *types.SystemContext, ref dockerRefere
 		return errors.Errorf("Failed to delete %v: %s (%v)", deletePath, string(body), delete.Status)
 	}
 
-	if c.signatureBase != nil {
-		manifestDigest, err := manifest.Digest(manifestBody)
+	manifestDigest, err := manifest.Digest(manifestBody)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; ; i++ {
+		url := signatureStorageURL(c.signatureBase, manifestDigest, i)
+		missing, err := c.deleteOneSignature(url)
 		if err != nil {
 			return err
 		}
-
-		for i := 0; ; i++ {
-			url := signatureStorageURL(c.signatureBase, manifestDigest, i)
-			if url == nil {
-				return errors.Errorf("Internal error: signatureStorageURL with non-nil base returned nil")
-			}
-			missing, err := c.deleteOneSignature(url)
-			if err != nil {
-				return err
-			}
-			if missing {
-				break
-			}
+		if missing {
+			break
 		}
 	}
 

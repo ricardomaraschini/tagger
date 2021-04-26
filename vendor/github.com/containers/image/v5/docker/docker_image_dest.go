@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/internal/blobinfocache"
 	"github.com/containers/image/v5/internal/iolimits"
 	"github.com/containers/image/v5/internal/uploadreader"
 	"github.com/containers/image/v5/manifest"
@@ -78,12 +79,12 @@ func (d *dockerImageDestination) SupportsSignatures(ctx context.Context) error {
 		return err
 	}
 	switch {
-	case d.c.signatureBase != nil:
-		return nil
 	case d.c.supportsSignatures:
 		return nil
+	case d.c.signatureBase != nil:
+		return nil
 	default:
-		return errors.Errorf("X-Registry-Supports-Signatures extension not supported, and lookaside is not configured")
+		return errors.Errorf("Internal error: X-Registry-Supports-Signatures extension not supported, and lookaside should not be empty configuration")
 	}
 }
 
@@ -284,7 +285,9 @@ func (d *dockerImageDestination) mountBlob(ctx context.Context, srcRepo referenc
 // (e.g. if the blob is a filesystem layer, this signifies that the changes it describes need to be applied again when composing a filesystem tree).
 // info.Digest must not be empty.
 // If canSubstitute, TryReusingBlob can use an equivalent equivalent of the desired blob; in that case the returned info may not match the input.
-// If the blob has been succesfully reused, returns (true, info, nil); info must contain at least a digest and size.
+// If the blob has been successfully reused, returns (true, info, nil); info must contain at least a digest and size, and may
+// include CompressionOperation and CompressionAlgorithm fields to indicate that a change to the compression type should be
+// reflected in the manifest that will be written.
 // If the transport can not reuse the requested blob, TryReusingBlob returns (false, {}, nil); it returns a non-nil error only on an unexpected failure.
 // May use and/or update cache.
 func (d *dockerImageDestination) TryReusingBlob(ctx context.Context, info types.BlobInfo, cache types.BlobInfoCache, canSubstitute bool) (bool, types.BlobInfo, error) {
@@ -299,17 +302,23 @@ func (d *dockerImageDestination) TryReusingBlob(ctx context.Context, info types.
 	}
 	if exists {
 		cache.RecordKnownLocation(d.ref.Transport(), bicTransportScope(d.ref), info.Digest, newBICLocationReference(d.ref))
-		return true, types.BlobInfo{Digest: info.Digest, Size: size}, nil
+		return true, types.BlobInfo{Digest: info.Digest, MediaType: info.MediaType, Size: size}, nil
 	}
 
 	// Then try reusing blobs from other locations.
-	for _, candidate := range cache.CandidateLocations(d.ref.Transport(), bicTransportScope(d.ref), info.Digest, canSubstitute) {
+	bic := blobinfocache.FromBlobInfoCache(cache)
+	candidates := bic.CandidateLocations2(d.ref.Transport(), bicTransportScope(d.ref), info.Digest, canSubstitute)
+	for _, candidate := range candidates {
 		candidateRepo, err := parseBICLocationReference(candidate.Location)
 		if err != nil {
 			logrus.Debugf("Error parsing BlobInfoCache location reference: %s", err)
 			continue
 		}
-		logrus.Debugf("Trying to reuse cached location %s in %s", candidate.Digest.String(), candidateRepo.Name())
+		if candidate.CompressorName != blobinfocache.Uncompressed {
+			logrus.Debugf("Trying to reuse cached location %s compressed with %s in %s", candidate.Digest.String(), candidate.CompressorName, candidateRepo.Name())
+		} else {
+			logrus.Debugf("Trying to reuse cached location %s with no compression in %s", candidate.Digest.String(), candidateRepo.Name())
+		}
 
 		// Sanity checks:
 		if reference.Domain(candidateRepo) != reference.Domain(d.ref.ref) {
@@ -335,7 +344,7 @@ func (d *dockerImageDestination) TryReusingBlob(ctx context.Context, info types.
 		// On success we avoid the actual costly upload; so, in a sense, the success case is "free", but failures are always costly.
 		// Even worse, docker/distribution does not actually reasonably implement canceling uploads
 		// (it would require a "delete" action in the token, and Quay does not give that to anyone, so we can't ask);
-		// so, be a nice client and don't create unnecesary upload sessions on the server.
+		// so, be a nice client and don't create unnecessary upload sessions on the server.
 		exists, size, err := d.blobExists(ctx, candidateRepo, candidate.Digest, extraScope)
 		if err != nil {
 			logrus.Debugf("... Failed: %v", err)
@@ -351,8 +360,16 @@ func (d *dockerImageDestination) TryReusingBlob(ctx context.Context, info types.
 				continue
 			}
 		}
-		cache.RecordKnownLocation(d.ref.Transport(), bicTransportScope(d.ref), candidate.Digest, newBICLocationReference(d.ref))
-		return true, types.BlobInfo{Digest: candidate.Digest, Size: size}, nil
+
+		bic.RecordKnownLocation(d.ref.Transport(), bicTransportScope(d.ref), candidate.Digest, newBICLocationReference(d.ref))
+
+		compressionOperation, compressionAlgorithm, err := blobinfocache.OperationAndAlgorithmForCompressor(candidate.CompressorName)
+		if err != nil {
+			logrus.Debugf("... Failed: %v", err)
+			continue
+		}
+
+		return true, types.BlobInfo{Digest: candidate.Digest, MediaType: info.MediaType, Size: size, CompressionOperation: compressionOperation, CompressionAlgorithm: compressionAlgorithm}, nil
 	}
 
 	return false, types.BlobInfo{}, nil
@@ -428,7 +445,7 @@ func successStatus(status int) bool {
 	return status >= 200 && status <= 399
 }
 
-// isManifestInvalidError returns true iff err from client.HandleErrorReponse is a “manifest invalid” error.
+// isManifestInvalidError returns true iff err from client.HandleErrorResponse is a “manifest invalid” error.
 func isManifestInvalidError(err error) bool {
 	errors, ok := err.(errcode.Errors)
 	if !ok || len(errors) == 0 {
@@ -479,12 +496,12 @@ func (d *dockerImageDestination) PutSignatures(ctx context.Context, signatures [
 		return err
 	}
 	switch {
-	case d.c.signatureBase != nil:
-		return d.putSignaturesToLookaside(signatures, *instanceDigest)
 	case d.c.supportsSignatures:
 		return d.putSignaturesToAPIExtension(ctx, signatures, *instanceDigest)
+	case d.c.signatureBase != nil:
+		return d.putSignaturesToLookaside(signatures, *instanceDigest)
 	default:
-		return errors.Errorf("X-Registry-Supports-Signatures extension not supported, and lookaside is not configured")
+		return errors.Errorf("Internal error: X-Registry-Supports-Signatures extension not supported, and lookaside should not be empty configuration")
 	}
 }
 
@@ -502,9 +519,6 @@ func (d *dockerImageDestination) putSignaturesToLookaside(signatures [][]byte, m
 	// NOTE: Keep this in sync with docs/signature-protocols.md!
 	for i, signature := range signatures {
 		url := signatureStorageURL(d.c.signatureBase, manifestDigest, i)
-		if url == nil {
-			return errors.Errorf("Internal error: signatureStorageURL with non-nil base returned nil")
-		}
 		err := d.putOneSignature(url, signature)
 		if err != nil {
 			return err
@@ -517,9 +531,6 @@ func (d *dockerImageDestination) putSignaturesToLookaside(signatures [][]byte, m
 	// is sufficient.
 	for i := len(signatures); ; i++ {
 		url := signatureStorageURL(d.c.signatureBase, manifestDigest, i)
-		if url == nil {
-			return errors.Errorf("Internal error: signatureStorageURL with non-nil base returned nil")
-		}
 		missing, err := d.c.deleteOneSignature(url)
 		if err != nil {
 			return err
