@@ -49,8 +49,8 @@ func NewDeployment(depsvc DeploymentSyncer, tagsvc TagSyncer) *Deployment {
 		depsvc: depsvc,
 		tagsvc: tagsvc,
 	}
-	depsvc.AddEventHandler(ctrl.dephandler())
-	tagsvc.AddEventHandler(ctrl.taghandler())
+	depsvc.AddEventHandler(ctrl.handler("deployment"))
+	tagsvc.AddEventHandler(ctrl.handler("tag"))
 	return ctrl
 }
 
@@ -79,31 +79,16 @@ func (d *Deployment) enqueueEvent(kind string, o interface{}) {
 	d.queue.Add(key)
 }
 
-// dephandler returns a event handler that will be called by the informer
-// whenever a Deployment event occurs. This handler enqueues everything in
-// our work queue.
-func (d *Deployment) dephandler() cache.ResourceEventHandler {
+// handler returns a event handler that will be called by the informer
+// whenever a Deployment or a Tag related event occurs. This handler
+// enqueues everything in our work queue.
+func (d *Deployment) handler(kind string) cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
-			d.enqueueEvent("deployment", o)
+			d.enqueueEvent(kind, o)
 		},
 		UpdateFunc: func(o, n interface{}) {
-			d.enqueueEvent("deployment", o)
-		},
-		DeleteFunc: func(o interface{}) {},
-	}
-}
-
-// taghandler returns a event handler that will be called by the informer
-// whenever a Tag event occurs. This handler enqueues everything in our
-// work queue.
-func (d *Deployment) taghandler() cache.ResourceEventHandler {
-	return cache.ResourceEventHandlerFuncs{
-		AddFunc: func(o interface{}) {
-			d.enqueueEvent("tag", o)
-		},
-		UpdateFunc: func(o, n interface{}) {
-			d.enqueueEvent("tag", o)
+			d.enqueueEvent(kind, o)
 		},
 		DeleteFunc: func(o interface{}) {},
 	}
