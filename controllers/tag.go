@@ -41,10 +41,7 @@ type Tag struct {
 // NewTag returns a new controller for Image Tags. This controller runs image
 // tag imports in parallel, at a given time we can have at max "workers"
 // distinct image tags being processed.
-func NewTag(
-	tagsvc TagSyncer,
-	mtrsvc MetricReporter,
-) *Tag {
+func NewTag(tagsvc TagSyncer, mtrsvc MetricReporter) *Tag {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
 	ctrl := &Tag{
 		queue:  workqueue.NewRateLimitingQueue(ratelimit),
@@ -153,7 +150,6 @@ func (t *Tag) syncTag(namespace, name string) error {
 		}
 		return err
 	}
-	it = it.DeepCopy()
 	return t.tagsvc.Sync(ctx, it)
 }
 
