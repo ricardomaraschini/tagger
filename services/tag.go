@@ -246,9 +246,7 @@ func (t *Tag) splitRegistryDomain(imgPath string) (string, string) {
 // in all configured unqualified registries using all authentications we can find
 // for the registry in the Tag namespace. If the tag is set to be mirrored we push
 // the image to our mirror registry.
-func (t *Tag) ImportTag(
-	ctx context.Context, it *imagtagv1.Tag,
-) (imagtagv1.HashReference, error) {
+func (t *Tag) ImportTag(ctx context.Context, it *imagtagv1.Tag) (imagtagv1.HashReference, error) {
 	var zero imagtagv1.HashReference
 	if it.Spec.From == "" {
 		return zero, fmt.Errorf("empty tag reference")
@@ -362,9 +360,7 @@ func (t *Tag) HashReferenceByTag(
 }
 
 // NewTag creates a new Tag objects.
-func (t *Tag) NewTag(
-	ctx context.Context, namespace, name, from string, mirror bool,
-) error {
+func (t *Tag) NewTag(ctx context.Context, namespace, name, from string, mirror bool) error {
 	it := &imagtagv1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
