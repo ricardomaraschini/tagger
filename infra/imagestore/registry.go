@@ -13,6 +13,10 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/fs"
 )
 
+// CleanFunc is a function that must be called in order to clean up
+// or free resources in use.
+type CleanFunc func()
+
 // Registry wraps calls for iteracting with our backend registry. It
 // provides an implementation capable of pushing to and pulling from
 // an image registry. To push an image towards the registry one needs
@@ -85,7 +89,7 @@ func (i *Registry) Load(
 // our mess (properly close tar file and delete it from disk).
 func (i *Registry) Save(
 	ctx context.Context, ref types.ImageReference,
-) (types.ImageReference, func(), error) {
+) (types.ImageReference, CleanFunc, error) {
 	dstref, cleanup, err := i.NewLocalReference()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating temp file: %w", err)
@@ -105,7 +109,7 @@ func (i *Registry) Save(
 
 // NewLocalReference returns an image reference pointing to a local tar file.
 // Also returns a clean up function that must be called to free resources.
-func (i *Registry) NewLocalReference() (types.ImageReference, func(), error) {
+func (i *Registry) NewLocalReference() (types.ImageReference, CleanFunc, error) {
 	tfile, cleanup, err := i.fs.TempFile()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating temp file: %w", err)
