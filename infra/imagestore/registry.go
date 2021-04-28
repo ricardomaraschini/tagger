@@ -21,7 +21,8 @@ type CleanFunc func()
 // provides an implementation capable of pushing to and pulling from
 // an image registry. To push an image towards the registry one needs
 // to call Load, to push it to a local tar file a Save call should be
-// made.
+// made, this strange naming is an attempt to make it similar to the
+// 'docker save/load' commands.
 type Registry struct {
 	fs      *fs.FS
 	regaddr string
@@ -32,7 +33,9 @@ type Registry struct {
 // NewRegistry creates an entity capable of load objects to or save
 // objects from a backend registry. When calling Load we push an image
 // into the registry, when calling Save we pull the image from the
-// registry and store into a local tar file.
+// registry and store into a local tar file (format in disk is of type
+// docker-archive, we should migrate this to something else as it does
+// not support manifest lists).
 func NewRegistry(
 	regaddr string,
 	sysctx *types.SystemContext,
@@ -86,7 +89,8 @@ func (i *Registry) Load(
 // Save pulls an image from our mirror registry, stores it in a temporary
 // tar file on disk.  Returns an ImageReference pointing to the local tar
 // file and a function the caller needs to call in order to clean up after
-// our mess (properly close tar file and delete it from disk).
+// our mess (properly close tar file and delete it from disk). Returned ref
+// points to a 'docker-archive' tar file.
 func (i *Registry) Save(
 	ctx context.Context, ref types.ImageReference,
 ) (types.ImageReference, CleanFunc, error) {

@@ -28,14 +28,14 @@ type ImagePusherPuller interface {
 }
 
 // UserValidator validates an user can access Tags in a given namespace.
-// You should be looking for a concrete implementation of this, please
+// You might be looking for a concrete implementation of this, please
 // look at services/user.go and you will find it.
 type UserValidator interface {
 	CanAccessTags(context.Context, string, string) error
 }
 
-// TagIO handles requests for pulling and pushing images pointed by a
-// Tag.
+// TagIO handles requests for pulling and pushing current image pointed
+// by a Tag.
 type TagIO struct {
 	bind   string
 	tagexp ImagePusherPuller
@@ -48,7 +48,7 @@ type TagIO struct {
 // NewTagIO returns a grpc handler for image Pull and Push requests. I
 // have hardcoded what seems to be reasonable values in terms of keep
 // alive and connection lifespan management (we may need to better tune
-// this).
+// this). The implementation here is made so we have a stateless handler.
 func NewTagIO(tagexp ImagePusherPuller, usrval UserValidator) *TagIO {
 	aliveopt := grpc.KeepaliveParams(
 		keepalive.ServerParameters{
@@ -75,8 +75,8 @@ func NewTagIO(tagexp ImagePusherPuller, usrval UserValidator) *TagIO {
 // is the Tag to be pulled from (namespace and name) and also a kubernetes token
 // for authentication and authorization.
 func (t *TagIO) Pull(in *pb.Packet, stream pb.TagIOService_PullServer) error {
-	head := in.GetHeader()
 	ctx := stream.Context()
+	head := in.GetHeader()
 	if err := t.authorizeRequest(ctx, head); err != nil {
 		klog.Errorf("error validating pull request: %s", err)
 		return fmt.Errorf("error validating input: %w", err)
@@ -87,14 +87,13 @@ func (t *TagIO) Pull(in *pb.Packet, stream pb.TagIOService_PullServer) error {
 		klog.Errorf("error pulling tag image: %s", err)
 		return fmt.Errorf("error pulling tag image: %w", err)
 	}
+	defer cleanup()
 
 	finfo, err := fp.Stat()
 	if err != nil {
-		cleanup()
 		klog.Errorf("error calculating total image size: %s", err)
 		return fmt.Errorf("error calculating total image size: %s", err)
 	}
-	defer cleanup()
 	fsize := finfo.Size()
 
 	return pb.Send(fp, fsize, stream, progbar.NewNoOp())
@@ -103,6 +102,7 @@ func (t *TagIO) Pull(in *pb.Packet, stream pb.TagIOService_PullServer) error {
 // Push handles image pushes through grpc. The first message received indicates
 // the image destination (tag's namespace and name) and a authorization token,
 // all subsequent messages are of type Chunk where we can find a slice of bytes.
+// We reassemble the image on disk and later on Load it into a registry.
 func (t *TagIO) Push(stream pb.TagIOService_PushServer) error {
 	ctx := stream.Context()
 	in, err := stream.Recv()
@@ -166,7 +166,8 @@ func (t *TagIO) Name() string {
 }
 
 // RequiresLeaderElection returns if this controller requires or not a
-// leader lease to run.
+// leader lease to run. On our case, as we are a grpc server, we do not
+// require to be a leader in order to work properly.
 func (t *TagIO) RequiresLeaderElection() bool {
 	return false
 }
