@@ -55,7 +55,7 @@ generate-k8s:
 	mv $(GEN_OUTPUT)/v1/* infra/tags/v1/
 
 image:
-	$(IMAGE_BUILDER) build --tag=$(IMAGE_TAG) .
+	$(IMAGE_BUILDER) build -f Containerfile --tag=$(IMAGE_TAG) .
 
 .PHONY: clean
 clean:
