@@ -41,7 +41,8 @@ type Deployment struct {
 // right annotations if they leverage tags. Tags are also observed by this
 // controller so when they get updates we also update all Deployments that
 // leverage a Tag. Events for both Deployments and Tags are placed on the
-// same workqueue.
+// same workqueue. Once the annotations are in place it is time for the pod
+// controller to take the annotations into 'image' property of the pods.
 func NewDeployment(depsvc DeploymentSyncer, tagsvc TagSyncer) *Deployment {
 	ctrl := &Deployment{
 		queue:  workqueue.NewDelayingQueue(),
@@ -59,7 +60,8 @@ func (d *Deployment) Name() string {
 }
 
 // RequiresLeaderElection returns if this controller requires or not a
-// leader lease to run.
+// leader lease to run. We run only once across multiple instances of
+// tagger so we do require to be a leader.
 func (d *Deployment) RequiresLeaderElection() bool {
 	return true
 }
@@ -78,8 +80,8 @@ func (d *Deployment) enqueueEvent(kind string, o interface{}) {
 }
 
 // dephandler returns a event handler that will be called by the informer
-// whenever a Deployment event occurs. This handler basically enqueues
-// everything in our work queue.
+// whenever a Deployment event occurs. This handler enqueues everything in
+// our work queue.
 func (d *Deployment) dephandler() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
@@ -93,8 +95,8 @@ func (d *Deployment) dephandler() cache.ResourceEventHandler {
 }
 
 // taghandler returns a event handler that will be called by the informer
-// whenever a Tag event occurs. This handler basically enqueues everything
-// in our work queue.
+// whenever a Tag event occurs. This handler enqueues everything in our
+// work queue.
 func (d *Deployment) taghandler() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {

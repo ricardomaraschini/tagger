@@ -39,7 +39,7 @@ func SendProgressMessage(offset int64, size int64, sender PacketSender) error {
 }
 
 // Receive receives Packets from provided PacketReceiver and writes their content into
-// a provided Writer. Progress is reported through a ProgressTracker.
+// the provided Writer. Progress is reported through a ProgressTracker.
 func Receive(from PacketReceiver, to io.Writer, tracker ProgressTracker) error {
 	var fsize int64
 	var tracktotal bool
@@ -104,17 +104,17 @@ func Send(
 			}
 		}
 
-		if err := to.Send(
-			&Packet{
-				TestOneof: &Packet_Chunk{
-					Chunk: &Chunk{
-						Content: content,
-					},
+		pckt := &Packet{
+			TestOneof: &Packet_Chunk{
+				Chunk: &Chunk{
+					Content: content,
 				},
 			},
-		); err != nil {
+		}
+		if err := to.Send(pckt); err != nil {
 			return fmt.Errorf("error sending chunk: %w", err)
 		}
+
 		tracker.SetCurrent(totread)
 		counter++
 	}

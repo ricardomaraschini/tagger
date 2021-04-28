@@ -3,6 +3,8 @@ option go_package = "github.com/ricardomaraschini/tagger/imagetags/pb";
 
 package pb;
 
+// Packet is what goes through the wire. It contains or an Header, or a
+// Progress or a Chunk of data.
 message Packet {
 	oneof test_oneof {
 		Header header = 1;
@@ -11,21 +13,32 @@ message Packet {
 	}
 }
 
+// Header identifies an user (through a token) and a tag (through namespace
+// and name). This is used to when informing which user is requesting wich
+// tag during pull and push operations.
 message Header {
 	string namespace = 1;
 	string name = 2;
 	string token = 3;
 }
 
+// Progress is a message informing what is the current offset and what is
+// the total size of a file. It is used to inform clients about a file
+// transfer status.
 message Progress {
 	int64 offset = 1;
 	int64 size = 2;
 }
 
+// Chunk is a message containing part of a file.
 message Chunk {
 	bytes content = 1;
 }
 
+// TagIOService is an service capable of Pull and Push files (we treat
+// the operations as Pull and Push as we generally deal with container
+// images). Pull receives a Packet with a Header and returns multiple
+// Packets with Chunks of the file. Opossite of Pull is Push.
 service TagIOService {
 	rpc Pull(Packet) returns (stream Packet);
 	rpc Push(stream Packet) returns (Packet);
