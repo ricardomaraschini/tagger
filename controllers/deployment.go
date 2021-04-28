@@ -118,7 +118,8 @@ func (d *Deployment) parseEventKey(rawevt interface{}) (string, string, string, 
 }
 
 // eventProcessor reads our events calling syncDeployment or syncTag for all of
-// them. Events on the queue are expected to be in "kind/namespace/name" format.
+// them. Events on the queue are expected to be a string in "kind/namespace/name"
+// format.
 func (d *Deployment) eventProcessor(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
@@ -165,14 +166,13 @@ func (d *Deployment) syncTag(namespace, name string) error {
 		}
 		return err
 	}
-	it = it.DeepCopy()
 	return d.depsvc.UpdateDeploymentsForTag(ctx, it)
 }
 
 // syncDeployment process an event for a deployment. We allow one minute
 // per Deployment update.
 func (d *Deployment) syncDeployment(namespace, name string) error {
-	ctx, cancel := context.WithTimeout(d.appctx, time.Minute)
+	ctx, cancel := context.WithTimeout(d.appctx, 10*time.Second)
 	defer cancel()
 
 	dep, err := d.depsvc.Get(ctx, namespace, name)
@@ -182,7 +182,6 @@ func (d *Deployment) syncDeployment(namespace, name string) error {
 		}
 		return err
 	}
-	dep = dep.DeepCopy()
 	return d.depsvc.Sync(ctx, dep)
 }
 
