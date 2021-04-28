@@ -25,7 +25,7 @@ func NewUser(corcli corecli.Interface) *User {
 }
 
 // CanAccessTags returns nil if provided token is able to access Tag entities
-// in a namespace.
+// in a namespace. We check if user can "update" tags in the namespace.
 func (u *User) CanAccessTags(ctx context.Context, ns, token string) error {
 	tkreview := &authev1.TokenReview{
 		Spec: authev1.TokenReviewSpec{

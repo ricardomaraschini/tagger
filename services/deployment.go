@@ -26,10 +26,10 @@ type Deployment struct {
 	taglis taglist.TagLister
 }
 
-// NewDeployment returns a handler for all deployment related services. I have
-// chosen to go with a lazy approach here, you can pass or omit (nil) the arguments,
-// it is up to the caller to decide what is needed for each specific case. So far
-// this is the best approach, I still plan to review this.
+// NewDeployment returns a handler for all deployment related services. I have chosen
+// to go with a lazy approach here, you can pass or omit (nil) the arguments, it is
+// up to the caller to decide what is needed for each specific case. So far this is
+// the best approach, I still plan to review this.
 func NewDeployment(
 	corcli corecli.Interface,
 	corinf informers.SharedInformerFactory,

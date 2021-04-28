@@ -20,10 +20,7 @@ type Pod struct {
 }
 
 // NewPod returns a handler for all pod related services.
-func NewPod(
-	corcli corecli.Interface,
-	corinf informers.SharedInformerFactory,
-) *Pod {
+func NewPod(corcli corecli.Interface, corinf informers.SharedInformerFactory) *Pod {
 	var corlis corelis.PodLister
 	if corinf != nil {
 		corlis = corinf.Core().V1().Pods().Lister()
@@ -35,10 +32,10 @@ func NewPod(
 	}
 }
 
-// Sync verifies if the provided pod uses a tag, if it does use a tag
-// we update its image reference to point to the current version of
-// the tag. By syncing a pod we mean: copy tag references present in
-// pod annotations and put them in the image property of the container.
+// Sync verifies if the provided pod uses a tag, if it does use a tag we update its
+// image reference to point to the current version of the tag. By syncing a pod we
+// mean: copy tag references present in pod annotations and put them in the image
+// property of the containers.
 func (p *Pod) Sync(ctx context.Context, pod *corev1.Pod) error {
 	if _, ok := pod.Annotations["image-tag"]; !ok {
 		return nil
