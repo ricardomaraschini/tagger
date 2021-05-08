@@ -42,6 +42,12 @@ var new_help_header string
 //go:embed "src/new_help_examples"
 var new_help_examples string
 
+//go:embed "src/mirror_help_header"
+var mirror_help_header string
+
+//go:embed "src/mirror_help_examples"
+var mirror_help_examples string
+
 //go:embed src/*
 var FS embed.FS
 
@@ -60,4 +66,6 @@ var Text = map[string]string{
 	"downgrade_help_examples": downgrade_help_examples,
 	"new_help_header":         new_help_header,
 	"new_help_examples":       new_help_examples,
+	"mirror_help_header":      mirror_help_header,
+	"mirror_help_examples":    mirror_help_examples,
 }

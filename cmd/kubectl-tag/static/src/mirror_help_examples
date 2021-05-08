@@ -1,0 +1,4 @@
+  Assuming one wants to mirror the image "quay.io/repo/name:latest" in a Tag
+  called "mytag" in "production" namespace:
+
+  $ kubectl tag mirror quay.io/repo/name:latest mytag -n production
