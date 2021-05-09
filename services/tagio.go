@@ -44,7 +44,8 @@ func NewTagIO(
 	}
 }
 
-// tagOrNew returns or an existing Tag or a new one.
+// tagOrNew returns or an existing Tag or a new one. Returned tag
+// is configured with 'mirror' set as true.
 func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
 	it, err := t.taglis.Tags(ns).Get(name)
 	if err != nil && !errors.IsNotFound(err) {
@@ -57,7 +58,8 @@ func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
 
 	return &imagtagv1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: ns,
 		},
 		Spec: imagtagv1.TagSpec{
 			Mirror: true,
@@ -67,7 +69,7 @@ func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
 
 // Push expects "fpath" to point to a valid docker image stored on disk as a tar
 // file, reads it and then pushes it to our mirror registry through an image store
-// implementation (see infra/imagestore/registry.go).
+// implementation (see infra/imagestore/registry.go for a concrete implementation).
 func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	istore, err := t.syssvc.GetRegistryStore(ctx)
 	if err != nil {

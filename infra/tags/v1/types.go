@@ -34,7 +34,8 @@ func (t *Tag) CurrentReferenceForTag() string {
 }
 
 // NextGeneration returns what the next generation for a given tag should
-// be. It is the last imported generation plus one.
+// be. It is the last imported generation plus one. Returns zero if Tag
+// hasn't been imported yet.
 func (t *Tag) NextGeneration() int64 {
 	var next int64
 	if len(t.Status.References) > 0 {
