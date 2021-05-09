@@ -41,7 +41,7 @@ func NewStarter(corcli corecli.Interface, ctrls ...Controller) *Starter {
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
 		namespace = "tagger"
-		klog.Warningf("unbound POD_NAMESPACE, using 'tagger'")
+		klog.Warning("unbound POD_NAMESPACE, using 'tagger'")
 	}
 
 	name := os.Getenv("POD_NAME")
@@ -92,7 +92,7 @@ func (s *Starter) startController(ctx context.Context, c Controller) {
 	klog.Infof("%q controller ended.", c.Name())
 }
 
-// Start starts all controllers within an Starter. This function only
+// Start starts all controllers within a Starter. This function only
 // returns when all controllers have finished their job, i.e. provided
 // context has been cancelled or the leader lease has been lost.
 func (s *Starter) Start(ctx context.Context) error {
@@ -136,7 +136,7 @@ func (s *Starter) Start(ctx context.Context) error {
 	// let's start the controllers that do not require leader
 	// election right here. Controllers requiring leader election
 	// are going to be started as soon as we get a lease, see
-	// OnStartedLeading().
+	// OnStartedLeading.
 	for _, c := range s.ctrls {
 		if c.RequiresLeaderElection() {
 			continue
