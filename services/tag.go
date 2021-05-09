@@ -70,10 +70,10 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 			// status and update it. If we fail to update the tag we only log,
 			// returning the original error.
 			it.RegisterImportFailure(err)
-			if _, err := t.tagcli.ImagesV1().Tags(it.Namespace).Update(
+			if _, nerr := t.tagcli.ImagesV1().Tags(it.Namespace).Update(
 				ctx, it, metav1.UpdateOptions{},
 			); err != nil {
-				klog.Errorf("error updating tag status: %s", err)
+				klog.Errorf("error updating tag status: %s", nerr)
 			}
 			return fmt.Errorf("fail importing %s/%s: %w", it.Namespace, it.Name, err)
 		}
@@ -98,8 +98,9 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 }
 
 // NewGenerationForImageRef looks through all image tags we have and creates a
-// new generation in all of those who point to the provided image path. Image
-// path looks like "quay.io/repo/image:tag".
+// new generation in all those who point to the provided image path. Image path
+// is a string that looks like "quay.io/repo/image:tag". XXX This function does
+// not consider unqualified registries.
 func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) error {
 	tags, err := t.taglis.List(labels.Everything())
 	if err != nil {
@@ -118,11 +119,10 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 		}
 
 		if !tag.SpecTagImported() {
-			// we still have a pending import for this image
 			continue
 		}
 
-		tag.Spec.Generation = tag.Status.References[0].Generation + 1
+		tag.Spec.Generation = tag.NextGeneration()
 		if _, err := t.tagcli.ImagesV1().Tags(tag.Namespace).Update(
 			ctx, tag, metav1.UpdateOptions{},
 		); err != nil {
@@ -225,7 +225,7 @@ func (t *Tag) AddEventHandler(handler cache.ResourceEventHandler) {
 
 // splitRegistryDomain splits the domain from the repository and image.
 // For example passing in the "quay.io/tagger/tagger:latest" string will
-// result in returned values "quay.io" and "tagger/tagger:latest".
+// result in "quay.io" and "tagger/tagger:latest".
 func (t *Tag) splitRegistryDomain(imgPath string) (string, string) {
 	imageSlices := strings.SplitN(imgPath, "/", 2)
 	if len(imageSlices) < 2 {
@@ -359,7 +359,7 @@ func (t *Tag) HashReferenceByTag(
 	return nil, nil, fmt.Errorf("unable to get hash for image tag: %w", errors)
 }
 
-// NewTag creates a new Tag objects.
+// NewTag creates and saves a new Tag object.
 func (t *Tag) NewTag(ctx context.Context, namespace, name, from string, mirror bool) error {
 	it := &imagtagv1.Tag{
 		ObjectMeta: metav1.ObjectMeta{

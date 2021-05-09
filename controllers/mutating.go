@@ -29,8 +29,7 @@ type MutatingWebHook struct {
 
 // NewMutatingWebHook returns a web hook handler for kubernetes api
 // mutation requests. This webhook validate tag objects when user saves
-// them. XXX I have repurposed this to only validate tags, I think this
-// could be an Admission WebHook instead.
+// them.
 func NewMutatingWebHook() *MutatingWebHook {
 	runtimeScheme := runtime.NewScheme()
 	codecs := serializer.NewCodecFactory(runtimeScheme)
@@ -53,9 +52,9 @@ func (m *MutatingWebHook) RequiresLeaderElection() bool {
 	return false
 }
 
-// responseError writes on the response an AdmissionReview with response status
-// set to an error. If AdmissionReview contains an UID that is inserted into
-// the reply.
+// responseError writes in the provided ResponseWriter an AdmissionReview
+// with response status set to an error. If AdmissionReview contains an UID
+// that is inserted into the reply.
 func (m *MutatingWebHook) responseError(
 	w http.ResponseWriter, req *admnv1.AdmissionReview, err error,
 ) {
@@ -112,7 +111,7 @@ func (m *MutatingWebHook) responseAuthorized(w http.ResponseWriter, req *admnv1.
 	_, _ = w.Write(resp)
 }
 
-// tag validates a tag during update.
+// tag is our http handler for tag validation.
 func (m *MutatingWebHook) tag(w http.ResponseWriter, r *http.Request) {
 	reviewReq := &admnv1.AdmissionReview{}
 	body, err := ioutil.ReadAll(r.Body)
