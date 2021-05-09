@@ -31,7 +31,7 @@ type dockerAuthConfig struct {
 // LocalRegistryHostingV1 describes a local registry that developer tools can
 // connect to. A local registry allows clients to load images into the local
 // cluster by pushing to this registry. This is a verbatim copy of what is
-// on the enhancement proposal in https://github.com/kubernetes/enhancements/
+// in the enhancement proposal in https://github.com/kubernetes/enhancements/
 // repo: keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 type LocalRegistryHostingV1 struct {
 	// Host documents the host (hostname and port) of the registry, as seen from
@@ -130,13 +130,13 @@ func (s *SysContext) parseMirrorRegistryConfig() (*LocalRegistryHostingV1, error
 }
 
 // MirrorRegistryAddresses returns the configured registry address used
-// for mirroring images during tags. This is implemented to comply with
+// for mirroring images using tags. This is implemented to comply with
 // KEP at https://github.com/kubernetes/enhancements/ repository, see
 // keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 // We evaluate if MIRROR_REGISTRY_ADDRESS environment variable is set
 // before moving on to the implementation following the KEP. This returns
-// one address for connections starting from within the cluster and another
-// for connections started from the cluster container runtime.
+// one address for connections originated from within the cluster and
+// another for connections started from the cluster container runtime.
 func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
 	if addr := os.Getenv("MIRROR_REGISTRY_ADDRESS"); len(addr) > 0 {
 		return addr, addr, nil

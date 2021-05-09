@@ -53,7 +53,7 @@ func NewDeployment(
 }
 
 // UpdateDeploymentsForTag updates all deployments using provided tag. Triggers
-// redeployment on Deployments that need (some image reference has changed).
+// redeployment on Deployments that need (image reference has changed).
 func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
 	// Current generation is most likely being imported.
 	if it.CurrentReferenceForTag() == "" {
@@ -88,7 +88,9 @@ func (d *Deployment) DeploymentsForTag(
 			continue
 		}
 
-		for _, cont := range dep.Spec.Template.Spec.Containers {
+		conts := dep.Spec.Template.Spec.Containers
+		conts = append(conts, dep.Spec.Template.Spec.InitContainers...)
+		for _, cont := range conts {
 			if cont.Image != it.Name {
 				continue
 			}
@@ -100,8 +102,8 @@ func (d *Deployment) DeploymentsForTag(
 }
 
 // Sync verifies if the provided deployment leverages tags, if affirmative it
-// creates an annotation into its template pointing to reference pointed by the
-// tag.
+// creates an annotation into its pod template pointing to reference pointed by
+// the tag. Skips Deployments that do not include 'image-tag' annotation.
 func (d *Deployment) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	if _, ok := dep.Annotations["image-tag"]; !ok {
 		return nil
