@@ -52,17 +52,6 @@ interface allowing users to pull and push images directly to the Kubernetes clus
 full integration with Kubernetes Deployments (automatic triggers new rollouts on Container Image
 changes).
 
-### TLDR
-
-I have recorded two presentations (hands-on) about some of the features implemented by Tagger.
-You can find them below, please check them out. Bear in mind that some things showed up in the
-presentation may be different of the current implementation, the single source of truth on how
-things work is this documentation.
-
-https://youtu.be/CBbfZqLDL3o
-
-https://youtu.be/F-C4wAG09Xg
-
 ### Some concepts
 
 Images in remote repositories are tagged using a string (e.g. `latest`), these tags are not
