@@ -169,7 +169,7 @@ func (d *Deployment) syncTag(namespace, name string) error {
 	return d.depsvc.UpdateDeploymentsForTag(ctx, it)
 }
 
-// syncDeployment process an event for a deployment. We allow one minute
+// syncDeployment process an event for a deployment. We allow ten seconds
 // per Deployment update.
 func (d *Deployment) syncDeployment(namespace, name string) error {
 	ctx, cancel := context.WithTimeout(d.appctx, 10*time.Second)
