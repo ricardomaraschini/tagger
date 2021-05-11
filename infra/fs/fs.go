@@ -37,7 +37,6 @@ func (f *FS) TempDir() (string, func(), error) {
 			klog.Errorf("error removing temp directory: %s", err)
 		}
 	}
-
 	return dir, clean, nil
 }
 
@@ -58,7 +57,6 @@ func (f *FS) TempFile() (*os.File, func(), error) {
 			klog.Errorf("error removing temp directory: %s", err)
 		}
 	}
-
 	return fp, clean, nil
 }
 

@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// PacketReceiver is anything capable of returning a Packet.
+// PacketReceiver is anything capable of receiving a Packet.
 type PacketReceiver interface {
 	Recv() (*Packet, error)
 }
@@ -15,8 +15,8 @@ type PacketSender interface {
 	Send(*Packet) error
 }
 
-// ProgressTracker is the interface used to track progress during a send (push) or
-// receive (pull) of a file. SetMax is called only once and prior to and SetCurrent
+// ProgressTracker is the interface used to track progress during a send or
+// receive of a file. SetMax is called only once and prior to any SetCurrent
 // call.
 type ProgressTracker interface {
 	SetMax(int64)
@@ -49,7 +49,7 @@ func Receive(from PacketReceiver, to io.Writer, tracker ProgressTracker) error {
 			if err == io.EOF {
 				break
 			}
-			return fmt.Errorf("error receiving chunk: %w", err)
+			return fmt.Errorf("error receiving packet: %w", err)
 		}
 
 		// check if the received message is a progress indication, notify
@@ -60,7 +60,7 @@ func Receive(from PacketReceiver, to io.Writer, tracker ProgressTracker) error {
 				tracker.SetMax(progress.Size)
 				tracktotal = true
 			}
-			tracker.SetCurrent(int64(progress.Offset))
+			tracker.SetCurrent(progress.Offset)
 			continue
 		}
 
@@ -94,7 +94,7 @@ func Send(
 			if err == io.EOF {
 				break
 			}
-			return fmt.Errorf("error reading file: %w", err)
+			return fmt.Errorf("error reading: %w", err)
 		}
 		totread += int64(read)
 
