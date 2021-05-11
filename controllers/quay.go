@@ -77,7 +77,7 @@ func (q *QuayWebHook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(http.StatusText(http.StatusOK)))
+	_, _ = w.Write([]byte(http.StatusText(http.StatusOK)))
 }
 
 // Start puts the http server online.
