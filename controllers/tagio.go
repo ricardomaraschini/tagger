@@ -31,7 +31,7 @@ type ImagePusherPuller interface {
 // You might be looking for a concrete implementation of this, please
 // look at services/user.go and you will find it.
 type UserValidator interface {
-	CanAccessTags(context.Context, string, string) error
+	CanUpdateTags(context.Context, string, string) error
 }
 
 // TagIO handles requests for pulling and pushing current image pointed
@@ -155,7 +155,7 @@ func (t *TagIO) authorizeRequest(ctx context.Context, head *pb.Header) error {
 	if head.GetToken() == "" {
 		return fmt.Errorf("empty token field")
 	}
-	return t.usrval.CanAccessTags(
+	return t.usrval.CanUpdateTags(
 		ctx, head.GetNamespace(), head.GetToken(),
 	)
 }
