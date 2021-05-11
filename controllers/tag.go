@@ -92,7 +92,8 @@ func (t *Tag) handlers() cache.ResourceEventHandler {
 	}
 }
 
-// eventProcessor reads our events calling syncTag for all of them.
+// eventProcessor reads our events calling syncTag for all of them. Uses t.tokens
+// to control how many tags are processed in parallel.
 func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 	var running sync.WaitGroup
 	defer wg.Done()
