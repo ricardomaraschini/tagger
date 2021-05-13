@@ -42,7 +42,7 @@ webhooks:
   - apiGroups:
     - "images.io"
     apiVersions:
-    - "v1"
+    - "v1beta1"
     resources: 
     - tags
     operations: 
