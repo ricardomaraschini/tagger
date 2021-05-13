@@ -11,9 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
-	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
-	taginformer "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/fake"
+	taginformer "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
 )
 
 type mtrsvc struct{}
@@ -22,18 +22,18 @@ func (m mtrsvc) ReportWorker(bool) {}
 
 type tagsvc struct {
 	sync.Mutex
-	db     map[string]*imagtagv1.Tag
+	db     map[string]*imagtagv1beta1.Tag
 	calls  int
 	delay  time.Duration
 	tagcli *tagfake.Clientset
 	taginf taginformer.SharedInformerFactory
 }
 
-func (t *tagsvc) Sync(ctx context.Context, tag *imagtagv1.Tag) error {
+func (t *tagsvc) Sync(ctx context.Context, tag *imagtagv1beta1.Tag) error {
 	t.Lock()
 
 	if t.db == nil {
-		t.db = make(map[string]*imagtagv1.Tag)
+		t.db = make(map[string]*imagtagv1beta1.Tag)
 	}
 	idx := fmt.Sprintf("%s/%s", tag.Namespace, tag.Name)
 	t.db[idx] = tag.DeepCopy()
@@ -44,11 +44,11 @@ func (t *tagsvc) Sync(ctx context.Context, tag *imagtagv1.Tag) error {
 	return nil
 }
 
-func (t *tagsvc) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
-	return t.tagcli.ImagesV1().Tags(ns).Get(ctx, name, metav1.GetOptions{})
+func (t *tagsvc) Get(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
+	return t.tagcli.ImagesV1beta1().Tags(ns).Get(ctx, name, metav1.GetOptions{})
 }
 
-func (t *tagsvc) get(idx string) *imagtagv1.Tag {
+func (t *tagsvc) get(idx string) *imagtagv1beta1.Tag {
 	t.Lock()
 	defer t.Unlock()
 	return t.db[idx]
@@ -61,7 +61,7 @@ func (t *tagsvc) len() int {
 }
 
 func (t *tagsvc) AddEventHandler(handler cache.ResourceEventHandler) {
-	t.taginf.Images().V1().Tags().Informer().AddEventHandler(handler)
+	t.taginf.Images().V1beta1().Tags().Informer().AddEventHandler(handler)
 }
 
 func TestTagCreated(t *testing.T) {
@@ -80,7 +80,7 @@ func TestTagCreated(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1().Tags().Informer().HasSynced,
+		taginf.Images().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -95,18 +95,18 @@ func TestTagCreated(t *testing.T) {
 		}
 	}()
 
-	tag := &imagtagv1.Tag{
+	tag := &imagtagv1beta1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "namespace",
 			Name:      "atag",
 		},
-		Spec: imagtagv1.TagSpec{
+		Spec: imagtagv1beta1.TagSpec{
 			From:   "centos:7",
 			Mirror: true,
 		},
 	}
 
-	if _, err := tagcli.ImagesV1().Tags("namespace").Create(
+	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
 		ctx, tag, metav1.CreateOptions{},
 	); err != nil {
 		t.Fatalf("error creating tag: %s", err)
@@ -143,7 +143,7 @@ func TestTagUpdated(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1().Tags().Informer().HasSynced,
+		taginf.Images().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -158,18 +158,18 @@ func TestTagUpdated(t *testing.T) {
 		}
 	}()
 
-	tag := &imagtagv1.Tag{
+	tag := &imagtagv1beta1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "namespace",
 			Name:      "atag",
 		},
-		Spec: imagtagv1.TagSpec{
+		Spec: imagtagv1beta1.TagSpec{
 			From:   "centos:7",
 			Mirror: true,
 		},
 	}
 
-	if _, err := tagcli.ImagesV1().Tags("namespace").Create(
+	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
 		ctx, tag, metav1.CreateOptions{},
 	); err != nil {
 		t.Fatalf("error creating tag: %s", err)
@@ -183,7 +183,7 @@ func TestTagUpdated(t *testing.T) {
 	}
 
 	tag.Spec.From = "rhel:latest"
-	if _, err := tagcli.ImagesV1().Tags("namespace").Update(
+	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Update(
 		ctx, tag, metav1.UpdateOptions{},
 	); err != nil {
 		t.Fatalf("error updating tag: %s", err)
@@ -221,7 +221,7 @@ func TestTagParallel(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1().Tags().Informer().HasSynced,
+		taginf.Images().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -237,17 +237,17 @@ func TestTagParallel(t *testing.T) {
 	}()
 
 	for i := 0; i < 10; i++ {
-		tag := &imagtagv1.Tag{
+		tag := &imagtagv1beta1.Tag{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "namespace",
 				Name:      fmt.Sprintf("tag-%d", i),
 			},
-			Spec: imagtagv1.TagSpec{
+			Spec: imagtagv1beta1.TagSpec{
 				From:   "centos:7",
 				Mirror: true,
 			},
 		}
-		if _, err := tagcli.ImagesV1().Tags("namespace").Create(
+		if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
 			ctx, tag, metav1.CreateOptions{},
 		); err != nil {
 			t.Fatalf("error creating tag: %s", err)
@@ -281,7 +281,7 @@ func TestTagDeleted(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1().Tags().Informer().HasSynced,
+		taginf.Images().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -296,18 +296,18 @@ func TestTagDeleted(t *testing.T) {
 		}
 	}()
 
-	tag := &imagtagv1.Tag{
+	tag := &imagtagv1beta1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "namespace",
 			Name:      "atag",
 		},
-		Spec: imagtagv1.TagSpec{
+		Spec: imagtagv1beta1.TagSpec{
 			From:   "centos:7",
 			Mirror: true,
 		},
 	}
 
-	if _, err := tagcli.ImagesV1().Tags("namespace").Create(
+	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
 		ctx, tag, metav1.CreateOptions{},
 	); err != nil {
 		t.Fatalf("error creating tag: %s", err)
@@ -320,7 +320,7 @@ func TestTagDeleted(t *testing.T) {
 		t.Errorf("expected %+v, found %+v", tag, svc.db["namespace/atag"])
 	}
 
-	if err := tagcli.ImagesV1().Tags("namespace").Delete(
+	if err := tagcli.ImagesV1beta1().Tags("namespace").Delete(
 		ctx, "atag", metav1.DeleteOptions{},
 	); err != nil {
 		t.Fatalf("error updating tag: %s", err)

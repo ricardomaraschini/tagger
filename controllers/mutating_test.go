@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	imgv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	imgv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 )
 
 func Test_responseError(t *testing.T) {
@@ -112,27 +112,27 @@ func Test_tag(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		kind    string
-		tag     *imgv1.Tag
+		tag     *imgv1beta1.Tag
 		allowed bool
 	}{
 		{
 			name:    "happy path",
 			kind:    "Tag",
-			tag:     &imgv1.Tag{},
+			tag:     &imgv1beta1.Tag{},
 			allowed: true,
 		},
 		{
 			name:    "invalid kind",
 			kind:    "Pod",
-			tag:     &imgv1.Tag{},
+			tag:     &imgv1beta1.Tag{},
 			allowed: true,
 		},
 		{
 			name:    "invalid tag generation",
 			kind:    "Tag",
 			allowed: false,
-			tag: &imgv1.Tag{
-				Spec: imgv1.TagSpec{
+			tag: &imgv1beta1.Tag{
+				Spec: imgv1beta1.TagSpec{
 					Generation: 10,
 				},
 			},
