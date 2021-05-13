@@ -46,13 +46,13 @@ generate-proto:
 generate-k8s:
 	rm -rf $(GEN_OUTPUT) || true
 	$(GEN_BIN)/generate-groups.sh all \
-		$(PROJECT)/infra/tags/v1/gen \
+		$(PROJECT)/infra/tags/v1beta1/gen \
 		$(PROJECT) \
-		infra/tags:v1 \
+		infra/tags:v1beta1 \
 		--go-header-file=$(GEN_BIN)/hack/boilerplate.go.txt \
 		--output-base=/tmp
-	rm -rf infra/tags/v1/gen
-	mv $(GEN_OUTPUT)/v1/* infra/tags/v1/
+	rm -rf infra/tags/v1beta1/gen
+	mv $(GEN_OUTPUT)/v1beta1/* infra/tags/v1beta1/
 
 image:
 	$(IMAGE_BUILDER) build -f Containerfile --tag=$(IMAGE_TAG) .
