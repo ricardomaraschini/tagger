@@ -86,7 +86,7 @@ a remote registry. For instance, a Tag called `myapp-devel` may be created to ke
 the image `quay.io/company/myapp:latest`. A Tag _custom resource_ layout looks like this:
 
 ```yaml
-apiVersion: images.io/v1
+apiVersion: images.io/v1beta1
 kind: Tag
 metadata:
   name: myapp-devel
