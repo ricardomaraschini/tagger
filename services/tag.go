@@ -17,10 +17,10 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
-	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
-	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
-	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
+	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
+	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/listers/tags/v1beta1"
 )
 
 // Tag gather all actions related to image tag objects.
@@ -42,7 +42,7 @@ func NewTag(
 ) *Tag {
 	var taglis taglist.TagLister
 	if taginf != nil {
-		taglis = taginf.Images().V1().Tags().Lister()
+		taglis = taginf.Images().V1beta1().Tags().Lister()
 	}
 
 	return &Tag{
@@ -56,9 +56,9 @@ func NewTag(
 // Sync manages image tag updates, assuring we have the tag imported.
 // Beware that we change Tag in place before updating it on api server,
 // i.e. use DeepCopy() before passing the image tag in.
-func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
+func (t *Tag) Sync(ctx context.Context, it *imagtagv1beta1.Tag) error {
 	var err error
-	var hashref imagtagv1.HashReference
+	var hashref imagtagv1beta1.HashReference
 
 	alreadyImported := it.SpecTagImported()
 	if !alreadyImported {
@@ -70,7 +70,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 			// status and update it. If we fail to update the tag we only log,
 			// returning the original error.
 			it.RegisterImportFailure(err)
-			if _, nerr := t.tagcli.ImagesV1().Tags(it.Namespace).Update(
+			if _, nerr := t.tagcli.ImagesV1beta1().Tags(it.Namespace).Update(
 				ctx, it, metav1.UpdateOptions{},
 			); err != nil {
 				klog.Errorf("error updating tag status: %s", nerr)
@@ -89,7 +89,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1.Tag) error {
 	}
 
 	it.Status.Generation = it.Spec.Generation
-	if _, err = t.tagcli.ImagesV1().Tags(it.Namespace).Update(
+	if _, err = t.tagcli.ImagesV1beta1().Tags(it.Namespace).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return fmt.Errorf("error updating tag: %w", err)
@@ -123,7 +123,7 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 		}
 
 		tag.Spec.Generation = tag.NextGeneration()
-		if _, err := t.tagcli.ImagesV1().Tags(tag.Namespace).Update(
+		if _, err := t.tagcli.ImagesV1beta1().Tags(tag.Namespace).Update(
 			ctx, tag, metav1.UpdateOptions{},
 		); err != nil {
 			return fmt.Errorf("fail updating tag: %w", err)
@@ -134,8 +134,8 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 }
 
 // Upgrade increments the expected (spec) generation for a tag.
-func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
-	it, err := t.tagcli.ImagesV1().Tags(ns).Get(
+func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
+	it, err := t.tagcli.ImagesV1beta1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -152,7 +152,7 @@ func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, err
 		return nil, fmt.Errorf("currently at newest generation")
 	}
 
-	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
+	if it, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -162,8 +162,8 @@ func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, err
 }
 
 // Downgrade decrements the expected (spec) generation for a tag.
-func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
-	it, err := t.tagcli.ImagesV1().Tags(ns).Get(
+func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
+	it, err := t.tagcli.ImagesV1beta1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -175,7 +175,7 @@ func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, e
 		return nil, fmt.Errorf("currently at oldest generation")
 	}
 
-	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
+	if it, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -186,8 +186,8 @@ func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1.Tag, e
 // NewGeneration creates a new generation for a tag. The new generation is set
 // to 'last imported generation + 1'. If no generation was imported then the next
 // generation is zero.
-func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
-	it, err := t.tagcli.ImagesV1().Tags(ns).Get(
+func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
+	it, err := t.tagcli.ImagesV1beta1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -200,7 +200,7 @@ func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1.Ta
 	}
 	it.Spec.Generation = nextGen
 
-	if it, err = t.tagcli.ImagesV1().Tags(ns).Update(
+	if it, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -210,7 +210,7 @@ func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1.Ta
 
 // Get returns a Tag object. Returned object is already a copy of the cached
 // object and may be modified by caller as needed.
-func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) {
+func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
 	tag, err := t.taglis.Tags(ns).Get(name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get tag: %w", err)
@@ -220,7 +220,7 @@ func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1.Tag, error) 
 
 // AddEventHandler adds a handler to Tag related events.
 func (t *Tag) AddEventHandler(handler cache.ResourceEventHandler) {
-	t.taginf.Images().V1().Tags().Informer().AddEventHandler(handler)
+	t.taginf.Images().V1beta1().Tags().Informer().AddEventHandler(handler)
 }
 
 // splitRegistryDomain splits the domain from the repository and image.
@@ -246,8 +246,10 @@ func (t *Tag) splitRegistryDomain(imgPath string) (string, string) {
 // in all configured unqualified registries using all authentications we can find
 // for the registry in the Tag namespace. If the tag is set to be mirrored we push
 // the image to our mirror registry.
-func (t *Tag) ImportTag(ctx context.Context, it *imagtagv1.Tag) (imagtagv1.HashReference, error) {
-	var zero imagtagv1.HashReference
+func (t *Tag) ImportTag(
+	ctx context.Context, it *imagtagv1beta1.Tag,
+) (imagtagv1beta1.HashReference, error) {
+	var zero imagtagv1beta1.HashReference
 	if it.Spec.From == "" {
 		return zero, fmt.Errorf("empty tag reference")
 	}
@@ -292,7 +294,7 @@ func (t *Tag) ImportTag(ctx context.Context, it *imagtagv1.Tag) (imagtagv1.HashR
 			}
 		}
 
-		return imagtagv1.HashReference{
+		return imagtagv1beta1.HashReference{
 			Generation:     it.Spec.Generation,
 			From:           it.Spec.From,
 			ImportedAt:     metav1.NewTime(time.Now()),
@@ -361,16 +363,16 @@ func (t *Tag) HashReferenceByTag(
 
 // NewTag creates and saves a new Tag object.
 func (t *Tag) NewTag(ctx context.Context, namespace, name, from string, mirror bool) error {
-	it := &imagtagv1.Tag{
+	it := &imagtagv1beta1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: imagtagv1.TagSpec{
+		Spec: imagtagv1beta1.TagSpec{
 			From:   from,
 			Mirror: mirror,
 		},
 	}
-	_, err := t.tagcli.ImagesV1().Tags(namespace).Create(
+	_, err := t.tagcli.ImagesV1beta1().Tags(namespace).Create(
 		ctx, it, metav1.CreateOptions{},
 	)
 	return err

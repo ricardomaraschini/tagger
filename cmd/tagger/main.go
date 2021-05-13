@@ -16,8 +16,8 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/ricardomaraschini/tagger/controllers"
-	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
-	itaginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
+	itaginf "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
 	"github.com/ricardomaraschini/tagger/services"
 )
 
@@ -90,7 +90,7 @@ func main() {
 		corinf.Core().V1().Secrets().Informer().HasSynced,
 		corinf.Core().V1().Pods().Informer().HasSynced,
 		corinf.Apps().V1().Deployments().Informer().HasSynced,
-		taginf.Images().V1().Tags().Informer().HasSynced,
+		taginf.Images().V1beta1().Tags().Informer().HasSynced,
 	) {
 		klog.Fatal("caches not syncing")
 	}
