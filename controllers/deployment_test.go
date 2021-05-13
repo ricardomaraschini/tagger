@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 )
 
 type depsvc struct {
@@ -40,7 +40,7 @@ func (d *depsvc) Sync(ctx context.Context, dep *appsv1.Deployment) error {
 	return nil
 }
 
-func (d *depsvc) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
+func (d *depsvc) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1beta1.Tag) error {
 	return nil
 }
 

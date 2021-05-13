@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 )
 
 // DeploymentSyncer abstraction exists to make testing easier. You most
@@ -21,7 +21,7 @@ import (
 // a concrete implementation of this.
 type DeploymentSyncer interface {
 	Sync(context.Context, *appsv1.Deployment) error
-	UpdateDeploymentsForTag(context.Context, *imagtagv1.Tag) error
+	UpdateDeploymentsForTag(context.Context, *imagtagv1beta1.Tag) error
 	Get(context.Context, string, string) (*appsv1.Deployment, error)
 	AddEventHandler(cache.ResourceEventHandler)
 }

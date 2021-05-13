@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	imgtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	imgtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 )
 
 // MutatingWebHook handles Mutation requests from kubernetes api.
@@ -134,7 +134,7 @@ func (m *MutatingWebHook) tag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tag imgtagv1.Tag
+	var tag imgtagv1beta1.Tag
 	if err := json.Unmarshal(reviewReq.Request.Object.Raw, &tag); err != nil {
 		klog.Errorf("unable to decode tag: %s", err)
 		m.responseError(w, reviewReq, err)

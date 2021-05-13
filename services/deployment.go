@@ -13,9 +13,9 @@ import (
 	aplist "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
-	"github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
-	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	"github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
+	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/listers/tags/v1beta1"
 )
 
 // Deployment gather all actions related to deployment objects.
@@ -41,7 +41,7 @@ func NewDeployment(
 		deplis = corinf.Apps().V1().Deployments().Lister()
 	}
 	if taginf != nil {
-		taglis = taginf.Images().V1().Tags().Lister()
+		taglis = taginf.Images().V1beta1().Tags().Lister()
 	}
 
 	return &Deployment{
@@ -54,7 +54,7 @@ func NewDeployment(
 
 // UpdateDeploymentsForTag updates all deployments using provided tag. Triggers
 // redeployment on Deployments that need (image reference has changed).
-func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.Tag) error {
+func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1beta1.Tag) error {
 	// Current generation is most likely being imported.
 	if it.CurrentReferenceForTag() == "" {
 		return nil
@@ -75,7 +75,7 @@ func (d *Deployment) UpdateDeploymentsForTag(ctx context.Context, it *imagtagv1.
 // DeploymentsForTag returns all deployments on tag's namespace that leverage
 // the provided tag.
 func (d *Deployment) DeploymentsForTag(
-	ctx context.Context, it *imagtagv1.Tag,
+	ctx context.Context, it *imagtagv1beta1.Tag,
 ) ([]*appsv1.Deployment, error) {
 	deploys, err := d.deplis.Deployments(it.Namespace).List(labels.Everything())
 	if err != nil {
