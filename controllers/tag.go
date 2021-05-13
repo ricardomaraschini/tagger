@@ -10,14 +10,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 )
 
 // TagSyncer abstraction exists to make testing easier. You most likely wanna
 // see Tag struct under services/tag.go for a concrete implementation of this.
 type TagSyncer interface {
-	Sync(context.Context, *imagtagv1.Tag) error
-	Get(context.Context, string, string) (*imagtagv1.Tag, error)
+	Sync(context.Context, *imagtagv1beta1.Tag) error
+	Get(context.Context, string, string) (*imagtagv1beta1.Tag, error)
 	AddEventHandler(cache.ResourceEventHandler)
 }
 

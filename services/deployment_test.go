@@ -15,27 +15,27 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
-	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
-	itaginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/fake"
+	itaginf "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
 )
 
 func TestDeploymentsForTag(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		objects []runtime.Object
-		tag     *imagtagv1.Tag
+		tag     *imagtagv1beta1.Tag
 		deploys []string
 	}{
 		{
 			name:    "no deploys",
 			deploys: []string{},
-			tag:     &imagtagv1.Tag{},
+			tag:     &imagtagv1beta1.Tag{},
 		},
 		{
 			name:    "deploy using a different tag",
 			deploys: []string{},
-			tag: &imagtagv1.Tag{
+			tag: &imagtagv1beta1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "myimage",
 					Namespace: "ns",
@@ -87,7 +87,7 @@ func TestDeploymentsForTag(t *testing.T) {
 		{
 			name:    "two deploys",
 			deploys: []string{"ns/deployment0", "ns/deployment1"},
-			tag: &imagtagv1.Tag{
+			tag: &imagtagv1beta1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "myimage",
 					Namespace: "ns",
@@ -139,7 +139,7 @@ func TestDeploymentsForTag(t *testing.T) {
 		{
 			name:    "one deploy",
 			deploys: []string{"ns/deployment"},
-			tag: &imagtagv1.Tag{
+			tag: &imagtagv1beta1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "myimage",
 					Namespace: "ns",
@@ -171,7 +171,7 @@ func TestDeploymentsForTag(t *testing.T) {
 		{
 			name:    "deploy using tag but without annotation",
 			deploys: []string{},
-			tag: &imagtagv1.Tag{
+			tag: &imagtagv1beta1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "myimage",
 					Namespace: "ns",
@@ -283,14 +283,14 @@ func TestDeploymentSync(t *testing.T) {
 				},
 			},
 			tags: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mytag",
 						Namespace: "ns",
 					},
-					Status: imagtagv1.TagStatus{
+					Status: imagtagv1beta1.TagStatus{
 						Generation: 3,
-						References: []imagtagv1.HashReference{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation:     2,
 								ImageReference: "remoteimage:123",
@@ -330,14 +330,14 @@ func TestDeploymentSync(t *testing.T) {
 				},
 			},
 			tags: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "anothertag",
 						Namespace: "ns",
 					},
-					Status: imagtagv1.TagStatus{
+					Status: imagtagv1beta1.TagStatus{
 						Generation: 2,
-						References: []imagtagv1.HashReference{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation:     2,
 								ImageReference: "remoteimage:123",
@@ -383,14 +383,14 @@ func TestDeploymentSync(t *testing.T) {
 				},
 			},
 			tags: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mytag",
 						Namespace: "ns",
 					},
-					Status: imagtagv1.TagStatus{
+					Status: imagtagv1beta1.TagStatus{
 						Generation: 2,
-						References: []imagtagv1.HashReference{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation:     2,
 								ImageReference: "remoteimage:123",
@@ -431,14 +431,14 @@ func TestDeploymentSync(t *testing.T) {
 				},
 			},
 			tags: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mytag",
 						Namespace: "ns",
 					},
-					Status: imagtagv1.TagStatus{
+					Status: imagtagv1beta1.TagStatus{
 						Generation: 2,
-						References: []imagtagv1.HashReference{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation:     2,
 								ImageReference: "remoteimage:123",
@@ -460,12 +460,12 @@ func TestDeploymentSync(t *testing.T) {
 			corcli := fake.NewSimpleClientset(tt.deploy)
 			fakecli := tagfake.NewSimpleClientset(tt.tags...)
 			taginf := itaginf.NewSharedInformerFactory(fakecli, time.Minute)
-			taglis := taginf.Images().V1().Tags().Lister()
+			taglis := taginf.Images().V1beta1().Tags().Lister()
 
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
-				taginf.Images().V1().Tags().Informer().HasSynced,
+				taginf.Images().V1beta1().Tags().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}

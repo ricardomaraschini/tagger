@@ -13,15 +13,15 @@ import (
 	corfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
-	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned/fake"
-	taginf "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	tagfake "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/fake"
+	taginf "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
 )
 
 func TestSync(t *testing.T) {
 	for _, tt := range []struct {
 		name       string
-		tag        *imagtagv1.Tag
+		tag        *imagtagv1beta1.Tag
 		err        string
 		corObjects []runtime.Object
 		tagObjects []runtime.Object
@@ -32,7 +32,7 @@ func TestSync(t *testing.T) {
 			name:    "empty tag",
 			err:     "empty tag reference",
 			succeed: false,
-			tag: &imagtagv1.Tag{
+			tag: &imagtagv1beta1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 					Name:      "empty-tag",
@@ -43,12 +43,12 @@ func TestSync(t *testing.T) {
 			name:    "import of non existing tag",
 			err:     "manifest unknown",
 			succeed: false,
-			tag: &imagtagv1.Tag{
+			tag: &imagtagv1beta1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 					Name:      "new-tag",
 				},
-				Spec: imagtagv1.TagSpec{
+				Spec: imagtagv1beta1.TagSpec{
 					From:       "centos:xyz123xyz",
 					Generation: 0,
 				},
@@ -57,23 +57,23 @@ func TestSync(t *testing.T) {
 		{
 			name:    "first import (happy path)",
 			succeed: true,
-			tag: &imagtagv1.Tag{
+			tag: &imagtagv1beta1.Tag{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 					Name:      "new-tag",
 				},
-				Spec: imagtagv1.TagSpec{
+				Spec: imagtagv1beta1.TagSpec{
 					From:       "centos:latest",
 					Generation: 0,
 				},
 			},
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "default",
 						Name:      "new-tag",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						From:       "centos:latest",
 						Generation: 0,
 					},
@@ -99,7 +99,7 @@ func TestSync(t *testing.T) {
 				ctx.Done(),
 				corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 				corinf.Core().V1().Secrets().Informer().HasSynced,
-				taginf.Images().V1().Tags().Informer().HasSynced,
+				taginf.Images().V1beta1().Tags().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}
@@ -148,12 +148,12 @@ func TestNewGenerationForImageRef(t *testing.T) {
 			imgpath: "quay.io/repo/image:latest",
 			expgens: []int64{2},
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "namespace",
 						Name:      "name",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 						From:       "quay.io/repo/image:latest",
 					},
@@ -165,17 +165,17 @@ func TestNewGenerationForImageRef(t *testing.T) {
 			imgpath: "quay.io/repo/image:latest",
 			expgens: []int64{3},
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "namespace",
 						Name:      "name",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 						From:       "quay.io/repo/image:latest",
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 2,
 							},
@@ -189,34 +189,34 @@ func TestNewGenerationForImageRef(t *testing.T) {
 			imgpath: "quay.io/repo/image:latest",
 			expgens: []int64{3, 4},
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "a_namespace",
 						Name:      "a_name",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 						From:       "quay.io/repo/image:latest",
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 2,
 							},
 						},
 					},
 				},
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "b_namespace",
 						Name:      "b_name",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 3,
 						From:       "quay.io/repo/image:latest",
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 3,
 							},
@@ -230,34 +230,34 @@ func TestNewGenerationForImageRef(t *testing.T) {
 			imgpath: "quay.io/repo/image:latest",
 			expgens: []int64{2, 4},
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "a_namespace",
 						Name:      "a_name",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 						From:       "quay.io/repo2/image:latest",
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 2,
 							},
 						},
 					},
 				},
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "b_namespace",
 						Name:      "b_name",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 3,
 						From:       "quay.io/repo/image:latest",
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 3,
 							},
@@ -271,17 +271,17 @@ func TestNewGenerationForImageRef(t *testing.T) {
 			imgpath: "quay.io/repo/image:latest",
 			expgens: []int64{2},
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "a_namespace",
 						Name:      "a_name",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 						From:       "quay.io/repo/image:latest",
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 1,
 							},
@@ -297,12 +297,12 @@ func TestNewGenerationForImageRef(t *testing.T) {
 
 			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
 			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
-			taglis := taginf.Images().V1().Tags().Lister()
+			taglis := taginf.Images().V1beta1().Tags().Lister()
 
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
-				taginf.Images().V1().Tags().Informer().HasSynced,
+				taginf.Images().V1beta1().Tags().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}
@@ -323,8 +323,8 @@ func TestNewGenerationForImageRef(t *testing.T) {
 			}
 
 			for i, obj := range tt.tagObjects {
-				tag := obj.(*imagtagv1.Tag)
-				if tag, err = tagcli.ImagesV1().Tags(tag.Namespace).Get(
+				tag := obj.(*imagtagv1beta1.Tag)
+				if tag, err = tagcli.ImagesV1beta1().Tags(tag.Namespace).Get(
 					ctx, tag.Name, metav1.GetOptions{},
 				); err != nil {
 					t.Fatalf("unexpected error: %v", err)
@@ -359,12 +359,12 @@ func TestUpgrade(t *testing.T) {
 			tagNamespace: "atagnamespace",
 			err:          "pending tag import",
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 					},
 				},
@@ -377,16 +377,16 @@ func TestUpgrade(t *testing.T) {
 			expgen:       2,
 			err:          "currently at newest generation",
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 2,
 							},
@@ -401,16 +401,16 @@ func TestUpgrade(t *testing.T) {
 			tagNamespace: "atagnamespace",
 			expgen:       3,
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 3,
 							},
@@ -471,12 +471,12 @@ func TestDowngrade(t *testing.T) {
 			tagNamespace: "atagnamespace",
 			err:          "at oldest generation",
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 					},
 				},
@@ -488,16 +488,16 @@ func TestDowngrade(t *testing.T) {
 			tagNamespace: "atagnamespace",
 			expgen:       1,
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 2,
 							},
@@ -558,12 +558,12 @@ func TestNewGeneration(t *testing.T) {
 			tagNamespace: "atagnamespace",
 			expgen:       0,
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 0,
 					},
 				},
@@ -575,16 +575,16 @@ func TestNewGeneration(t *testing.T) {
 			tagNamespace: "atagnamespace",
 			expgen:       3,
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 2,
 					},
-					Status: imagtagv1.TagStatus{
-						References: []imagtagv1.HashReference{
+					Status: imagtagv1beta1.TagStatus{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 2,
 							},
@@ -602,17 +602,17 @@ func TestNewGeneration(t *testing.T) {
 			tagNamespace: "atagnamespace",
 			expgen:       5,
 			tagObjects: []runtime.Object{
-				&imagtagv1.Tag{
+				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "atag",
 						Namespace: "atagnamespace",
 					},
-					Spec: imagtagv1.TagSpec{
+					Spec: imagtagv1beta1.TagSpec{
 						Generation: 1,
 					},
-					Status: imagtagv1.TagStatus{
+					Status: imagtagv1beta1.TagStatus{
 						Generation: 1,
-						References: []imagtagv1.HashReference{
+						References: []imagtagv1beta1.HashReference{
 							{
 								Generation: 4,
 							},
@@ -725,19 +725,19 @@ func TestImportPath(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
 		unqreg []string
-		tag    *imagtagv1.Tag
+		tag    *imagtagv1beta1.Tag
 		err    string
 	}{
 		{
 			name: "empty tag",
-			tag:  &imagtagv1.Tag{},
+			tag:  &imagtagv1beta1.Tag{},
 			err:  "empty tag reference",
 		},
 		{
 			name: "no unqualified registry registered",
 			err:  "no unqualified registries found",
-			tag: &imagtagv1.Tag{
-				Spec: imagtagv1.TagSpec{
+			tag: &imagtagv1beta1.Tag{
+				Spec: imagtagv1beta1.TagSpec{
 					From: "centos:latest",
 				},
 			},
@@ -745,16 +745,16 @@ func TestImportPath(t *testing.T) {
 		{
 			name:   "happy path using unqualified registry",
 			unqreg: []string{"docker.io"},
-			tag: &imagtagv1.Tag{
-				Spec: imagtagv1.TagSpec{
+			tag: &imagtagv1beta1.Tag{
+				Spec: imagtagv1beta1.TagSpec{
 					From: "centos:latest",
 				},
 			},
 		},
 		{
 			name: "happy path with full image reference",
-			tag: &imagtagv1.Tag{
-				Spec: imagtagv1.TagSpec{
+			tag: &imagtagv1beta1.Tag{
+				Spec: imagtagv1beta1.TagSpec{
 					From: "docker.io/centos:latest",
 				},
 			},
@@ -762,8 +762,8 @@ func TestImportPath(t *testing.T) {
 		{
 			name: "invalid image reference format",
 			err:  "invalid reference format",
-			tag: &imagtagv1.Tag{
-				Spec: imagtagv1.TagSpec{
+			tag: &imagtagv1beta1.Tag{
+				Spec: imagtagv1beta1.TagSpec{
 					From: "docker.io/!<S87sdf<<>>",
 				},
 			},
@@ -772,8 +772,8 @@ func TestImportPath(t *testing.T) {
 			name:   "non existent tag",
 			err:    "manifest unknown",
 			unqreg: []string{"docker.io"},
-			tag: &imagtagv1.Tag{
-				Spec: imagtagv1.TagSpec{
+			tag: &imagtagv1beta1.Tag{
+				Spec: imagtagv1beta1.TagSpec{
 					From: "centos:idonotexisthopefully",
 				},
 			},
@@ -781,8 +781,8 @@ func TestImportPath(t *testing.T) {
 		{
 			name: "non existent registry by name",
 			err:  "error pinging docker registry",
-			tag: &imagtagv1.Tag{
-				Spec: imagtagv1.TagSpec{
+			tag: &imagtagv1beta1.Tag{
+				Spec: imagtagv1beta1.TagSpec{
 					From: "i.do.not.exist.com/centos:latest",
 				},
 			},

@@ -13,7 +13,7 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/spf13/cobra"
 
-	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
+	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
 	"github.com/ricardomaraschini/tagger/services"
 )
 

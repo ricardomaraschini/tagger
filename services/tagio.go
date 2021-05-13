@@ -11,10 +11,10 @@ import (
 
 	"github.com/containers/image/v5/transports/alltransports"
 
-	imagtagv1 "github.com/ricardomaraschini/tagger/infra/tags/v1"
-	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/clientset/versioned"
-	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/informers/externalversions"
-	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1/gen/listers/tags/v1"
+	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
+	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
+	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/listers/tags/v1beta1"
 )
 
 // TagIO is an entity that gather operations related to Tag images input and
@@ -34,7 +34,7 @@ func NewTagIO(
 ) *TagIO {
 	var taglis taglist.TagLister
 	if taginf != nil {
-		taglis = taginf.Images().V1().Tags().Lister()
+		taglis = taginf.Images().V1beta1().Tags().Lister()
 	}
 
 	return &TagIO{
@@ -46,7 +46,7 @@ func NewTagIO(
 
 // tagOrNew returns or an existing Tag or a new one. Returned tag
 // is configured with 'mirror' set as true.
-func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
+func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1beta1.Tag, error) {
 	it, err := t.taglis.Tags(ns).Get(name)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, err
@@ -56,12 +56,12 @@ func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1.Tag, error) {
 		return it, nil
 	}
 
-	return &imagtagv1.Tag{
+	return &imagtagv1beta1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: ns,
 		},
-		Spec: imagtagv1.TagSpec{
+		Spec: imagtagv1beta1.TagSpec{
 			Mirror: true,
 		},
 	}, nil
@@ -99,7 +99,7 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	it.Spec.Generation, it.Status.Generation = nextgen, nextgen
 	it.RegisterImportSuccess()
 	it.PrependHashReference(
-		imagtagv1.HashReference{
+		imagtagv1beta1.HashReference{
 			Generation:     nextgen,
 			From:           "-",
 			ImportedAt:     metav1.Now(),
@@ -113,13 +113,13 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	// the image.
 	if it.Spec.From == "" {
 		it.Spec.From = dstref.DockerReference().String()
-		_, err = t.tagcli.ImagesV1().Tags(ns).Create(
+		_, err = t.tagcli.ImagesV1beta1().Tags(ns).Create(
 			ctx, it, metav1.CreateOptions{},
 		)
 		return err
 	}
 
-	_, err = t.tagcli.ImagesV1().Tags(ns).Update(
+	_, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	)
 	return err
