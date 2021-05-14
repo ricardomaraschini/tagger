@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/typed/tags/v1beta1"
-	fakeimagesv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/typed/tags/v1beta1/fake"
+	taggerv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/typed/tags/v1beta1"
+	faketaggerv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/typed/tags/v1beta1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -76,7 +76,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// ImagesV1beta1 retrieves the ImagesV1beta1Client
-func (c *Clientset) ImagesV1beta1() imagesv1beta1.ImagesV1beta1Interface {
-	return &fakeimagesv1beta1.FakeImagesV1beta1{Fake: &c.Fake}
+// TaggerV1beta1 retrieves the TaggerV1beta1Client
+func (c *Clientset) TaggerV1beta1() taggerv1beta1.TaggerV1beta1Interface {
+	return &faketaggerv1beta1.FakeTaggerV1beta1{Fake: &c.Fake}
 }

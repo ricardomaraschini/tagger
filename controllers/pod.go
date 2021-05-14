@@ -98,7 +98,7 @@ func (p *Pod) eventProcessor(wg *sync.WaitGroup) {
 			p.queue.AddAfter(rawevt, 5*time.Second)
 			continue
 		}
-		klog.Infof("processed event for pof %v", rawevt)
+		klog.Infof("processed event for pod %v", rawevt)
 
 		p.queue.Done(rawevt)
 	}

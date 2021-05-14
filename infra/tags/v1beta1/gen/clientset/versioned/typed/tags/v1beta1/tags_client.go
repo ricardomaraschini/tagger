@@ -24,22 +24,22 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-type ImagesV1beta1Interface interface {
+type TaggerV1beta1Interface interface {
 	RESTClient() rest.Interface
 	TagsGetter
 }
 
-// ImagesV1beta1Client is used to interact with features provided by the images.io group.
-type ImagesV1beta1Client struct {
+// TaggerV1beta1Client is used to interact with features provided by the tagger.dev group.
+type TaggerV1beta1Client struct {
 	restClient rest.Interface
 }
 
-func (c *ImagesV1beta1Client) Tags(namespace string) TagInterface {
+func (c *TaggerV1beta1Client) Tags(namespace string) TagInterface {
 	return newTags(c, namespace)
 }
 
-// NewForConfig creates a new ImagesV1beta1Client for the given config.
-func NewForConfig(c *rest.Config) (*ImagesV1beta1Client, error) {
+// NewForConfig creates a new TaggerV1beta1Client for the given config.
+func NewForConfig(c *rest.Config) (*TaggerV1beta1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -48,12 +48,12 @@ func NewForConfig(c *rest.Config) (*ImagesV1beta1Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ImagesV1beta1Client{client}, nil
+	return &TaggerV1beta1Client{client}, nil
 }
 
-// NewForConfigOrDie creates a new ImagesV1beta1Client for the given config and
+// NewForConfigOrDie creates a new TaggerV1beta1Client for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *ImagesV1beta1Client {
+func NewForConfigOrDie(c *rest.Config) *TaggerV1beta1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -61,9 +61,9 @@ func NewForConfigOrDie(c *rest.Config) *ImagesV1beta1Client {
 	return client
 }
 
-// New creates a new ImagesV1beta1Client for the given RESTClient.
-func New(c rest.Interface) *ImagesV1beta1Client {
-	return &ImagesV1beta1Client{c}
+// New creates a new TaggerV1beta1Client for the given RESTClient.
+func New(c rest.Interface) *TaggerV1beta1Client {
+	return &TaggerV1beta1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) error {
@@ -81,7 +81,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *ImagesV1beta1Client) RESTClient() rest.Interface {
+func (c *TaggerV1beta1Client) RESTClient() rest.Interface {
 	if c == nil {
 		return nil
 	}

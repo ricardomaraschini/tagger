@@ -3,7 +3,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: tagger
 webhooks:
-- name: tag.images.io
+- name: tag.tagger.dev
   admissionReviewVersions:
   - v1
   sideEffects: None
@@ -40,7 +40,7 @@ webhooks:
       SmRvPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
   rules:
   - apiGroups:
-    - "images.io"
+    - "tagger.dev"
     apiVersions:
     - "v1beta1"
     resources: 

@@ -49,7 +49,7 @@ rules:
   - list
   - update
 - apiGroups:
-  - images.io
+  - tagger.dev
   resources:
   - tags
   verbs:

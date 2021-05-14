@@ -99,7 +99,7 @@ func TestSync(t *testing.T) {
 				ctx.Done(),
 				corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 				corinf.Core().V1().Secrets().Informer().HasSynced,
-				taginf.Images().V1beta1().Tags().Informer().HasSynced,
+				taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}
@@ -297,12 +297,12 @@ func TestNewGenerationForImageRef(t *testing.T) {
 
 			tagcli := tagfake.NewSimpleClientset(tt.tagObjects...)
 			taginf := taginf.NewSharedInformerFactory(tagcli, time.Minute)
-			taglis := taginf.Images().V1beta1().Tags().Lister()
+			taglis := taginf.Tagger().V1beta1().Tags().Lister()
 
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
-				taginf.Images().V1beta1().Tags().Informer().HasSynced,
+				taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}
@@ -324,7 +324,7 @@ func TestNewGenerationForImageRef(t *testing.T) {
 
 			for i, obj := range tt.tagObjects {
 				tag := obj.(*imagtagv1beta1.Tag)
-				if tag, err = tagcli.ImagesV1beta1().Tags(tag.Namespace).Get(
+				if tag, err = tagcli.TaggerV1beta1().Tags(tag.Namespace).Get(
 					ctx, tag.Name, metav1.GetOptions{},
 				); err != nil {
 					t.Fatalf("unexpected error: %v", err)
