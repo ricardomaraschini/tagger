@@ -8,7 +8,7 @@ import (
 
 //SchemeGroupVersion is the group/version for image tag resources.
 var SchemeGroupVersion = schema.GroupVersion{
-	Group:   "images.io",
+	Group:   "tagger.dev",
 	Version: "v1beta1",
 }
 

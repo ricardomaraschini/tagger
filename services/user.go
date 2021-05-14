@@ -51,7 +51,7 @@ func (u *User) CanUpdateTags(ctx context.Context, ns, token string) error {
 				Namespace: ns,
 				Resource:  "tags",
 				Verb:      "update",
-				Group:     "images.io",
+				Group:     "tagger.dev",
 			},
 		},
 	}

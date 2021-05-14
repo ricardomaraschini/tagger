@@ -41,7 +41,7 @@ func NewDeployment(
 		deplis = corinf.Apps().V1().Deployments().Lister()
 	}
 	if taginf != nil {
-		taglis = taginf.Images().V1beta1().Tags().Lister()
+		taglis = taginf.Tagger().V1beta1().Tags().Lister()
 	}
 
 	return &Deployment{

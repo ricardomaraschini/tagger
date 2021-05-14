@@ -62,13 +62,13 @@ func NewFilteredTagInformer(client versioned.Interface, namespace string, resync
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ImagesV1beta1().Tags(namespace).List(context.TODO(), options)
+				return client.TaggerV1beta1().Tags(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ImagesV1beta1().Tags(namespace).Watch(context.TODO(), options)
+				return client.TaggerV1beta1().Tags(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&tagsv1beta1.Tag{},

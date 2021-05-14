@@ -34,7 +34,7 @@ func NewTagIO(
 ) *TagIO {
 	var taglis taglist.TagLister
 	if taginf != nil {
-		taglis = taginf.Images().V1beta1().Tags().Lister()
+		taglis = taginf.Tagger().V1beta1().Tags().Lister()
 	}
 
 	return &TagIO{
@@ -113,13 +113,13 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	// the image.
 	if it.Spec.From == "" {
 		it.Spec.From = dstref.DockerReference().String()
-		_, err = t.tagcli.ImagesV1beta1().Tags(ns).Create(
+		_, err = t.tagcli.TaggerV1beta1().Tags(ns).Create(
 			ctx, it, metav1.CreateOptions{},
 		)
 		return err
 	}
 
-	_, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
+	_, err = t.tagcli.TaggerV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	)
 	return err

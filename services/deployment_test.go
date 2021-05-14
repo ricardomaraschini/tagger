@@ -460,12 +460,12 @@ func TestDeploymentSync(t *testing.T) {
 			corcli := fake.NewSimpleClientset(tt.deploy)
 			fakecli := tagfake.NewSimpleClientset(tt.tags...)
 			taginf := itaginf.NewSharedInformerFactory(fakecli, time.Minute)
-			taglis := taginf.Images().V1beta1().Tags().Lister()
+			taglis := taginf.Tagger().V1beta1().Tags().Lister()
 
 			taginf.Start(ctx.Done())
 			if !cache.WaitForCacheSync(
 				ctx.Done(),
-				taginf.Images().V1beta1().Tags().Informer().HasSynced,
+				taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 			) {
 				t.Fatal("errors waiting for caches to sync")
 			}
