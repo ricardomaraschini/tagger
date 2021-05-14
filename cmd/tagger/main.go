@@ -90,7 +90,7 @@ func main() {
 		corinf.Core().V1().Secrets().Informer().HasSynced,
 		corinf.Core().V1().Pods().Informer().HasSynced,
 		corinf.Apps().V1().Deployments().Informer().HasSynced,
-		taginf.Images().V1beta1().Tags().Informer().HasSynced,
+		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 	) {
 		klog.Fatal("caches not syncing")
 	}

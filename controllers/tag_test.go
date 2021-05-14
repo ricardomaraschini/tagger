@@ -45,7 +45,7 @@ func (t *tagsvc) Sync(ctx context.Context, tag *imagtagv1beta1.Tag) error {
 }
 
 func (t *tagsvc) Get(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
-	return t.tagcli.ImagesV1beta1().Tags(ns).Get(ctx, name, metav1.GetOptions{})
+	return t.tagcli.TaggerV1beta1().Tags(ns).Get(ctx, name, metav1.GetOptions{})
 }
 
 func (t *tagsvc) get(idx string) *imagtagv1beta1.Tag {
@@ -61,7 +61,7 @@ func (t *tagsvc) len() int {
 }
 
 func (t *tagsvc) AddEventHandler(handler cache.ResourceEventHandler) {
-	t.taginf.Images().V1beta1().Tags().Informer().AddEventHandler(handler)
+	t.taginf.Tagger().V1beta1().Tags().Informer().AddEventHandler(handler)
 }
 
 func TestTagCreated(t *testing.T) {
@@ -80,7 +80,7 @@ func TestTagCreated(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1beta1().Tags().Informer().HasSynced,
+		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -106,7 +106,7 @@ func TestTagCreated(t *testing.T) {
 		},
 	}
 
-	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
+	if _, err := tagcli.TaggerV1beta1().Tags("namespace").Create(
 		ctx, tag, metav1.CreateOptions{},
 	); err != nil {
 		t.Fatalf("error creating tag: %s", err)
@@ -143,7 +143,7 @@ func TestTagUpdated(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1beta1().Tags().Informer().HasSynced,
+		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -169,7 +169,7 @@ func TestTagUpdated(t *testing.T) {
 		},
 	}
 
-	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
+	if _, err := tagcli.TaggerV1beta1().Tags("namespace").Create(
 		ctx, tag, metav1.CreateOptions{},
 	); err != nil {
 		t.Fatalf("error creating tag: %s", err)
@@ -183,7 +183,7 @@ func TestTagUpdated(t *testing.T) {
 	}
 
 	tag.Spec.From = "rhel:latest"
-	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Update(
+	if _, err := tagcli.TaggerV1beta1().Tags("namespace").Update(
 		ctx, tag, metav1.UpdateOptions{},
 	); err != nil {
 		t.Fatalf("error updating tag: %s", err)
@@ -221,7 +221,7 @@ func TestTagParallel(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1beta1().Tags().Informer().HasSynced,
+		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -247,7 +247,7 @@ func TestTagParallel(t *testing.T) {
 				Mirror: true,
 			},
 		}
-		if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
+		if _, err := tagcli.TaggerV1beta1().Tags("namespace").Create(
 			ctx, tag, metav1.CreateOptions{},
 		); err != nil {
 			t.Fatalf("error creating tag: %s", err)
@@ -281,7 +281,7 @@ func TestTagDeleted(t *testing.T) {
 
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		taginf.Images().V1beta1().Tags().Informer().HasSynced,
+		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 	) {
 		cancel()
 		t.Fatal("timeout waiting for caches to sync")
@@ -307,7 +307,7 @@ func TestTagDeleted(t *testing.T) {
 		},
 	}
 
-	if _, err := tagcli.ImagesV1beta1().Tags("namespace").Create(
+	if _, err := tagcli.TaggerV1beta1().Tags("namespace").Create(
 		ctx, tag, metav1.CreateOptions{},
 	); err != nil {
 		t.Fatalf("error creating tag: %s", err)
@@ -320,7 +320,7 @@ func TestTagDeleted(t *testing.T) {
 		t.Errorf("expected %+v, found %+v", tag, svc.db["namespace/atag"])
 	}
 
-	if err := tagcli.ImagesV1beta1().Tags("namespace").Delete(
+	if err := tagcli.TaggerV1beta1().Tags("namespace").Delete(
 		ctx, "atag", metav1.DeleteOptions{},
 	); err != nil {
 		t.Fatalf("error updating tag: %s", err)

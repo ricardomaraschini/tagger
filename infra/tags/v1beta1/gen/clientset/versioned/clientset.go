@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/typed/tags/v1beta1"
+	taggerv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned/typed/tags/v1beta1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -29,19 +29,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	ImagesV1beta1() imagesv1beta1.ImagesV1beta1Interface
+	TaggerV1beta1() taggerv1beta1.TaggerV1beta1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	imagesV1beta1 *imagesv1beta1.ImagesV1beta1Client
+	taggerV1beta1 *taggerv1beta1.TaggerV1beta1Client
 }
 
-// ImagesV1beta1 retrieves the ImagesV1beta1Client
-func (c *Clientset) ImagesV1beta1() imagesv1beta1.ImagesV1beta1Interface {
-	return c.imagesV1beta1
+// TaggerV1beta1 retrieves the TaggerV1beta1Client
+func (c *Clientset) TaggerV1beta1() taggerv1beta1.TaggerV1beta1Interface {
+	return c.taggerV1beta1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -65,7 +65,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.imagesV1beta1, err = imagesv1beta1.NewForConfig(&configShallowCopy)
+	cs.taggerV1beta1, err = taggerv1beta1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.imagesV1beta1 = imagesv1beta1.NewForConfigOrDie(c)
+	cs.taggerV1beta1 = taggerv1beta1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,7 +90,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.imagesV1beta1 = imagesv1beta1.New(c)
+	cs.taggerV1beta1 = taggerv1beta1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs
