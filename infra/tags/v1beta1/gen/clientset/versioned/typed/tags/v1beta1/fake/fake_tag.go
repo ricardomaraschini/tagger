@@ -32,13 +32,13 @@ import (
 
 // FakeTags implements TagInterface
 type FakeTags struct {
-	Fake *FakeImagesV1beta1
+	Fake *FakeTaggerV1beta1
 	ns   string
 }
 
-var tagsResource = schema.GroupVersionResource{Group: "images.io", Version: "v1beta1", Resource: "tags"}
+var tagsResource = schema.GroupVersionResource{Group: "tagger.dev", Version: "v1beta1", Resource: "tags"}
 
-var tagsKind = schema.GroupVersionKind{Group: "images.io", Version: "v1beta1", Kind: "Tag"}
+var tagsKind = schema.GroupVersionKind{Group: "tagger.dev", Version: "v1beta1", Kind: "Tag"}
 
 // Get takes name of the tag, and returns the corresponding tag object, and an error if there is any.
 func (c *FakeTags) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.Tag, err error) {

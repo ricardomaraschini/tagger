@@ -1,7 +1,7 @@
 # Tag example
 
 ```yaml
-apiVersion: images.io/v1beta1
+apiVersion: tagger.dev/v1beta1
 kind: Tag
 metadata:
   name: nginx

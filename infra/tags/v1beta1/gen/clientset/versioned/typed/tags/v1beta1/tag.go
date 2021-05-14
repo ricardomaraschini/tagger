@@ -57,7 +57,7 @@ type tags struct {
 }
 
 // newTags returns a Tags
-func newTags(c *ImagesV1beta1Client, namespace string) *tags {
+func newTags(c *TaggerV1beta1Client, namespace string) *tags {
 	return &tags{
 		client: c.RESTClient(),
 		ns:     namespace,

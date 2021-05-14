@@ -172,9 +172,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Images() tags.Interface
+	Tagger() tags.Interface
 }
 
-func (f *sharedInformerFactory) Images() tags.Interface {
+func (f *sharedInformerFactory) Tagger() tags.Interface {
 	return tags.New(f, f.namespace, f.tweakListOptions)
 }

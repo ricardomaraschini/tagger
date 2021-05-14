@@ -42,7 +42,7 @@ func NewTag(
 ) *Tag {
 	var taglis taglist.TagLister
 	if taginf != nil {
-		taglis = taginf.Images().V1beta1().Tags().Lister()
+		taglis = taginf.Tagger().V1beta1().Tags().Lister()
 	}
 
 	return &Tag{
@@ -70,7 +70,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1beta1.Tag) error {
 			// status and update it. If we fail to update the tag we only log,
 			// returning the original error.
 			it.RegisterImportFailure(err)
-			if _, nerr := t.tagcli.ImagesV1beta1().Tags(it.Namespace).Update(
+			if _, nerr := t.tagcli.TaggerV1beta1().Tags(it.Namespace).Update(
 				ctx, it, metav1.UpdateOptions{},
 			); err != nil {
 				klog.Errorf("error updating tag status: %s", nerr)
@@ -89,7 +89,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1beta1.Tag) error {
 	}
 
 	it.Status.Generation = it.Spec.Generation
-	if _, err = t.tagcli.ImagesV1beta1().Tags(it.Namespace).Update(
+	if _, err = t.tagcli.TaggerV1beta1().Tags(it.Namespace).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return fmt.Errorf("error updating tag: %w", err)
@@ -123,7 +123,7 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 		}
 
 		tag.Spec.Generation = tag.NextGeneration()
-		if _, err := t.tagcli.ImagesV1beta1().Tags(tag.Namespace).Update(
+		if _, err := t.tagcli.TaggerV1beta1().Tags(tag.Namespace).Update(
 			ctx, tag, metav1.UpdateOptions{},
 		); err != nil {
 			return fmt.Errorf("fail updating tag: %w", err)
@@ -135,7 +135,7 @@ func (t *Tag) NewGenerationForImageRef(ctx context.Context, imgpath string) erro
 
 // Upgrade increments the expected (spec) generation for a tag.
 func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
-	it, err := t.tagcli.ImagesV1beta1().Tags(ns).Get(
+	it, err := t.tagcli.TaggerV1beta1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -152,7 +152,7 @@ func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag
 		return nil, fmt.Errorf("currently at newest generation")
 	}
 
-	if it, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
+	if it, err = t.tagcli.TaggerV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -163,7 +163,7 @@ func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag
 
 // Downgrade decrements the expected (spec) generation for a tag.
 func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
-	it, err := t.tagcli.ImagesV1beta1().Tags(ns).Get(
+	it, err := t.tagcli.TaggerV1beta1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -175,7 +175,7 @@ func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.T
 		return nil, fmt.Errorf("currently at oldest generation")
 	}
 
-	if it, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
+	if it, err = t.tagcli.TaggerV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -187,7 +187,7 @@ func (t *Tag) Downgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.T
 // to 'last imported generation + 1'. If no generation was imported then the next
 // generation is zero.
 func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
-	it, err := t.tagcli.ImagesV1beta1().Tags(ns).Get(
+	it, err := t.tagcli.TaggerV1beta1().Tags(ns).Get(
 		ctx, name, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -200,7 +200,7 @@ func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1bet
 	}
 	it.Spec.Generation = nextGen
 
-	if it, err = t.tagcli.ImagesV1beta1().Tags(ns).Update(
+	if it, err = t.tagcli.TaggerV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return nil, fmt.Errorf("error updating tag: %w", err)
@@ -220,7 +220,7 @@ func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, er
 
 // AddEventHandler adds a handler to Tag related events.
 func (t *Tag) AddEventHandler(handler cache.ResourceEventHandler) {
-	t.taginf.Images().V1beta1().Tags().Informer().AddEventHandler(handler)
+	t.taginf.Tagger().V1beta1().Tags().Informer().AddEventHandler(handler)
 }
 
 // splitRegistryDomain splits the domain from the repository and image.
@@ -372,7 +372,7 @@ func (t *Tag) NewTag(ctx context.Context, namespace, name, from string, mirror b
 			Mirror: mirror,
 		},
 	}
-	_, err := t.tagcli.ImagesV1beta1().Tags(namespace).Create(
+	_, err := t.tagcli.TaggerV1beta1().Tags(namespace).Create(
 		ctx, it, metav1.CreateOptions{},
 	)
 	return err
