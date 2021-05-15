@@ -23,6 +23,9 @@ import (
 	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/listers/tags/v1beta1"
 )
 
+// finalizerstr is the string used when creating a finalizer for a tag.
+const finalizerstr = "tagger.dev/tag-protection"
+
 // Tag gather all actions related to image tag objects.
 type Tag struct {
 	tagcli tagclient.Interface
@@ -51,6 +54,33 @@ func NewTag(
 		taglis: taglis,
 		syssvc: NewSysContext(corinf),
 	}
+}
+
+// Delete manages a tag deletion. Updates tag's finalizer proprety after
+// the tag deletion.
+func (t *Tag) Delete(ctx context.Context, it *imagtagv1beta1.Tag) error {
+	// remove the finalizer string from tag finalizers slice
+	nfin := make([]string, 0, len(it.Finalizers))
+	for _, fin := range it.Finalizers {
+		if fin == finalizerstr {
+			continue
+		}
+		nfin = append(nfin, fin)
+	}
+
+	if len(nfin) == len(it.Finalizers) {
+		return nil
+	}
+
+	klog.Infof("delete image from mirror registry not implemented yet")
+
+	it.Finalizers = nfin
+	if _, err := t.tagcli.TaggerV1beta1().Tags(it.Namespace).Update(
+		ctx, it, metav1.UpdateOptions{},
+	); err != nil {
+		return fmt.Errorf("error removing finalizer from tag: %w", err)
+	}
+	return nil
 }
 
 // Sync manages image tag updates, assuring we have the tag imported.
@@ -365,7 +395,8 @@ func (t *Tag) HashReferenceByTag(
 func (t *Tag) NewTag(ctx context.Context, namespace, name, from string, mirror bool) error {
 	it := &imagtagv1beta1.Tag{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:       name,
+			Finalizers: []string{finalizerstr},
 		},
 		Spec: imagtagv1beta1.TagSpec{
 			From:   from,

@@ -44,6 +44,10 @@ func (t *tagsvc) Sync(ctx context.Context, tag *imagtagv1beta1.Tag) error {
 	return nil
 }
 
+func (t *tagsvc) Delete(ctx context.Context, tag *imagtagv1beta1.Tag) error {
+	return nil
+}
+
 func (t *tagsvc) Get(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
 	return t.tagcli.TaggerV1beta1().Tags(ns).Get(ctx, name, metav1.GetOptions{})
 }

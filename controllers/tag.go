@@ -18,6 +18,7 @@ import (
 type TagSyncer interface {
 	Sync(context.Context, *imagtagv1beta1.Tag) error
 	Get(context.Context, string, string) (*imagtagv1beta1.Tag, error)
+	Delete(context.Context, *imagtagv1beta1.Tag) error
 	AddEventHandler(cache.ResourceEventHandler)
 }
 
@@ -150,6 +151,9 @@ func (t *Tag) syncTag(namespace, name string) error {
 			return nil
 		}
 		return err
+	}
+	if it.FlaggedForDeletion() {
+		return t.tagsvc.Delete(ctx, it)
 	}
 	return t.tagsvc.Sync(ctx, it)
 }

@@ -33,6 +33,12 @@ func (t *Tag) CurrentReferenceForTag() string {
 	return ""
 }
 
+// FlaggedForDeletion returns true if this tag has been flagged to be
+// deleted. Checks if DeletionTimestamp is not nil.
+func (t *Tag) FlaggedForDeletion() bool {
+	return t.DeletionTimestamp != nil
+}
+
 // NextGeneration returns what the next generation for a given tag should
 // be. It is the last imported generation plus one. Returns zero if Tag
 // hasn't been imported yet.
