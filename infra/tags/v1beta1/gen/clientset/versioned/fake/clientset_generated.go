@@ -74,10 +74,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var (
-	_ clientset.Interface = &Clientset{}
-	_ testing.FakeClient  = &Clientset{}
-)
+var _ clientset.Interface = &Clientset{}
 
 // TaggerV1beta1 retrieves the TaggerV1beta1Client
 func (c *Clientset) TaggerV1beta1() taggerv1beta1.TaggerV1beta1Interface {
