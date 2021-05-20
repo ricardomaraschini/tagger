@@ -31,6 +31,7 @@ $(PLUGIN):
 get-code-generator:
 	rm -rf $(GEN_BIN) || true
 	git clone --depth=1 \
+		--branch v0.21.1 \
 		https://github.com/kubernetes/code-generator.git \
 		$(GEN_BIN)
 
