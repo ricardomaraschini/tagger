@@ -120,7 +120,7 @@ func pullTagImage(
 		return nil, nil, fmt.Errorf("error creating temp file: %w", err)
 	}
 
-	pbar := progbar.New("Pulling")
+	pbar := progbar.New(ctx, "Pulling")
 	defer pbar.Wait()
 
 	if err := pb.Receive(stream, fp, pbar); err != nil {

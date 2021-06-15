@@ -1,6 +1,8 @@
 package progbar
 
 import (
+	"context"
+
 	"github.com/vbauerster/mpb/v6"
 	"github.com/vbauerster/mpb/v6/decor"
 )
@@ -13,10 +15,10 @@ type ProgressBar struct {
 }
 
 // New returns a new ProgressBar using the provided description as the bar label.
-func New(desc string) *ProgressBar {
+func New(ctx context.Context, desc string) *ProgressBar {
 	return &ProgressBar{
 		desc: desc,
-		prog: mpb.New(mpb.WithWidth(60)),
+		prog: mpb.NewWithContext(ctx, mpb.WithWidth(60)),
 	}
 }
 
