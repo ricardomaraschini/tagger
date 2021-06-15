@@ -8,20 +8,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/informers"
+	coreinform "k8s.io/client-go/informers"
 	corecli "k8s.io/client-go/kubernetes"
 	aplist "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 
 	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
-	"github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
+	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
 	taglist "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/listers/tags/v1beta1"
 )
 
 // Deployment gather all actions related to deployment objects.
 type Deployment struct {
 	corcli corecli.Interface
-	corinf informers.SharedInformerFactory
+	corinf coreinform.SharedInformerFactory
 	deplis aplist.DeploymentLister
 	taglis taglist.TagLister
 }
@@ -32,8 +32,8 @@ type Deployment struct {
 // the best approach, I still plan to review this.
 func NewDeployment(
 	corcli corecli.Interface,
-	corinf informers.SharedInformerFactory,
-	taginf externalversions.SharedInformerFactory,
+	corinf coreinform.SharedInformerFactory,
+	taginf taginform.SharedInformerFactory,
 ) *Deployment {
 	var deplis aplist.DeploymentLister
 	var taglis taglist.TagLister
