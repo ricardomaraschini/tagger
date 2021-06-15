@@ -145,7 +145,7 @@ func pushTagImage(
 	}
 	fsize := finfo.Size()
 
-	pbar := progbar.New("Pushing")
+	pbar := progbar.New(ctx, "Pushing")
 	pbar.SetMax(fsize)
 	defer pbar.Wait()
 
