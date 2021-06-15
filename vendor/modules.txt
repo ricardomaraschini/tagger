@@ -250,7 +250,8 @@ github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/klauspost/pgzip v1.2.5
 github.com/klauspost/pgzip
-# github.com/mattn/go-runewidth v0.0.10
+# github.com/mattn/go-runewidth v0.0.13
+## explicit
 github.com/mattn/go-runewidth
 # github.com/mattn/go-shellwords v1.0.11
 github.com/mattn/go-shellwords
@@ -260,6 +261,8 @@ github.com/matttproud/golang_protobuf_extensions/pbutil
 github.com/miekg/pkcs11
 # github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
 github.com/mistifyio/go-zfs
+# github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db
+github.com/mitchellh/colorstring
 # github.com/moby/sys/mountinfo v0.4.1
 github.com/moby/sys/mountinfo
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -309,6 +312,9 @@ github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/rivo/uniseg v0.2.0
 github.com/rivo/uniseg
+# github.com/schollz/progressbar/v3 v3.8.1
+## explicit
+github.com/schollz/progressbar/v3
 # github.com/sirupsen/logrus v1.8.1
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v1.0.0
@@ -332,7 +338,6 @@ github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
 # github.com/vbauerster/mpb/v6 v6.0.3
-## explicit
 github.com/vbauerster/mpb/v6
 github.com/vbauerster/mpb/v6/cwriter
 github.com/vbauerster/mpb/v6/decor
@@ -349,7 +354,8 @@ go.opencensus.io/internal
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
-# golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+# golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
+## explicit
 golang.org/x/crypto/cast5
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
@@ -361,7 +367,7 @@ golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20210224082022-3d97a244fca7
+# golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -377,12 +383,13 @@ golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20210324051608-47abb6519492
+# golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+# golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+## explicit
 golang.org/x/term
 # golang.org/x/text v0.3.5
 ## explicit

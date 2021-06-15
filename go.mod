@@ -7,9 +7,12 @@ require (
 	github.com/containers/storage v1.29.0
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/prometheus/client_golang v1.7.1
+	github.com/schollz/progressbar/v3 v3.8.1
 	github.com/spf13/cobra v1.0.0
-	github.com/vbauerster/mpb/v6 v6.0.3
+	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
+	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.5 // indirect
 	google.golang.org/genproto v0.0.0-20210207032614-bba0dbe2a9ea // indirect
 	google.golang.org/grpc v1.35.0
