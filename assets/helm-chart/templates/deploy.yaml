@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tagger
+  namespace: {{ .Values.Namespace }}
+  labels:
+    app: tagger
+spec:
+  replicas: {{ .Values.Replicas }}
+  selector:
+    matchLabels:
+      app: tagger
+  template:
+    metadata:
+      labels:
+        app: tagger
+    spec:
+      serviceAccountName: tagger
+      containers:
+      - name: tagger
+        image: {{ .Values.Image }}
+        volumeMounts:
+          - mountPath: "/assets"
+            name: certs
+            readOnly: true
+        ports:
+        - containerPort: 8080
+        env:
+        - name: MIRROR_REGISTRY_INSECURE
+          value: "{{ .Values.MirrorRegistry.Insecure }}"
+        - name: MIRROR_REGISTRY_ADDRESS
+          value: "{{ .Values.MirrorRegistry.Address }}"
+        {{ if .Values.MirrorRegistry.Username }}
+        - name: MIRROR_REGISTRY_USERNAME
+          value: "{{ .Values.MirrorRegistry.Username }}"
+        - name: MIRROR_REGISTRY_PASSWORD
+          value: "{{ .Values.MirrorRegistry.Password }}"
+        {{ end }}
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumes:
+      - name: certs
+        secret:
+          secretName: certs

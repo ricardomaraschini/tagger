@@ -1,0 +1,40 @@
+{{- $altNames := list ( printf "mutating-webhooks.%s" .Values.Namespace ) ( printf "mutating-webhooks.%s.svc" .Values.Namespace ) -}}
+{{- $ca := genCA "tagger" 365 -}}
+{{- $cert := genSignedCert "tagger" nil $altNames 365 $ca -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: certs
+  namespace: {{ .Values.Namespace }}
+type: Opaque
+data:
+  server.crt: {{ $cert.Cert | b64enc }}
+  server.key: {{ $cert.Key | b64enc }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: tagger
+webhooks:
+- name: tag.tagger.dev
+  admissionReviewVersions:
+  - v1
+  sideEffects: None
+  clientConfig:
+    service:
+      name: mutating-webhooks
+      namespace: {{ .Values.Namespace }}
+      path: "/tag"
+      port: 8080
+    caBundle: {{ $cert.Cert | b64enc }}
+  rules:
+  - apiGroups:
+    - "tagger.dev"
+    apiVersions:
+    - "v1beta1"
+    resources: 
+    - tags
+    operations: 
+    - CREATE
+    - UPDATE
