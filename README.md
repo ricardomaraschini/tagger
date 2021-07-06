@@ -268,7 +268,9 @@ $ kubectl create -f ./assets/manifests/04_webhook.yaml
 
 ### Disclaimer
 
-The private key present on this project does not represent a problem, they are not being used
-anywhere yet and to keep keys in here makes *things* easier (especially at this stage of
-development). When you decide to deploy Tagger in your environment you are advised to generate
-your own keys.
+Tagger makes a Webhook available. This webhook is used by Kubernetes API server when validating
+a Tag (during creation or update process). Tagger uses the key and cert defined in a Secret called
+`certs`, it is recommended that you generate your own key and cert pair and update the Secret
+accordingly. When you do that please remember to also update the property `caBundle` with your
+newly created cert in the `MutatingWebhookConfiguration` named `tagger` otherwise the Kubernetes
+API server won't trust Tagger with requests.
