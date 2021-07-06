@@ -274,3 +274,6 @@ a Tag (during creation or update process). Tagger uses the key and cert defined 
 accordingly. When you do that please remember to also update the property `caBundle` with your
 newly created cert in the `MutatingWebhookConfiguration` named `tagger` otherwise the Kubernetes
 API server won't trust Tagger with requests.
+
+Your certificate must contain as an alternative name `mutating-webhooks.<tagger namespace>.svc`,
+that is the name Kubernetes API uses when reaching Tagger.
