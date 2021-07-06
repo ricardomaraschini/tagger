@@ -245,23 +245,35 @@ will be automatically updated.
 
 ### Deploying
 
-The deployment of this operator may seem a little bit cumbersome, as I move forward this process
-will get simpler. For now, you gonna need to follow the procedure below.
+There are two ways of deploying this Operator in your cluster, the first one is to checkout this
+repository and run the following command (from within the repository directory):
+
+`$ helm install --generate-name ./assets/helm-chart/`
+
+This should work most of the times. You can check to what can be customized during the install
+by looking into `assets/helm-chart/values.yaml` file. If you have problems deploying it through
+Helm you can still try a manual installation by running the following commands:
 
 ```
-$ # you may customize certs and keys in use. please remember to feed
-$ # manifests/02_secret.yaml and manifests/04_webhook.yaml with your new keys
+$ # you should customize certs and keys in use. please remember to feed
+$ # assets/manifests/02_secret.yaml and assets/manifests/04_webhook.yaml
+$ # with your new key and certificate.
 $ kubectl create namespace tagger
-$ kubectl create -f ./manifests/00_crd.yaml
-$ kubectl create -f ./manifests/01_rbac.yaml
-$ kubectl create -f ./manifests/02_secret.yaml
-$ kubectl create -f ./manifests/03_deploy.yaml
-$ kubectl create -f ./manifests/04_webhook.yaml
+$ kubectl create -f ./assets/manifests/00_crd.yaml
+$ kubectl create -f ./assets/manifests/01_rbac.yaml
+$ kubectl create -f ./assets/manifests/02_secret.yaml
+$ kubectl create -f ./assets/manifests/03_deploy.yaml
+$ kubectl create -f ./assets/manifests/04_webhook.yaml
 ```
 
 ### Disclaimer
 
-The private key present on this project does not represent a problem, they are not being used
-anywhere yet and to keep keys in here makes *things* easier (especially at this stage of
-development). When you decide to deploy Tagger in your environment you are advised to generate
-your own keys.
+Tagger makes a Webhook available. This webhook is used by Kubernetes API server when validating
+a Tag (during creation or update process). Tagger uses the key and cert defined in a Secret called
+`certs`, it is recommended that you generate your own key and cert pair and update the Secret
+accordingly. When you do that please remember to also update the property `caBundle` with your
+newly created cert in the `MutatingWebhookConfiguration` named `tagger` otherwise the Kubernetes
+API server won't trust Tagger with requests.
+
+Your certificate must contain as an alternative name `mutating-webhooks.<tagger namespace>.svc`,
+that is the name Kubernetes API uses when reaching Tagger.
