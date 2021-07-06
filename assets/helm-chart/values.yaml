@@ -1,0 +1,8 @@
+Replicas: 1
+Image: "quay.io/rmarasch/tagger:latest"
+Namespace: "tagger"
+MirrorRegistry:
+  Insecure: "false"
+  Address: "overwrite.me.please.com"
+  Username: ""
+  Password: ""
