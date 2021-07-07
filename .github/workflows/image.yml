@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 jobs:
   docker:
-    name: docker-build
+    name: docker-build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: check out code
@@ -15,7 +15,7 @@ jobs:
       - name: Login to Quay
         uses: docker/login-action@v1 
         with:
-          registry: ${{ secrets.REGISTRY_URL }}
+          registry: quay.io
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - name: Build and push
