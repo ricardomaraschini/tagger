@@ -1,5 +1,5 @@
 Replicas: 1
-Image: "quay.io/tagger/operator@RELEASE"
+Image: "quay.io/tagger/operator:RELEASE"
 Namespace: "tagger"
 MirrorRegistry:
   Insecure: "false"
