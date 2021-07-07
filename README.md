@@ -245,7 +245,21 @@ will be automatically updated.
 
 ### Deploying
 
-You can find more info on how to deploy at https://github.com/ricardomaraschini/tagger-deploy. As
-I manage to put a proper release process in place I will publish here the simplest way of getting
-it up and running. Thus far please check the repo where you can choose between a Helm or a manual
-installation mode.
+You can deploy Tagger using Helm:
+
+```bash
+$ RELEASE=v2.0.1
+$ BASEURL=https://github.com/ricardomaraschini/tagger-deploy/releases/download
+$ helm install --generate-name $BASEURL/$RELEASE/helm-chart.tar.gz
+```
+
+To get a list of what can be customized during the deployment you can run the following commands
+
+```bash
+$ RELEASE=v2.0.1
+$ BASEURL=https://github.com/ricardomaraschini/tagger-deploy/releases/download
+$ helm show values $BASEURL/$RELEASE/helm-chart.tar.gz
+```
+
+`RELEASE` variable may be set to point to any of the tags of this repository. For further info
+please refer to `https://github.com/ricardomaraschini/tagger-deploy` repository.
