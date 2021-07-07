@@ -4,15 +4,19 @@ on:
   push:
     branches: [ main ]
 jobs:
-  tagged-release:
+  helm-release:
     name: "Tagger Helm Development Release"
     runs-on: "ubuntu-latest"
+    container:
+      image: quay.io/rmarasch/tagger-base-image:latest
     steps:
       - name: "Checkout source code"
         uses: "actions/checkout@v2.3.4"
         with:
           lfs: true
           fetch-depth: 0
+      - name: build kubectl-tag
+        run: make kubectl-tag
       - run: sed -i 's/RELEASE/latest/g' assets/helm-chart/values.yaml
       - run: tar -C assets -czvf helm-chart.tar.gz helm-chart
       - uses: "marvinpinto/action-automatic-releases@latest"
