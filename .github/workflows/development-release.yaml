@@ -13,6 +13,7 @@ jobs:
         with:
           lfs: true
           fetch-depth: 0
+      - run: sed -i 's/RELEASE/latest/g' assets/helm-chart/values.yaml
       - run: tar -C assets -czvf helm-chart.tar.gz helm-chart
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
