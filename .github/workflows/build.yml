@@ -1,25 +1,20 @@
+---
 name: build
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
 jobs:
-
   build:
     name: build
     runs-on: ubuntu-latest
     container:
       image: quay.io/rmarasch/tagger-base-image:latest
     steps:
-
     - name: check out code
       uses: actions/checkout@v2
-
     - name: build tagger
       run: go build -mod vendor ./cmd/tagger
-
     - name: build kubectl-tag
       run: go build -mod vendor ./cmd/kubectl-tag
