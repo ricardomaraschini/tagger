@@ -47,12 +47,12 @@ func main() {
 		stop()
 	}()
 
-	klog.Info(` _|_  __,   __,  __,  _   ,_    `)
-	klog.Info(`  |  /  |  /  | /  | |/  /  |   `)
-	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/ `)
-	klog.Info(`             /|   /|            `)
-	klog.Info(`             \|   \|            `)
-	klog.Info(`starting image tag controller...`)
+	klog.Info(` _|_  __,   __,  __,  _   ,_     `)
+	klog.Info(`  |  /  |  /  | /  | |/  /  |    `)
+	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/. `)
+	klog.Info(`             /|   /|             `)
+	klog.Info(`             \|   \|             `)
+	klog.Info(`starting image tag controller... `)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
