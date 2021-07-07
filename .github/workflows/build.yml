@@ -10,7 +10,7 @@ jobs:
     name: build
     runs-on: ubuntu-latest
     container:
-      image: quay.io/rmarasch/tagger-base-image:latest
+      image: quay.io/tagger/build-base-image:latest
     steps:
     - name: check out code
       uses: actions/checkout@v2
