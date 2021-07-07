@@ -1,5 +1,5 @@
 ---
-name: "development-release"
+name: development-release
 on:
   push:
     branches: [ main ]
