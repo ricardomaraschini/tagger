@@ -8,7 +8,7 @@ jobs:
     name: "Tagger Development Release"
     runs-on: "ubuntu-latest"
     container:
-      image: quay.io/rmarasch/tagger-base-image:latest
+      image: quay.io/tagger/build-base-image:latest
     steps:
       - name: "Checkout source code"
         uses: "actions/checkout@v2.3.4"
