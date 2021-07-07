@@ -247,7 +247,7 @@ will be automatically updated.
 
 You can deploy Tagger using Helm:
 
-```shell
+```sh
 $ RELEASE=v2.0.1
 $ BASEURL=https://github.com/ricardomaraschini/tagger-deploy/releases/download
 $ helm install --generate-name $BASEURL/$RELEASE/helm-chart.tar.gz
@@ -255,7 +255,7 @@ $ helm install --generate-name $BASEURL/$RELEASE/helm-chart.tar.gz
 
 To get a list of what can be customized during the deployment you can run the following commands
 
-```shell
+```sh
 $ RELEASE=v2.0.1
 $ BASEURL=https://github.com/ricardomaraschini/tagger-deploy/releases/download
 $ helm show values $BASEURL/$RELEASE/helm-chart.tar.gz
