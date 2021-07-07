@@ -1,0 +1,8 @@
+Replicas: 1
+Image: "quay.io/rmarasch/tagger@sha256:719b06f66353c1165c2a41d7e706206cf8f3d6f168941567880966d55852c040"
+Namespace: "tagger"
+MirrorRegistry:
+  Insecure: "false"
+  Address: "overwrite.me.please.com"
+  Username: ""
+  Password: ""
