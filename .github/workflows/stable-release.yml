@@ -14,15 +14,11 @@ jobs:
         with:
           lfs: true
           fetch-depth: 0
-      - name: Extract tag name
-        id: tag
-        uses: actions/github-script@0.2.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            return context.payload.ref.replace(/\/refs\/tags\//, '');
+      - name: Get tag
+        id: get_tag
+        run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
       - name: Echo
-        run: echo ${{ steps.tag.outputs.result }}
+        run: echo ${{ steps.get_tag.outputs.tag }}
       - run: tar -C assets -czvf helm-chart.tar.gz helm-chart
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
