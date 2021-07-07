@@ -19,6 +19,7 @@ spec:
       containers:
       - name: tagger
         image: {{ .Values.Image }}
+        imagePullPolicy: Always
         volumeMounts:
           - mountPath: "/assets"
             name: certs
