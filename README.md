@@ -261,5 +261,6 @@ $ BASEURL=https://github.com/ricardomaraschini/tagger-deploy/releases/download
 $ helm show values $BASEURL/$RELEASE/helm-chart.tar.gz
 ```
 
-`RELEASE` variable may be set to point to any of the tags of this repository. For further info
-please refer to `https://github.com/ricardomaraschini/tagger-deploy` repository.
+`RELEASE` variable may be set to point to any of this repository's tags. You can view a full list
+of all tags in https://github.com/ricardomaraschini/tagger/tags. For further information on
+Deployment (or alternative methods) refer to https://github.com/ricardomaraschini/tagger-deploy.
