@@ -1,10 +1,12 @@
 ---
 name: build
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+
 jobs:
   build:
     name: build
@@ -14,7 +16,9 @@ jobs:
     steps:
     - name: check out code
       uses: actions/checkout@v2
+
     - name: build tagger
-      run: go build -mod vendor ./cmd/tagger
+      run: make tagger
+
     - name: build kubectl-tag
-      run: go build -mod vendor ./cmd/kubectl-tag
+      run: make kubectl-tag

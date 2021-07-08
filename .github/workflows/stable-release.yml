@@ -1,12 +1,14 @@
 ---
 name: "stable-release"
+
 on:
   push:
     tags:
       - "v*"
+
 jobs:
-  tagged-release:
-    name: "Tagger Helm Release"
+  release:
+    name: "Tagger Release"
     runs-on: "ubuntu-latest"
     steps:
       - name: "Checkout source code"
@@ -14,11 +16,14 @@ jobs:
         with:
           lfs: true
           fetch-depth: 0
+
       - name: Get tag
         id: get_tag
         run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
+
       - run: sed -i 's/RELEASE/${{ steps.get_tag.outputs.tag }}/g' assets/helm-chart/values.yaml
       - run: tar -C assets -czvf helm-chart.tgz helm-chart
+
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
