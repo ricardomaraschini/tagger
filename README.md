@@ -251,7 +251,7 @@ You can deploy Tagger using Helm:
 ```
 $ RELEASE=v2.0.6
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm install tagger $BASEURL/$RELEASE/helm-chart.tar.gz
+$ helm install tagger $BASEURL/$RELEASE/helm-chart.tgz
 ```
 
 To get a list of what can be customized during the deployment you can run the following commands
@@ -259,7 +259,7 @@ To get a list of what can be customized during the deployment you can run the fo
 ```
 $ RELEASE=v2.0.6
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm show values $BASEURL/$RELEASE/helm-chart.tar.gz
+$ helm show values $BASEURL/$RELEASE/helm-chart.tgz
 ```
 
 `RELEASE` variable may be set to point to any of this repository's release. You can view a full
@@ -269,7 +269,7 @@ development release that can be installed by running the following commands:
 ```
 $ RELEASE=latest
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm show values $BASEURL/$RELEASE/helm-chart.tar.gz
+$ helm show values $BASEURL/$RELEASE/helm-chart.tgz
 ```
 
 You can inspect the objects being created during the installation by looking in `templates` dir
@@ -278,5 +278,5 @@ inside `assets/helm-chart` or by running the following commands:
 ```
 $ RELEASE=v2.0.6
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm install --dry-run tagger $BASEURL/$RELEASE/helm-chart.tar.gz
+$ helm install --dry-run tagger $BASEURL/$RELEASE/helm-chart.tgz
 ```
