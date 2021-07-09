@@ -34,15 +34,14 @@ jobs:
         id: get_tag
         run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
-      - name: prepare helm chart release
+      - name: setting version in values.yaml
         run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
-      - run: sed -i 's/0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
+
+      - name: setting version in chart.yaml
+        run: sed -i 's/0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
 
       - name: build helm chart release
         run: helm package chart/
-
-      - name: list content
-        run: ls -la
 
       - name: publish release
         uses: marvinpinto/action-automatic-releases@latest
@@ -50,7 +49,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: false
           files: |
-            tagger-${{ steps.get_tag.outputs.tag }}.tgz
-            kubectl-tag-linux-amd64.tgz
-            kubectl-tag-darwin-amd64.tgz
+            *.tgz
             README.md
