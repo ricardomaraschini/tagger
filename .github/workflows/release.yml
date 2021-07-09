@@ -31,7 +31,7 @@ jobs:
         run: tar -C _output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
 
       - name: build helm chart release
-        run: tar -czvf chart helm-chart
+        run: helm package chart/
 
       - name: publish release
         uses: marvinpinto/action-automatic-releases@latest
@@ -41,7 +41,7 @@ jobs:
           prerelease: true
           title: development release build
           files: |
-            helm-chart.tgz
+            tagger-0.0.0.tgz
             kubectl-tag-linux-amd64.tgz
             kubectl-tag-darwin-amd64.tgz
             README.md
