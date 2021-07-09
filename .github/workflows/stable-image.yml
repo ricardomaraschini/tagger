@@ -31,7 +31,7 @@ jobs:
         with:
           push: true
           build-args:
-            - version: ${{ steps.get_tag.outputs.tag }}
+            - "version:${{ steps.get_tag.outputs.tag }}"
           context: ./
           file: ./Containerfile
           tags: quay.io/tagger/operator:${{ steps.get_tag.outputs.tag }}
