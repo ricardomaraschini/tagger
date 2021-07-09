@@ -86,7 +86,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1beta1.Tag) error {
 			it.RegisterImportFailure(err)
 			if _, nerr := t.tagcli.TaggerV1beta1().Tags(it.Namespace).Update(
 				ctx, it, metav1.UpdateOptions{},
-			); err != nil {
+			); nerr != nil {
 				klog.Errorf("error updating tag status: %s", nerr)
 			}
 			return fmt.Errorf("fail importing %s/%s: %w", it.Namespace, it.Name, err)
