@@ -30,9 +30,6 @@ jobs:
       - name: compress darwin plugin
         run: tar -C _output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
 
-      - name: prepare helm chart release
-        run: sed -i 's/RELEASE/latest/g' assets/helm-chart/values.yaml
-
       - name: build helm chart release
         run: tar -C assets -czvf helm-chart.tgz helm-chart
 

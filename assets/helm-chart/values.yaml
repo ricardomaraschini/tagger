@@ -1,4 +1,4 @@
 # number of running tagger pods.
 replicas: 1
 # the image to be used when deploying tagger.
-image: "quay.io/tagger/operator:RELEASE"
+image: "quay.io/tagger/operator:latest"
