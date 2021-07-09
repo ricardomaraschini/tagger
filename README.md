@@ -268,7 +268,7 @@ the following commands:
 $ RELEASE=v2.1.11
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
 ```
-The `RELEASE` variable may be set any release, to see a full list of releases follow the link
+The `RELEASE` variable may be set to any release, to see a full list of releases follow the link
 https://github.com/ricardomaraschini/tagger/releases. Once the release is chosen and the variables
 are set you can then procceed to install the operator by running:
 
@@ -285,8 +285,8 @@ $ helm show values $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 
 By default Tagger won't be able to mirror until you provide it with a mirror registry config.
 After install you can configure the mirror by editing the Secret `mirror-registry-config` in
-the operator namespace. Follow an example of a valid `mirror-registry-config` secret (you
-have to provide your own `address`, `username`, `password`, etc):
+the operator namespace. Follow below an example of a valid `mirror-registry-config` secret
+(you gonna have to provide your own `address`, `username`, `password`, etc):
 
 ```yaml
 apiVersion: v1
