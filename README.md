@@ -70,9 +70,8 @@ easier for the user, later on, to downgrade to previously tagged Generations of 
 
 Tagger allows administrators to Tag and mirror images locally within the cluster. You need to
 have an image registry running inside the cluster (or anywhere else) and ask `Tagger` to do
-the mirror.  By doing so a copy of the remote image is going to be made into the internal
-registry and all Deployments leveraging such image will automatically start to use the mirrored
-copy.
+the mirror.  By doing so a copy of the remote image is going to be made into the mirror registry
+and all Deployments leveraging such image will automatically start to use the mirrored copy.
 
 ### Webhooks from quay.io and Docker hub
 
