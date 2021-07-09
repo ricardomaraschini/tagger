@@ -1,17 +1,4 @@
 # number of running tagger pods.
 replicas: 1
-
 # the image to be used when deploying tagger.
 image: "quay.io/tagger/operator:RELEASE"
-
-# this is used to configure the registry to use when mirroring images. tagger must be able to
-# create repositories and to push images to this registry with the configured authentication.
-mirrorRegistry:
-  # the mirror registry address. tagger will use this registry to mirror images.
-  address: "overwrite.me.please.com"
-  # if the registry used to mirror images uses a selfsigned certificate or not.
-  insecure: "false"
-  # the username used by tagger when mirroring images.
-  username: ""
-  # the password used by tagger when mirroring images.
-  password: ""
