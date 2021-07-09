@@ -18,6 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-node@v1
       - name: install helm
         uses: azure/setup-helm@v1
         with:
