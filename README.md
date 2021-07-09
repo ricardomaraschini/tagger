@@ -278,16 +278,9 @@ $ helm show values $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 ```
 
 `RELEASE` variable may be set to point to any of this repository's release. You can view a full
-list of all releases in https://github.com/ricardomaraschini/tagger/releases. There is also a
-development release that can be installed by running the following commands:
-
-```
-$ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm show values $BASEURL/latest/tagger-v0.0.0.tgz
-```
-
-You can inspect the objects being created during the installation by looking in `templates` dir
-inside `chart/` or by running the following commands:
+list of all releases in https://github.com/ricardomaraschini/tagger/releases. You can inspect the
+objects being created during the installation by looking in `templates` dir inside `chart/` or by
+running the following commands:
 
 ```
 $ RELEASE=v2.1.6

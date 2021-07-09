@@ -41,7 +41,5 @@ jobs:
           prerelease: true
           title: development release build
           files: |
-            tagger-0.0.0.tgz
-            kubectl-tag-linux-amd64.tgz
-            kubectl-tag-darwin-amd64.tgz
+            *.tgz
             README.md
