@@ -1,4 +1,4 @@
-{{- $altNames := list ( printf "mutating-webhooks.%s" .Values.namespace ) ( printf "mutating-webhooks.%s.svc" .Values.namespace ) -}}
+{{- $altNames := list ( printf "mutating-webhooks.%s" .Release.Namespace ) ( printf "mutating-webhooks.%s.svc" .Release.Namespace ) -}}
 {{- $ca := genCA "tagger" 365 -}}
 {{- $cert := genSignedCert "tagger" nil $altNames 365 $ca -}}
 ---
@@ -6,7 +6,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: certs
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.Namespace }}
 type: Opaque
 data:
   server.crt: {{ $cert.Cert | b64enc }}
@@ -24,7 +24,7 @@ webhooks:
   clientConfig:
     service:
       name: mutating-webhooks
-      namespace: {{ .Values.namespace }}
+      namespace: {{ .Release.Namespace }}
       path: "/tag"
       port: 8080
     caBundle: {{ $cert.Cert | b64enc }}
