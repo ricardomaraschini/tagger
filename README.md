@@ -171,15 +171,31 @@ To mirror images locally one needs to inform Tagger about the mirror registry lo
 two ways of doing so, the first one is by following a Kubernetes enhancement proposed laid down
 [here](https://bit.ly/3rxCRqH). This enhancement proposal still does not cover things such as
 authentication thus should not be used in production. Tagger can also be informed of the mirror
-registry location through environment variables, as follow:
+registry location through a Secret called `mirror-registry-config`, this secret may contain the
+following properties:
 
 
-| Name                     | Description                                                         |
-| ------------------------ | ------------------------------------------------------------------- |
-| MIRROR_REGISTRY_ADDRESS  | The internal registry URL                                           |
-| MIRROR_REGISTRY_USERNAME | Username Tagger should use when accessing the internal registry     |
-| MIRROR_REGISTRY_PASSWORD | The password to be used by Tagger                                   |
-| MIRROR_REGISTRY_INSECURE | Allows Tagger to access insecure registry if set to `true`          |
+| Name     | Description                                                                         |
+| ---------| ----------------------------------------------------------------------------------- |
+| address  | The mirror registry URL                                                             |
+| username | Username Tagger should use when accessing the mirror registry                       |
+| password | The password to be used by Tagger                                                   |
+| token    | The auth token to be used by Tagger (optional)                                      |
+| insecure | Allows Tagger to access insecure registry if set to "true" (string)                 |
+
+Follow below an example of a `mirror-registry-config` Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mirror-registry-config
+  namespace: tagger
+data:
+  address: cmVnaXN0cnkuaW8=
+  username: YWRtaW4=
+  password: d2hhdCB3ZXJlIHlvdSB0aGlua2luZwo=
+```
 
 Mirrored Tags are stored in a repository with the Namespace's name used for the Tag, for example,
 a Tag living in the `development` namespace will be mirrored in `internal.registry/development/`
@@ -210,7 +226,7 @@ to five generations, every item on the array is composed of the following proper
 | generation     | Indicate to which generation the reference belongs                            |
 | from           | Keeps a reference from where the reference got imported                       |
 | importedAt     | Date and time of the import                                                   |
-| imageReference | Where this reference points to (by hash), may point to the internal registry  |
+| imageReference | Where this reference points to (by hash), may point to the mirror registry    |
 
 On a Tag status, one can also find information about the last import attempt for a Tag, it looks
 like:
