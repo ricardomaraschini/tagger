@@ -1,0 +1,32 @@
+---
+name: testing release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: tagger development release
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/tagger/build-base-image:latest
+    steps:
+      - name: checkout source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: install helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.4.0
+
+      - name: generating helm chart
+        uses: helm/chart-releaser-action@v1.2.1
+        env:
+          charts_dir: chart
+
+      - name: list files
+        run: ls -la
