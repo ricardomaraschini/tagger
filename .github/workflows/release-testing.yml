@@ -18,6 +18,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: configure git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
       - name: install helm
         uses: azure/setup-helm@v1
         with:
@@ -25,8 +30,10 @@ jobs:
 
       - name: generating helm chart
         uses: helm/chart-releaser-action@v1.2.1
-        env:
+        with:
           charts_dir: chart
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: list files
         run: ls -la
