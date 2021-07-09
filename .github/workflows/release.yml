@@ -18,11 +18,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: build plugin
+      - name: build linux plugin
         run: make kubectl-tag
 
-      - name: compress plugin
+      - name: compress linux plugin
         run: tar -C _output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+
+      - name: build darwin plugin
+        run: make kubectl-tag-darwin
+
+      - name: compress linux plugin
+        run: tar -C _output/bin -czvf kubectl-tag-darwin-amd64.tar.gz kubectl-tag
 
       - name: prepare helm chart release
         run: sed -i 's/RELEASE/latest/g' assets/helm-chart/values.yaml
@@ -40,3 +46,4 @@ jobs:
           files: |
             helm-chart.tgz
             kubectl-tag-linux-amd64.tgz
+            kubectl-tag-darwin-amd64.tar.gz

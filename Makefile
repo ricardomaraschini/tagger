@@ -1,8 +1,9 @@
 APP = tagger
 PLUGIN = kubectl-tag
+PLUGIN_DARWIN = kubectl-tag-darwin
 
 IMAGE_BUILDER ?= podman
-IMAGE ?= quay.io/rmarasch/tagger
+IMAGE ?= quay.io/tagger/operator
 IMAGE_TAG = $(IMAGE):latest
 
 OUTPUT_DIR ?= _output
@@ -26,6 +27,11 @@ $(APP):
 .PHONY: $(PLUGIN)
 $(PLUGIN):
 	go build -o $(PLUGIN_BIN) ./cmd/$(PLUGIN)
+
+.PHONY: $(PLUGIN_DARWIN)
+$(PLUGIN_DARWIN):
+	GOOS=darwin GOARCH=amd64 \
+	     go build -tags containers_image_openpgp -o $(PLUGIN_BIN) ./cmd/$(PLUGIN)
 
 .PHONY: get-code-generator
 get-code-generator:
