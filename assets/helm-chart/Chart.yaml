@@ -3,3 +3,4 @@ name: tagger
 description: A Helm chart for Tagger Image API deployment.
 type: application
 version: 0.0.0
+appVersion: 0.0.0
