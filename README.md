@@ -272,9 +272,9 @@ $ helm install tagger $BASEURL/$RELEASE/helm-chart.tgz
 To get a list of what can be customized during the deployment you can run the following commands
 
 ```
-$ RELEASE=v2.0.6
+$ RELEASE=v2.1.6
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm show values $BASEURL/$RELEASE/helm-chart.tgz
+$ helm show values $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 ```
 
 `RELEASE` variable may be set to point to any of this repository's release. You can view a full
@@ -282,18 +282,17 @@ list of all releases in https://github.com/ricardomaraschini/tagger/releases. Th
 development release that can be installed by running the following commands:
 
 ```
-$ RELEASE=latest
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm show values $BASEURL/$RELEASE/helm-chart.tgz
+$ helm show values $BASEURL/latest/tagger-v0.0.0.tgz
 ```
 
 You can inspect the objects being created during the installation by looking in `templates` dir
 inside `assets/helm-chart` or by running the following commands:
 
 ```
-$ RELEASE=v2.0.6
+$ RELEASE=v2.1.6
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
-$ helm install --dry-run tagger $BASEURL/$RELEASE/helm-chart.tgz
+$ helm install --dry-run tagger $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 ```
 
 By default Tagger won't be able to mirror until you provide it with a mirror registry config.
