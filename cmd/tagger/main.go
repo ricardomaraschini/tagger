@@ -35,6 +35,9 @@ import (
 	"github.com/ricardomaraschini/tagger/services"
 )
 
+// Version holds the current binary version. Set at compile time.
+var Version = "v0.0.0"
+
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -53,6 +56,7 @@ func main() {
 	klog.Info(`             /|   /|             `)
 	klog.Info(`             \|   \|             `)
 	klog.Info(`starting image tag controller... `)
+	klog.Info(`version `, Version)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)

@@ -44,7 +44,8 @@ func main() {
 
 	root := &cobra.Command{Use: "kubectl-tag"}
 	root.AddCommand(
-		tagupgrade, tagdowngrade, tagimport, tagpull, tagpush, tagnew, tagmirror,
+		tagupgrade, tagdowngrade, tagimport, tagpull,
+		tagpush, tagnew, tagmirror, tagversion,
 	)
 	root.ExecuteContext(ctx)
 }

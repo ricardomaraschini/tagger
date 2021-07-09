@@ -2,6 +2,7 @@ APP = tagger
 PLUGIN = kubectl-tag
 PLUGIN_DARWIN = kubectl-tag-darwin
 
+VERSION ?= v0.0.0
 IMAGE_BUILDER ?= podman
 IMAGE ?= quay.io/tagger/operator
 IMAGE_TAG = $(IMAGE):latest
@@ -22,16 +23,25 @@ build: $(APP) $(PLUGIN)
 
 .PHONY: $(APP)
 $(APP):
-	go build -o $(TAGGER_BIN) ./cmd/$(APP)
+	go build \
+		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-o $(TAGGER_BIN) \
+		./cmd/$(APP)
 
 .PHONY: $(PLUGIN)
 $(PLUGIN):
-	go build -o $(PLUGIN_BIN) ./cmd/$(PLUGIN)
+	go build \
+		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-o $(PLUGIN_BIN) \
+		./cmd/$(PLUGIN)
 
 .PHONY: $(PLUGIN_DARWIN)
 $(PLUGIN_DARWIN):
 	GOOS=darwin GOARCH=amd64 \
-	     go build -tags containers_image_openpgp -o $(PLUGIN_BIN) ./cmd/$(PLUGIN)
+		go build -tags containers_image_openpgp \
+		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-o $(PLUGIN_BIN) \
+		./cmd/$(PLUGIN)
 
 .PHONY: get-code-generator
 get-code-generator:
