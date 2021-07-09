@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tagger
-  namespace: {{ .Values.Namespace }}
+  namespace: {{ .Values.namespace }}
   labels:
     app: tagger
 spec:
-  replicas: {{ .Values.Replicas }}
+  replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
       app: tagger
@@ -18,7 +18,7 @@ spec:
       serviceAccountName: tagger
       containers:
       - name: tagger
-        image: {{ .Values.Image }}
+        image: {{ .Values.image }}
         imagePullPolicy: Always
         volumeMounts:
           - mountPath: "/assets"
@@ -28,14 +28,14 @@ spec:
         - containerPort: 8080
         env:
         - name: MIRROR_REGISTRY_INSECURE
-          value: "{{ .Values.MirrorRegistry.Insecure }}"
+          value: "{{ .Values.mirrorRegistry.insecure }}"
         - name: MIRROR_REGISTRY_ADDRESS
-          value: "{{ .Values.MirrorRegistry.Address }}"
-        {{ if .Values.MirrorRegistry.Username }}
+          value: "{{ .Values.mirrorRegistry.address }}"
+        {{ if .Values.mirrorRegistry.username }}
         - name: MIRROR_REGISTRY_USERNAME
-          value: "{{ .Values.MirrorRegistry.Username }}"
+          value: "{{ .Values.mirrorRegistry.username }}"
         - name: MIRROR_REGISTRY_PASSWORD
-          value: "{{ .Values.MirrorRegistry.Password }}"
+          value: "{{ .Values.mirrorRegistry.password }}"
         {{ end }}
         - name: POD_NAMESPACE
           valueFrom:
