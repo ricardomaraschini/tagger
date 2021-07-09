@@ -264,7 +264,7 @@ will be automatically updated.
 You can deploy Tagger using Helm:
 
 ```
-$ RELEASE=v2.1.6
+$ RELEASE=v2.1.7
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
 $ helm install tagger $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 ```
@@ -272,7 +272,7 @@ $ helm install tagger $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 To get a list of what can be customized during the deployment you can run the following commands
 
 ```
-$ RELEASE=v2.1.6
+$ RELEASE=v2.1.7
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
 $ helm show values $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 ```
@@ -283,7 +283,7 @@ objects being created during the installation by looking in `templates` dir insi
 running the following commands:
 
 ```
-$ RELEASE=v2.1.6
+$ RELEASE=v2.1.7
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
 $ helm install --dry-run tagger $BASEURL/$RELEASE/tagger-$RELEASE.tgz
 ```

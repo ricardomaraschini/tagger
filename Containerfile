@@ -10,6 +10,8 @@ RUN dnf install -y \
     go \
     make
 WORKDIR /src
+ARG version
+ENV VERSION=${version:-v0.0.0}
 COPY . .
 RUN make tagger
 
