@@ -46,4 +46,4 @@ jobs:
           files: |
             helm-chart.tgz
             kubectl-tag-linux-amd64.tgz
-            kubectl-tag-darwin-amd64.tar.gz
+            kubectl-tag-darwin-amd64.tgz
