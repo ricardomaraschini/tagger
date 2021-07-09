@@ -4,7 +4,7 @@
 ![unit](https://github.com/ricardomaraschini/Tagger/workflows/unit/badge.svg?branch=main)
 ![build](https://github.com/ricardomaraschini/Tagger/workflows/build/badge.svg?branch=main)
 ![image](https://github.com/ricardomaraschini/Tagger/workflows/image/badge.svg?branch=main)
-![development-release](https://github.com/ricardomaraschini/Tagger/workflows/development-release/badge.svg?branch=main)
+![release](https://github.com/ricardomaraschini/Tagger/workflows/release/badge.svg?branch=main)
 
 ### Motivation
 
