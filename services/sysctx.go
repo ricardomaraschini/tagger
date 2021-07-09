@@ -42,6 +42,16 @@ type dockerAuthConfig struct {
 	Auths map[string]types.DockerAuthConfig
 }
 
+// MirrorRegistryConfig holds the needed data that allows tagger to contact the
+// mirror registry.
+type MirrorRegistryConfig struct {
+	Address  string
+	Username string
+	Password string
+	Token    string
+	Insecure bool
+}
+
 // LocalRegistryHostingV1 describes a local registry that developer tools can
 // connect to. A local registry allows clients to load images into the local
 // cluster by pushing to this registry. This is a verbatim copy of what is
@@ -143,39 +153,75 @@ func (s *SysContext) parseMirrorRegistryConfig() (*LocalRegistryHostingV1, error
 	return cfg, nil
 }
 
+// parseTaggerMirrorRegistryConfig parses a secret called "mirror-registry-config" in
+// the pod namespace. This secret holds information on how to connect to the mirror
+// registry.
+func (s *SysContext) parseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, error) {
+	var zero MirrorRegistryConfig
+
+	namespace := os.Getenv("POD_NAMESPACE")
+	if len(namespace) == 0 {
+		return zero, fmt.Errorf("unbound POD_NAMESPACE variable")
+	}
+
+	sct, err := s.sclister.Secrets(namespace).Get("mirror-registry-config")
+	if err != nil {
+		return zero, fmt.Errorf("unable to read registry config: %w", err)
+	}
+	if len(sct.Data) == 0 {
+		return zero, fmt.Errorf("registry config is empty")
+	}
+
+	return MirrorRegistryConfig{
+		Address:  string(sct.Data["address"]),
+		Username: string(sct.Data["username"]),
+		Password: string(sct.Data["password"]),
+		Insecure: string(sct.Data["insecure"]) == "true",
+	}, nil
+}
+
 // MirrorRegistryAddresses returns the configured registry address used
 // for mirroring images using tags. This is implemented to comply with
 // KEP at https://github.com/kubernetes/enhancements/ repository, see
 // keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
-// We evaluate if MIRROR_REGISTRY_ADDRESS environment variable is set
-// before moving on to the implementation following the KEP. This returns
-// one address for connections originated from within the cluster and
-// another for connections started from the cluster container runtime.
+// There are two ways of providing the mirror registry information, the
+// first one is to populate a secret in the current namespace, the other
+// one is by complying with the KEP. We give preference for the secret
+// in the current namespace.
 func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
-	if addr := os.Getenv("MIRROR_REGISTRY_ADDRESS"); len(addr) > 0 {
-		return addr, addr, nil
+	cfg, err := s.parseTaggerMirrorRegistryConfig()
+	if err == nil {
+		return cfg.Address, cfg.Address, nil
 	}
+	klog.Infof("unable to read tagger mirror registry config: %s", err)
 
-	cfg, err := s.parseMirrorRegistryConfig()
+	// moves to check through the KEP implementation.
+	kepcfg, err := s.parseMirrorRegistryConfig()
 	if err != nil {
 		return "", "", fmt.Errorf("fail to parse mirror registry config: %w", err)
 	}
-	return cfg.HostFromClusterNetwork, cfg.HostFromContainerRuntime, nil
+	return kepcfg.HostFromClusterNetwork, kepcfg.HostFromContainerRuntime, nil
 }
 
 // MirrorRegistryContext returns the context to be used when talking to
 // the the registry used for mirroring tags.
 func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemContext {
+	cfg, err := s.parseTaggerMirrorRegistryConfig()
+	if err != nil {
+		klog.Infof("unable to read tagger mirror registry config: %s", err)
+	}
+
 	insecure := types.OptionalBoolFalse
-	if os.Getenv("MIRROR_REGISTRY_INSECURE") != "" {
+	if cfg.Insecure {
 		insecure = types.OptionalBoolTrue
 	}
+
 	return &types.SystemContext{
 		DockerInsecureSkipTLSVerify: insecure,
 		DockerAuthConfig: &types.DockerAuthConfig{
-			Username:      os.Getenv("MIRROR_REGISTRY_USERNAME"),
-			Password:      os.Getenv("MIRROR_REGISTRY_PASSWORD"),
-			IdentityToken: os.Getenv("MIRROR_REGISTRY_TOKEN"),
+			Username:      cfg.Username,
+			Password:      cfg.Password,
+			IdentityToken: cfg.Token,
 		},
 	}
 }

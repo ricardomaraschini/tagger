@@ -27,16 +27,6 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: MIRROR_REGISTRY_INSECURE
-          value: "{{ .Values.mirrorRegistry.insecure }}"
-        - name: MIRROR_REGISTRY_ADDRESS
-          value: "{{ .Values.mirrorRegistry.address }}"
-        {{ if .Values.mirrorRegistry.username }}
-        - name: MIRROR_REGISTRY_USERNAME
-          value: "{{ .Values.mirrorRegistry.username }}"
-        - name: MIRROR_REGISTRY_PASSWORD
-          value: "{{ .Values.mirrorRegistry.password }}"
-        {{ end }}
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
