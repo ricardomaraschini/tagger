@@ -4,9 +4,6 @@ replicas: 1
 # the image to be used when deploying tagger.
 image: "quay.io/tagger/operator:RELEASE"
 
-# the namespace where to deploy the operator.
-namespace: "tagger"
-
 # this is used to configure the registry to use when mirroring images. tagger must be able to
 # create repositories and to push images to this registry with the configured authentication.
 mirrorRegistry:
