@@ -3,9 +3,11 @@ name: lint
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   lint:
@@ -17,5 +19,5 @@ jobs:
     - name: check out code
       uses: actions/checkout@v2
 
-    - name: linter
+    - name: run linter
       run: golint -set_exit_status ./cmd/kubectl-tag ./cmd/tagger ./controllers/... ./services/...

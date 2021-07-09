@@ -3,9 +3,11 @@ name: unit
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   unit:
@@ -14,8 +16,8 @@ jobs:
     container:
       image: quay.io/tagger/build-base-image:latest
     steps:
-    - name: check out code
+    - name: check out source code
       uses: actions/checkout@v2
 
-    - name: test
+    - name: run tests
       run: go test -mod vendor -v ./...

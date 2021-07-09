@@ -1,5 +1,5 @@
 ---
-name: "stable-release"
+name: stable release
 
 on:
   push:
@@ -8,25 +8,28 @@ on:
 
 jobs:
   release:
-    name: "Tagger Release"
-    runs-on: "ubuntu-latest"
+    name: tagger stable release
+    runs-on: ubuntu-latest
     steps:
-      - name: "Checkout source code"
-        uses: "actions/checkout@v2.3.4"
+      - name: checkout source code
+        uses: actions/checkout@v2
         with:
-          lfs: true
           fetch-depth: 0
 
-      - name: Get tag
+      - name: extract current tag
         id: get_tag
         run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
-      - run: sed -i 's/RELEASE/${{ steps.get_tag.outputs.tag }}/g' assets/helm-chart/values.yaml
-      - run: tar -C assets -czvf helm-chart.tgz helm-chart
+      - name: prepare helm chart release
+        run: sed -i 's/RELEASE/${{ steps.get_tag.outputs.tag }}/g' assets/helm-chart/values.yaml
 
-      - uses: "marvinpinto/action-automatic-releases@latest"
+      - name: build helm chart release
+        run: tar -C assets -czvf helm-chart.tgz helm-chart
+
+      - name: publish release
+        uses: marvinpinto/action-automatic-releases@latest
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: false
           files: |
             helm-chart.tgz
