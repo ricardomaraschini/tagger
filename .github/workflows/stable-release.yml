@@ -39,7 +39,10 @@ jobs:
       - run: sed -i 's/0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
 
       - name: build helm chart release
-        run: tar -C assets -czvf helm-chart.tgz helm-chart
+        run: helm package chart/
+
+      - name: list content
+        run: ls -la
 
       - name: publish release
         uses: marvinpinto/action-automatic-releases@latest
@@ -47,7 +50,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: false
           files: |
-            helm-chart.tgz
+            tagger-${{ steps.get_tag.outputs.tag }}.tgz
             kubectl-tag-linux-amd64.tgz
             kubectl-tag-darwin-amd64.tgz
             README.md
