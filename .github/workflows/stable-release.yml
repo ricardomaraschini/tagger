@@ -18,21 +18,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: extract current tag
+        id: get_tag
+        run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
+
       - name: build linux plugin
-        run: make kubectl-tag
+        run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag
 
       - name: compress linux plugin
         run: tar -C _output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
 
-      - name: build darwin plugin
+      - name: VERSION=${{ steps.get_tag.outputs.tag }} build darwin plugin
         run: make kubectl-tag-darwin
 
       - name: compress darwin plugin
         run: tar -C _output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
-
-      - name: extract current tag
-        id: get_tag
-        run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
       - name: setting version in values.yaml
         run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
