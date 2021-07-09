@@ -38,7 +38,7 @@ jobs:
         run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
 
       - name: setting version in chart.yaml
-        run: sed -i 's/0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
+        run: sed -i 's/v0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
 
       - name: build helm chart release
         run: helm package chart/
