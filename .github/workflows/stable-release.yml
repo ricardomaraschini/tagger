@@ -35,7 +35,7 @@ jobs:
         run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
       - name: prepare helm chart release
-        run: sed -i 's/RELEASE/${{ steps.get_tag.outputs.tag }}/g' assets/helm-chart/values.yaml
+        run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' assets/helm-chart/values.yaml
 
       - name: build helm chart release
         run: tar -C assets -czvf helm-chart.tgz helm-chart
