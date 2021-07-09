@@ -10,6 +10,8 @@ jobs:
   release:
     name: tagger stable release
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/tagger/build-base-image:latest
     steps:
       - name: checkout source code
         uses: actions/checkout@v2
