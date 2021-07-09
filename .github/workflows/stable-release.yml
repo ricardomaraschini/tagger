@@ -16,6 +16,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: build linux plugin
+        run: make kubectl-tag
+
+      - name: compress linux plugin
+        run: tar -C _output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+
+      - name: build darwin plugin
+        run: make kubectl-tag-darwin
+
+      - name: compress darwin plugin
+        run: tar -C _output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
+
       - name: extract current tag
         id: get_tag
         run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
@@ -33,4 +45,6 @@ jobs:
           prerelease: false
           files: |
             helm-chart.tgz
+            kubectl-tag-linux-amd64.tgz
+            kubectl-tag-darwin-amd64.tgz
             README.md
