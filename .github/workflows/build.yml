@@ -3,9 +3,11 @@ name: build
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
@@ -20,5 +22,5 @@ jobs:
     - name: build tagger
       run: make tagger
 
-    - name: build kubectl-tag
+    - name: build plugin
       run: make kubectl-tag

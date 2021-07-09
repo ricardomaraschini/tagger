@@ -1,0 +1,42 @@
+---
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: tagger development release
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/tagger/build-base-image:latest
+    steps:
+      - name: checkout source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: build plugin
+        run: make kubectl-tag
+
+      - name: compress plugin
+        run: tar -C _output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+
+      - name: prepare helm chart release
+        run: sed -i 's/RELEASE/latest/g' assets/helm-chart/values.yaml
+
+      - name: build helm chart release
+        run: tar -C assets -czvf helm-chart.tgz helm-chart
+
+      - name: publish release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          automatic_release_tag: latest
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
+          title: development release build
+          files: |
+            helm-chart.tgz
+            kubectl-tag-linux-amd64.tgz

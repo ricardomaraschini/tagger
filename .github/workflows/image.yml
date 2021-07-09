@@ -3,26 +3,28 @@ name: image
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   docker:
-    name: docker-build-and-push
+    name: image build and push
     runs-on: ubuntu-latest
     steps:
       - name: check out code
         uses: actions/checkout@v2
 
-      - name: Login to Quay
+      - name: registry login
         uses: docker/login-action@v1 
         with:
           registry: quay.io
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and push
+      - name: build image and push
         uses: docker/build-push-action@v2
         with:
           push: true
