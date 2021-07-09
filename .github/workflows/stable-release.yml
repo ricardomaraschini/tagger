@@ -33,3 +33,4 @@ jobs:
           prerelease: false
           files: |
             helm-chart.tgz
+            README.md

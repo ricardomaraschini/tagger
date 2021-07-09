@@ -194,7 +194,7 @@ metadata:
 data:
   address: cmVnaXN0cnkuaW8=
   username: YWRtaW4=
-  password: d2hhdCB3ZXJlIHlvdSB0aGlua2luZwo=
+  password: d2hhdCB3ZXJlIHlvdSB0aGlua2luZz8K
 ```
 
 Mirrored Tags are stored in a repository with the Namespace's name used for the Tag, for example,
@@ -295,4 +295,21 @@ inside `assets/helm-chart` or by running the following commands:
 $ RELEASE=v2.0.6
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
 $ helm install --dry-run tagger $BASEURL/$RELEASE/helm-chart.tgz
+```
+
+By default Tagger won't be able to mirror until you provide it with a mirror registry config.
+You can configure the mirror by editing the Secret `mirror-registry-config` in the operator
+namespace. Follow an example of a valid `mirror-registry-config` secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mirror-registry-config
+data:
+  address: cmVnaXN0cnkuaW8=
+  username: YWRtaW4=
+  password: d2hhdCB3ZXJlIHlvdSB0aGlua2luZz8K
+  token: YW4gb3B0aW9uYWwgdG9rZW4gZm9yIHRva2VuIGJhc2VkIGF1dGg=
+  insecure: dHJ1ZQ==
 ```

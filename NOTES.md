@@ -1,15 +1,3 @@
-# Old helm deploy command
-
-```
-helm install \
-	--set mirrorRegistry.address=registry.io:5000 \
-	--set mirrorRegistry.insecure="false" \
-	--set mirrorRegistry.username="mirrorRegistryUsername" \
-	--set mirrorRegistry.password="mirrorRegistryPassword" \
-	tagger \
-	https://github.com/ricardomaraschini/tagger/releases/download/latest/helm-chart.tgz
-```
-
 # Tag example
 
 ```yaml
