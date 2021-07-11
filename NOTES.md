@@ -150,7 +150,7 @@ spec:
 $ sudo apt install uidmap 
 ```
 
-# build base image
+# github actions
 
-Container builds use as base image an image hosted at
-`https://github.com/ricardomaraschini/tagger-builder-images`
+Some of github actions in this repo use as base image quay.io/tagger/actions-image, the way this
+image is build is stored at `https://github.com/ricardomaraschini/tagger-github-actions`
