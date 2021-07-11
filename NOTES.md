@@ -144,20 +144,13 @@ spec:
       targetPort: 5000
 ```
 
-# tagger-base-image
-
-When running jobs through github actions we leverage a base image hosted
-at quay.io/rmarasch/tagger-base-image:latest, the following Dockerfile is
-used to generate it:
-
-```
-FROM golang:1.16
-RUN apt-get update && apt-get install -y libgpgme-dev libbtrfs-dev libdevmapper-dev
-RUN go get -u golang.org/x/lint/golint
-```
-
 # ubuntu kubectl-tag dependencies
 
 ```
 $ sudo apt install uidmap 
 ```
+
+# build base image
+
+Container builds use as base image an image hosted at
+https://github.com/ricardomaraschini/tagger-builder-images

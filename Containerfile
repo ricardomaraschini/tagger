@@ -2,13 +2,7 @@
 # Builder
 #
 
-FROM docker.io/fedora:latest AS builder
-RUN dnf install -y \
-    btrfs-progs-devel \
-    device-mapper-devel \
-    gpgme-devel \
-    go \
-    make
+FROM quay.io/tagger/build-base-image:latest as builder
 WORKDIR /src
 ARG version
 ENV VERSION=${version:-v0.0.0}
