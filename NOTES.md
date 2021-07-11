@@ -153,4 +153,4 @@ $ sudo apt install uidmap
 # build base image
 
 Container builds use as base image an image hosted at
-https://github.com/ricardomaraschini/tagger-builder-images
+`https://github.com/ricardomaraschini/tagger-builder-images`
