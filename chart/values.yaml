@@ -4,11 +4,9 @@ replicas: 1
 image: "quay.io/tagger/operator:latest"
 # key is the tls key to be used by tagger when communicating with kubernetes api.
 # if not provided a self signed one will be generated during install and upgrade.
-# this key must contain as alternative names 'mutating-webhooks.<namespace>' and
-# 'mutating-webhooks.<namespace>.svc'.
+# this key must contain as alternative name 'mutating-webhooks.<namespace>.svc'.
 key: ""
 # cert is the certificate to be trusted by kubernetes api when communicating with tagger.
 # if not provided a self signed one will be generated during install and upgrade.
-# this cert must contain as alternative names 'mutating-webhooks.<namespace>' and
-# 'mutating-webhooks.<namespace>.svc'.
+# this cert must contain as alternative name 'mutating-webhooks.<namespace>.svc'.
 cert: ""
