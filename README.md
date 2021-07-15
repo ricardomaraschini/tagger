@@ -261,6 +261,12 @@ will be automatically updated.
 
 ### Deploying
 
+#### Note
+The documentation below may not be the right one for the version you want to install. It is
+recommended that you refer to the documentation specific to the version you are willing to
+deploy. Download the file `README.pdf` for the release in the Releases section of this
+repository. If you are reading this in a PDF then you should be OK.
+
 You can deploy Tagger using Helm, let's first select the release we want to install by running
 the following commands:
 
