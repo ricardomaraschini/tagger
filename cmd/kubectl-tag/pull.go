@@ -105,7 +105,8 @@ var tagpull = &cobra.Command{
 func pullTagImage(
 	ctx context.Context, idx tagindex, token string,
 ) (types.ImageReference, func(), error) {
-	conn, err := grpc.Dial(
+	conn, err := grpc.DialContext(
+		ctx,
 		idx.server,
 		grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}),

@@ -124,7 +124,8 @@ func saveTagImage(ctx context.Context, tidx tagindex) (*os.File, func(), error) 
 func pushTagImage(
 	ctx context.Context, idx tagindex, from *os.File, token string,
 ) error {
-	conn, err := grpc.Dial(
+	conn, err := grpc.DialContext(
+		ctx,
 		idx.server,
 		grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}),
