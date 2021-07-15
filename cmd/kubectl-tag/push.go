@@ -36,6 +36,10 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/progbar"
 )
 
+func init() {
+	tagpush.Flags().Bool("insecure", false, "don't verify certificate when connecting")
+}
+
 var tagpush = &cobra.Command{
 	Use:     "push <tagger.instance:port/namespace/name>",
 	Short:   "Pushes an image into the next generation of a tag",
@@ -44,6 +48,11 @@ var tagpush = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			log.Fatal("invalid number of arguments")
+		}
+
+		insecure, err := c.Flags().GetBool("insecure")
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
@@ -70,7 +79,7 @@ var tagpush = &cobra.Command{
 		defer cleanup()
 
 		if err := pushTagImage(
-			c.Context(), tidx, srcref, config.BearerToken,
+			c.Context(), tidx, srcref, config.BearerToken, insecure,
 		); err != nil {
 			log.Fatal(err)
 		}
@@ -122,13 +131,15 @@ func saveTagImage(ctx context.Context, tidx tagindex) (*os.File, func(), error) 
 
 // pushTagImages sends an image through GRPC to a tagger instance.
 func pushTagImage(
-	ctx context.Context, idx tagindex, from *os.File, token string,
+	ctx context.Context, idx tagindex, from *os.File, token string, insecure bool,
 ) error {
 	conn, err := grpc.DialContext(
 		ctx,
 		idx.server,
 		grpc.WithTransportCredentials(
-			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}),
+			credentials.NewTLS(&tls.Config{
+				InsecureSkipVerify: insecure,
+			}),
 		),
 	)
 

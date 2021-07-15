@@ -37,6 +37,10 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/progbar"
 )
 
+func init() {
+	tagpull.Flags().Bool("insecure", false, "don't verify certificate when connecting")
+}
+
 var tagpull = &cobra.Command{
 	Use:     "pull <tagger.instance:port/namespace/name>",
 	Short:   "Pulls current Tag image",
@@ -45,6 +49,11 @@ var tagpull = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			log.Fatal("invalid number of arguments")
+		}
+
+		insecure, err := c.Flags().GetBool("insecure")
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
@@ -67,7 +76,7 @@ var tagpull = &cobra.Command{
 		// file from where we can load the image into runtime's
 		// local storage.
 		srcref, cleanup, err := pullTagImage(
-			c.Context(), tidx, config.BearerToken,
+			c.Context(), tidx, config.BearerToken, insecure,
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -103,13 +112,15 @@ var tagpull = &cobra.Command{
 // be called at the end to clean up our mess. If this function returns an error
 // then callers don't need to call the clean-up function.
 func pullTagImage(
-	ctx context.Context, idx tagindex, token string,
+	ctx context.Context, idx tagindex, token string, insecure bool,
 ) (types.ImageReference, func(), error) {
 	conn, err := grpc.DialContext(
 		ctx,
 		idx.server,
 		grpc.WithTransportCredentials(
-			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}),
+			credentials.NewTLS(&tls.Config{
+				InsecureSkipVerify: insecure,
+			}),
 		),
 	)
 	if err != nil {
