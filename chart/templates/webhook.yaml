@@ -1,6 +1,12 @@
-{{- $altNames := list ( printf "mutating-webhooks.%s" .Release.Namespace ) ( printf "mutating-webhooks.%s.svc" .Release.Namespace ) -}}
-{{- $ca := genCA "tagger" 365 -}}
-{{- $cert := genSignedCert "tagger" nil $altNames 365 $ca -}}
+{{- /*
+Here we generate a self signed certificate to use if user has not provided us with one
+through .Values.cert and .Values.key. Once this chart is installed we never change the
+certificates.
+*/}}
+{{- $altNames := list ( printf "mutating-webhooks.%s.svc" .Release.Namespace ) }}
+{{- $ca := genCA "tagger" 365 }}
+{{- $cert := genSignedCert "tagger" nil $altNames 365 $ca }}
+{{- $secret := (lookup "v1" "Secret" .Release.Namespace "certs" ) }}
 ---
 apiVersion: v1
 kind: Secret
@@ -9,8 +15,12 @@ metadata:
   namespace: {{ .Release.Namespace }}
 type: Opaque
 data:
-  server.crt: {{ $cert.Cert | b64enc }}
-  server.key: {{ $cert.Key | b64enc }}
+  {{- if $secret }}
+  {{- toYaml $secret.data | nindent 2 }}
+  {{- else }}
+  server.crt: {{ default $cert.Cert .Values.cert | b64enc }}
+  server.key: {{ default $cert.Key .Values.key | b64enc }}
+  {{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -27,7 +37,11 @@ webhooks:
       namespace: {{ .Release.Namespace }}
       path: "/tag"
       port: 8080
-    caBundle: {{ $cert.Cert | b64enc }}
+    {{- if $secret }}
+    caBundle: {{ (index $secret "data" "server.crt") }}
+    {{- else }}
+    caBundle: {{ default $cert.Cert .Values.cert | b64enc }}
+    {{- end }}
   rules:
   - apiGroups:
     - "tagger.dev"
