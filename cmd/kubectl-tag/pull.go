@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
 	"github.com/ricardomaraschini/tagger/infra/fs"
@@ -103,8 +105,12 @@ var tagpull = &cobra.Command{
 func pullTagImage(
 	ctx context.Context, idx tagindex, token string,
 ) (types.ImageReference, func(), error) {
-	// XXX ssl goes here, please.
-	conn, err := grpc.Dial(idx.server, grpc.WithInsecure())
+	conn, err := grpc.Dial(
+		idx.server,
+		grpc.WithTransportCredentials(
+			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}),
+		),
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error connecting: %w", err)
 	}

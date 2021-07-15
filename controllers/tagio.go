@@ -24,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
@@ -63,22 +64,34 @@ type TagIO struct {
 // have hardcoded what seems to be reasonable values in terms of keep
 // alive and connection lifespan management (we may need to better tune
 // this). The implementation here is made so we have a stateless handler.
+// Panics if unable to load certificates located under assets/ dir.
 func NewTagIO(tagexp ImagePusherPuller, usrval UserValidator) *TagIO {
-	aliveopt := grpc.KeepaliveParams(
-		keepalive.ServerParameters{
-			MaxConnectionIdle:     time.Minute,
-			MaxConnectionAge:      20 * time.Minute,
-			MaxConnectionAgeGrace: time.Minute,
-			Time:                  time.Second,
-			Timeout:               5 * time.Second,
-		},
+	creds, err := credentials.NewServerTLSFromFile(
+		"assets/server.crt", "assets/server.key",
 	)
+	if err != nil {
+		klog.Fatalf("error setting up TLS: %s", err)
+	}
+
+	opts := []grpc.ServerOption{
+		grpc.Creds(creds),
+		grpc.KeepaliveParams(
+			keepalive.ServerParameters{
+				MaxConnectionIdle:     time.Minute,
+				MaxConnectionAge:      20 * time.Minute,
+				MaxConnectionAgeGrace: time.Minute,
+				Time:                  time.Second,
+				Timeout:               5 * time.Second,
+			},
+		),
+	}
+
 	tio := &TagIO{
 		bind:   ":8083",
 		tagexp: tagexp,
 		usrval: usrval,
 		fs:     fs.New(""),
-		srv:    grpc.NewServer(aliveopt),
+		srv:    grpc.NewServer(opts...),
 	}
 	pb.RegisterTagIOServiceServer(tio.srv, tio)
 	reflection.Register(tio.srv)
@@ -192,11 +205,9 @@ func (t *TagIO) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error creating grpc socket: %w", err)
 	}
-
 	go func() {
 		<-ctx.Done()
 		t.srv.GracefulStop()
 	}()
-
 	return t.srv.Serve(listener)
 }

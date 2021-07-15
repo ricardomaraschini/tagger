@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
 	"github.com/ricardomaraschini/tagger/infra/fs"
@@ -122,11 +124,12 @@ func saveTagImage(ctx context.Context, tidx tagindex) (*os.File, func(), error) 
 func pushTagImage(
 	ctx context.Context, idx tagindex, from *os.File, token string,
 ) error {
-	// XXX implement ssl please
-	conn, err := grpc.Dial(idx.server, grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
+	conn, err := grpc.Dial(
+		idx.server,
+		grpc.WithTransportCredentials(
+			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}),
+		),
+	)
 
 	client := pb.NewTagIOServiceClient(conn)
 	stream, err := client.Push(ctx)
