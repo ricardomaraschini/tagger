@@ -43,6 +43,9 @@ jobs:
       - name: build helm chart release
         run: helm package chart/
 
+      - name: build readme pdf
+        run: pandoc README.md -o README.pdf
+
       - name: publish release
         uses: marvinpinto/action-automatic-releases@latest
         with:
@@ -50,4 +53,4 @@ jobs:
           prerelease: false
           files: |
             *.tgz
-            README.md
+            README.pdf
