@@ -300,3 +300,25 @@ data:
   token: YW4gb3B0aW9uYWwgdG9rZW4gZm9yIHRva2VuIGJhc2VkIGF1dGg=
   insecure: dHJ1ZQ==
 ```
+
+You can provide your own certificate and Tagger will leverage it for serving tags when users
+pull or push. This certificate is also used when Kubernetes asks to validate a given Tag.
+To provide your certificate use Helm chart `key` and `cert` variables. Important to notice
+that the certificate must be valid for the following alternative names:
+
+```
+- mutating-webhooks.<tagger namespace>.svc.
+	- this name is used when kubernetes api server validates tags.
+- the ingress name.
+	- users will use this to reach tagger when pulling or pushing.
+```
+
+If you don't provide any certificate during installation a self signed one will be created and
+deployed, it is valid for one year. You can update the certificates whenever you want, for that
+you need to edit a secret called `certs` in Tagger's namespace and a mutating webhook config
+called `tagger`.
+
+```
+$ kubectl edit secret certs
+$ kubectl edit mutatingwebhookconfigurations tagger
+```
