@@ -270,7 +270,7 @@ You can deploy Tagger using Helm, let's first select the release we want to inst
 the following commands:
 
 ```
-$ RELEASE=v2.1.14
+$ RELEASE=v2.1.15
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
 ```
 The `RELEASE` variable may be set to any release, to see a full list of releases follow the link
