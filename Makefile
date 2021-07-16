@@ -9,6 +9,7 @@ IMAGE_TAG = $(IMAGE):latest
 
 OUTPUT_DIR ?= _output
 OUTPUT_BIN = $(OUTPUT_DIR)/bin
+OUTPUT_DOC = $(OUTPUT_DIR)/doc
 
 TAGGER_BIN = $(OUTPUT_BIN)/$(APP)
 PLUGIN_BIN = $(OUTPUT_BIN)/$(PLUGIN)
@@ -76,4 +77,12 @@ image:
 
 .PHONY: clean
 clean:
-	rm -rf _output
+	rm -rf $(OUTPUT_DIR)
+
+.PHONY: pdf
+pdf:
+	mkdir -p $(OUTPUT_DOC)
+	grep -v badge.svg README.md | pandoc \
+		-fmarkdown-implicit_figures \
+		-V geometry:margin=1in \
+		-o $(OUTPUT_DOC)/README.pdf
