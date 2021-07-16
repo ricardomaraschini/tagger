@@ -327,3 +327,34 @@ called `tagger`.
 $ kubectl edit secret certs
 $ kubectl edit mutatingwebhookconfigurations tagger
 ```
+
+### Building kubectl plugin
+
+To build the kubectl tag plugin you gonna need to install a few dependencies. Depending on the
+distribution you are using the packages may be named differently. To install on a Fedora release
+you can use the following commands (from within Tagger's repository root directory):
+
+```
+sudo dnf install -y \
+	make \
+	go \
+	gpgme-devel \
+	btrfs-progs-devel \
+	device-mapper-devel
+make kubectl-tag
+sudo mv _output/bin/kubectl-tag /usr/local/bin/kubectl-tag
+```
+
+You gonna need `go` to be at least version `1.16`. To build in an Ubuntu distribution, after
+installing `go >= 1.16`, you can run the following commands:
+
+```
+sudo apt install -y \
+	make \
+	libbtrfs-dev \
+	libgpgme-dev \
+	libdevmapper-dev \
+	uidmap
+make kubectl-tag
+sudo mv _output/bin/kubectl-tag /usr/local/bin/kubectl-tag
+```
