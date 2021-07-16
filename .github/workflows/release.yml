@@ -34,7 +34,7 @@ jobs:
         run: helm package chart/
 
       - name: build readme pdf
-        run: pandoc README.md -o README.pdf
+        run: grep -v badge.svg README.md | pandoc  -V geometry:margin=1in -o README.pdf
 
       - name: publish release
         uses: marvinpinto/action-automatic-releases@latest
