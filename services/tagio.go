@@ -94,6 +94,7 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	if err != nil {
 		return fmt.Errorf("error getting tag: %w", err)
 	}
+	isnew := it.Spec.From == ""
 
 	refstr := fmt.Sprintf("docker-archive://%s", fpath)
 	srcref, err := alltransports.ParseImageName(refstr)
@@ -111,6 +112,13 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 
 	it.Spec.From = dstref.DockerReference().String()
 	it.Spec.Generation = it.NextGeneration()
+	if isnew {
+		_, err = t.tagcli.TaggerV1beta1().Tags(ns).Create(
+			ctx, it, metav1.CreateOptions{},
+		)
+		return err
+	}
+
 	_, err = t.tagcli.TaggerV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	)
