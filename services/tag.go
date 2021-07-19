@@ -84,7 +84,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1beta1.Tag) error {
 			// status and update it. If we fail to update the tag we only log,
 			// returning the original error.
 			it.RegisterImportFailure(err)
-			if _, nerr := t.tagcli.TaggerV1beta1().Tags(it.Namespace).Update(
+			if _, nerr := t.tagcli.TaggerV1beta1().Tags(it.Namespace).UpdateStatus(
 				ctx, it, metav1.UpdateOptions{},
 			); nerr != nil {
 				klog.Errorf("error updating tag status: %s", nerr)
@@ -103,7 +103,7 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1beta1.Tag) error {
 	}
 
 	it.Status.Generation = it.Spec.Generation
-	if _, err = t.tagcli.TaggerV1beta1().Tags(it.Namespace).Update(
+	if _, err = t.tagcli.TaggerV1beta1().Tags(it.Namespace).UpdateStatus(
 		ctx, it, metav1.UpdateOptions{},
 	); err != nil {
 		return fmt.Errorf("error updating tag: %w", err)

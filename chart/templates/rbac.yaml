@@ -51,6 +51,7 @@ rules:
   - tagger.dev
   resources:
   - tags
+  - tags/status
   verbs:
   - "*"
 - apiGroups:
