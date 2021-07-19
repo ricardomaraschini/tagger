@@ -109,30 +109,8 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 		return fmt.Errorf("error loading image into registry: %w", err)
 	}
 
-	nextgen := it.NextGeneration()
-	it.Spec.Generation, it.Status.Generation = nextgen, nextgen
-	it.RegisterImportSuccess()
-	it.PrependHashReference(
-		imagtagv1beta1.HashReference{
-			Generation:     nextgen,
-			From:           "-",
-			ImportedAt:     metav1.Now(),
-			ImageReference: dstref.DockerReference().String(),
-		},
-	)
-
-	// that means we have received a push to a tag that does not
-	// exist yet, in such scenario there is no possible "from" to
-	// use on its spec so we set it to the place where we pushed
-	// the image.
-	if it.Spec.From == "" {
-		it.Spec.From = dstref.DockerReference().String()
-		_, err = t.tagcli.TaggerV1beta1().Tags(ns).Create(
-			ctx, it, metav1.CreateOptions{},
-		)
-		return err
-	}
-
+	it.Spec.From = dstref.DockerReference().String()
+	it.Spec.Generation = it.NextGeneration()
 	_, err = t.tagcli.TaggerV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	)
