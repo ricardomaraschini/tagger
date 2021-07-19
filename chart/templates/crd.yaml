@@ -28,6 +28,8 @@ spec:
       jsonPath: .spec.from
       name: from
       type: string
+    subresources:
+      status: {}
     schema:
       openAPIV3Schema:
         type: object
