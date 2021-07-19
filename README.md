@@ -66,6 +66,10 @@ may be considered a "fixed point in time" for a given image tag).
 Every time one "tags" an image Tagger creates a new Generation for that image tag, making it
 easier for the user, later on, to downgrade to previously tagged Generations of the same image.
 
+### Architecture
+
+![Tagger architecture](./assets/architecture.png)
+
 ### Mirroring images
 
 Tagger allows administrators to Tag and mirror images locally within the cluster. You need to
