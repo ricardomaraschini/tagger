@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"os"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -44,50 +43,42 @@ var tagpush = &cobra.Command{
 	Short:   "Pushes an image into the next generation of a tag",
 	Long:    static.Text["push_help_header"],
 	Example: static.Text["push_help_examples"],
-	Run: func(c *cobra.Command, args []string) {
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			log.Print("invalid number of arguments")
-			return
+			return fmt.Errorf("invalid number of arguments")
 		}
 
 		insecure, err := c.Flags().GetBool("insecure")
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		if config.BearerToken == "" {
-			log.Print("empty token, you need a kubernetes token to push")
-			return
+			return fmt.Errorf("empty token, you need a kubernetes token to push")
 		}
 
 		// first understands what tag is the user referring to.
 		tidx, err := indexFor(args[0])
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		// now we save the image from the local storage and into
 		// a tar file.
 		srcref, cleanup, err := saveTagImage(c.Context(), tidx)
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 		defer cleanup()
 
-		if err := pushTagImage(
+		return pushTagImage(
 			c.Context(), tidx, srcref, config.BearerToken, insecure,
-		); err != nil {
-			log.Print(err)
-		}
+		)
 	},
 }
 

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -31,26 +32,27 @@ var tagimport = &cobra.Command{
 	Short:   "Imports a new generation for a tag",
 	Long:    static.Text["import_help_header"],
 	Example: static.Text["import_help_examples"],
-	Run: func(c *cobra.Command, args []string) {
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			log.Fatal("provide an image tag")
+			return fmt.Errorf("provide an image tag")
 		}
 
 		svc, err := createTagService()
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		ns, err := namespace(c)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		it, err := svc.NewGeneration(c.Context(), ns, args[0])
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		log.Printf("tag %s imported (gen %d)", args[0], it.Spec.Generation)
+		return nil
 	},
 }

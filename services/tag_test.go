@@ -368,10 +368,10 @@ func TestUpgrade(t *testing.T) {
 			err:          "not found",
 		},
 		{
-			name:         "tag pending import",
+			name:         "tag not imported yet",
 			tagName:      "atag",
 			tagNamespace: "atagnamespace",
-			err:          "pending tag import",
+			err:          "tag not imported yet",
 			tagObjects: []runtime.Object{
 				&imagtagv1beta1.Tag{
 					ObjectMeta: metav1.ObjectMeta{

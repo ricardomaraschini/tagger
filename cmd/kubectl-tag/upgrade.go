@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -31,26 +32,27 @@ var tagupgrade = &cobra.Command{
 	Short:   "Moves a tag to a newer generation",
 	Long:    static.Text["upgrade_help_header"],
 	Example: static.Text["upgrade_help_examples"],
-	Run: func(c *cobra.Command, args []string) {
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			log.Fatal("provide an image tag")
+			return fmt.Errorf("provide an image tag")
 		}
 
 		svc, err := createTagService()
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		ns, err := namespace(c)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		it, err := svc.Upgrade(c.Context(), ns, args[0])
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		log.Printf("tag %s upgraded (gen %d)", args[0], it.Spec.Generation)
+		return nil
 	},
 }

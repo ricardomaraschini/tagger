@@ -39,15 +39,17 @@ func main() {
 	}
 	unshare.MaybeReexecUsingUserNamespace(true)
 
-	ctx, cancel := signal.NotifyContext(
-		context.Background(), syscall.SIGTERM, syscall.SIGINT,
-	)
+	sigs := []os.Signal{syscall.SIGTERM, syscall.SIGINT}
+	ctx, cancel := signal.NotifyContext(context.Background(), sigs...)
 	defer cancel()
 
-	root := &cobra.Command{Use: "kubectl-tag"}
+	root := &cobra.Command{
+		Use:          "kubectl-tag",
+		SilenceUsage: true,
+	}
 	root.AddCommand(
-		tagupgrade, tagdowngrade, tagimport, tagpull,
-		tagpush, tagnew, tagmirror, tagversion,
+		tagupgrade, tagimport, tagversion, tagpush,
+		tagdowngrade, tagpull, tagmirror, tagnew,
 	)
 	root.ExecuteContext(ctx)
 }

@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"os"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -45,34 +44,29 @@ var tagpull = &cobra.Command{
 	Short:   "Pulls current Tag image",
 	Long:    static.Text["pull_help_header"],
 	Example: static.Text["pull_help_examples"],
-	Run: func(c *cobra.Command, args []string) {
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			log.Print("invalid number of arguments")
-			return
+			return fmt.Errorf("invalid number of arguments")
 		}
 
 		insecure, err := c.Flags().GetBool("insecure")
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		if config.BearerToken == "" {
-			log.Print("empty token, you need a kubernetes token to pull")
-			return
+			return fmt.Errorf("empty token, you need a kubernetes token to pull")
 		}
 
 		// first understands what tag is the user referring to.
 		tidx, err := indexFor(args[0])
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		// now that we know what is the tag we do the grpc call
@@ -83,15 +77,13 @@ var tagpull = &cobra.Command{
 			c.Context(), tidx, config.BearerToken, insecure,
 		)
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 		defer cleanup()
 
 		dstref, err := tidx.localStorageRef()
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		pol := &signature.Policy{
@@ -101,16 +93,14 @@ var tagpull = &cobra.Command{
 		}
 		polctx, err := signature.NewPolicyContext(pol)
 		if err != nil {
-			log.Print(err)
-			return
+			return err
 		}
 
 		// copy the image into runtime's local storage.
-		if _, err := imgcopy.Image(
+		_, err = imgcopy.Image(
 			c.Context(), polctx, dstref, srcref, &imgcopy.Options{},
-		); err != nil {
-			log.Print(err)
-		}
+		)
+		return err
 	},
 }
 
