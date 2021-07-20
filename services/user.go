@@ -41,6 +41,12 @@ func NewUser(corcli corecli.Interface) *User {
 // CanUpdateTags returns nil if provided token is able to update Tag entities
 // in a namespace.
 func (u *User) CanUpdateTags(ctx context.Context, ns, token string) error {
+	if _, err := u.corcli.CoreV1().Namespaces().Get(
+		ctx, ns, metav1.GetOptions{},
+	); err != nil {
+		return err
+	}
+
 	tkreview := &authev1.TokenReview{
 		Spec: authev1.TokenReviewSpec{
 			Token: token,

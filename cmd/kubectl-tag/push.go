@@ -31,7 +31,6 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
-	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
 	"github.com/ricardomaraschini/tagger/infra/progbar"
 )
@@ -47,41 +46,47 @@ var tagpush = &cobra.Command{
 	Example: static.Text["push_help_examples"],
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
-			log.Fatal("invalid number of arguments")
+			log.Print("invalid number of arguments")
+			return
 		}
 
 		insecure, err := c.Flags().GetBool("insecure")
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		if config.BearerToken == "" {
-			log.Fatal("empty token, you need a kubernetes token to push")
+			log.Print("empty token, you need a kubernetes token to push")
+			return
 		}
 
 		// first understands what tag is the user referring to.
 		tidx, err := indexFor(args[0])
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		// now we save the image from the local storage and into
 		// a tar file.
 		srcref, cleanup, err := saveTagImage(c.Context(), tidx)
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 		defer cleanup()
 
 		if err := pushTagImage(
 			c.Context(), tidx, srcref, config.BearerToken, insecure,
 		); err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
 	},
 }
@@ -90,7 +95,11 @@ var tagpush = &cobra.Command{
 // tar file. This function returns a "cleanup" func that must be called
 // to release used resources.
 func saveTagImage(ctx context.Context, tidx tagindex) (*os.File, func(), error) {
-	fsh := fs.New("")
+	fsh, err := createHomeTempDir()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	fp, cleanup, err := fsh.TempFile()
 	if err != nil {
 		return nil, nil, err
@@ -179,6 +188,10 @@ func pushTagImage(
 	defer pbar.Wait()
 
 	if err := pb.Send(from, fsize, stream, pbar); err != nil {
+		pbar.Abort()
+		if _, nerr := stream.CloseAndRecv(); err != nil {
+			return nerr
+		}
 		return err
 	}
 

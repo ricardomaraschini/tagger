@@ -58,6 +58,11 @@ func (p *ProgressBar) SetMax(max int64) {
 	)
 }
 
+// Abort cancels the progress bar.
+func (p *ProgressBar) Abort() {
+	p.pbar.Abort(true)
+}
+
 // Wait awaits for the ProgressBar to finish drawing.
 func (p *ProgressBar) Wait() {
 	p.prog.Wait()
