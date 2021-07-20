@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -30,6 +29,7 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
+	"github.com/hashicorp/go-multierror"
 	"github.com/ricardomaraschini/tagger/infra/imagestore"
 	"gopkg.in/yaml.v2"
 )
@@ -103,11 +103,9 @@ type LocalRegistryHostingV1 struct {
 // with things such as configured docker authentications or unqualified
 // registries configs.
 type SysContext struct {
-	sync.Mutex
 	sclister              corelister.SecretLister
 	cmlister              corelister.ConfigMapLister
 	unqualifiedRegistries []string
-	istore                *imagestore.Registry
 }
 
 // NewSysContext returns a new SysContext helper.
@@ -189,16 +187,18 @@ func (s *SysContext) parseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, er
 // one is by complying with the KEP. We give preference for the secret
 // in the current namespace.
 func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
+	var errors *multierror.Error
 	cfg, err := s.parseTaggerMirrorRegistryConfig()
 	if err == nil {
 		return cfg.Address, cfg.Address, nil
 	}
-	klog.Infof("unable to read tagger mirror registry config: %s", err)
+	multierror.Append(errors, err)
 
 	// moves to check through the KEP implementation.
 	kepcfg, err := s.parseMirrorRegistryConfig()
 	if err != nil {
-		return "", "", fmt.Errorf("fail to parse mirror registry config: %w", err)
+		multierror.Append(errors, err)
+		return "", "", fmt.Errorf("mirror registry address unknown: %w", errors)
 	}
 	return kepcfg.HostFromClusterNetwork, kepcfg.HostFromContainerRuntime, nil
 }
@@ -304,12 +304,6 @@ func (s *SysContext) DefaultPolicyContext() (*signature.PolicyContext, error) {
 // GetRegistryStore creates an instance of an Registry store entity configured
 // to use our internal registry as underlying storage.
 func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry, error) {
-	s.Lock()
-	defer s.Unlock()
-	if s.istore != nil {
-		return s.istore, nil
-	}
-
 	sysctx := s.MirrorRegistryContext(ctx)
 	regaddr, _, err := s.MirrorRegistryAddresses()
 	if err != nil {
@@ -321,8 +315,7 @@ func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry
 		return nil, fmt.Errorf("error reading default policy: %w", err)
 	}
 
-	s.istore = imagestore.NewRegistry(regaddr, sysctx, defpol)
-	return s.istore, nil
+	return imagestore.NewRegistry(regaddr, sysctx, defpol), nil
 }
 
 // RegistriesToSearch returns a list of registries to be used when looking for
