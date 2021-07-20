@@ -15,7 +15,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -34,36 +34,31 @@ var tagnew = &cobra.Command{
 	Short:   "Creates a new tag by importing it from a remote registry",
 	Long:    static.Text["new_help_header"],
 	Example: static.Text["new_help_examples"],
-	Run: func(c *cobra.Command, args []string) {
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			log.Fatal("provide an image tag name")
+			return fmt.Errorf("provide an image tag name")
 		}
 
 		svc, err := createTagService()
 		if err != nil {
-			log.Fatal(err)
-			return
+			return err
 		}
 
 		ns, err := namespace(c)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		mirror, err := c.Flags().GetBool("mirror")
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		from, err := c.Flags().GetString("from")
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
-		if err := svc.NewTag(
-			c.Context(), ns, args[0], from, mirror,
-		); err != nil {
-			log.Fatal(err)
-		}
+		return svc.NewTag(c.Context(), ns, args[0], from, mirror)
 	},
 }

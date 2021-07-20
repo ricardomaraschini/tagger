@@ -26,7 +26,8 @@ var Version = "v0.0.0"
 var tagversion = &cobra.Command{
 	Use:   "version",
 	Short: "Prints the version",
-	Run: func(c *cobra.Command, args []string) {
+	RunE: func(c *cobra.Command, args []string) error {
 		fmt.Println("Tagger kubectl plugin version", Version)
+		return nil
 	},
 }

@@ -157,7 +157,7 @@ func (t *Tag) Upgrade(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag
 	}
 
 	if !it.SpecTagImported() {
-		return nil, fmt.Errorf("pending tag import")
+		return nil, fmt.Errorf("tag not imported yet")
 	}
 
 	// we only go as far as setting spec to the newest generation.

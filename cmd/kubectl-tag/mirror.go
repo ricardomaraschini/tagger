@@ -15,7 +15,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -31,26 +31,21 @@ var tagmirror = &cobra.Command{
 	Short:   "Mirrors a remote image into a tag",
 	Long:    static.Text["mirror_help_header"],
 	Example: static.Text["mirror_help_examples"],
-	Run: func(c *cobra.Command, args []string) {
+	RunE: func(c *cobra.Command, args []string) error {
 		if len(args) != 2 {
-			log.Fatal("provide an image source and a tag name")
+			return fmt.Errorf("provide an image source and a tag name")
 		}
 
 		svc, err := createTagService()
 		if err != nil {
-			log.Fatal(err)
-			return
+			return err
 		}
 
 		ns, err := namespace(c)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
-		if err := svc.NewTag(
-			c.Context(), ns, args[1], args[0], true,
-		); err != nil {
-			log.Fatal(err)
-		}
+		return svc.NewTag(c.Context(), ns, args[1], args[0], true)
 	},
 }
