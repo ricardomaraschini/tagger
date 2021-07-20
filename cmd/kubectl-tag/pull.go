@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/ricardomaraschini/tagger/cmd/kubectl-tag/static"
-	"github.com/ricardomaraschini/tagger/infra/fs"
 	"github.com/ricardomaraschini/tagger/infra/pb"
 	"github.com/ricardomaraschini/tagger/infra/progbar"
 )
@@ -48,27 +47,32 @@ var tagpull = &cobra.Command{
 	Example: static.Text["pull_help_examples"],
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
-			log.Fatal("invalid number of arguments")
+			log.Print("invalid number of arguments")
+			return
 		}
 
 		insecure, err := c.Flags().GetBool("insecure")
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		if config.BearerToken == "" {
-			log.Fatal("empty token, you need a kubernetes token to pull")
+			log.Print("empty token, you need a kubernetes token to pull")
+			return
 		}
 
 		// first understands what tag is the user referring to.
 		tidx, err := indexFor(args[0])
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		// now that we know what is the tag we do the grpc call
@@ -79,13 +83,15 @@ var tagpull = &cobra.Command{
 			c.Context(), tidx, config.BearerToken, insecure,
 		)
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 		defer cleanup()
 
 		dstref, err := tidx.localStorageRef()
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		pol := &signature.Policy{
@@ -95,14 +101,15 @@ var tagpull = &cobra.Command{
 		}
 		polctx, err := signature.NewPolicyContext(pol)
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
+			return
 		}
 
 		// copy the image into runtime's local storage.
 		if _, err := imgcopy.Image(
 			c.Context(), polctx, dstref, srcref, &imgcopy.Options{},
 		); err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
 	},
 }
@@ -146,7 +153,11 @@ func pullTagImage(
 		return nil, nil, fmt.Errorf("error pulling: %w", err)
 	}
 
-	fsh := fs.New("")
+	fsh, err := createHomeTempDir()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating temp dir: %w", err)
+	}
+
 	fp, cleanup, err := fsh.TempFile()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating temp file: %w", err)

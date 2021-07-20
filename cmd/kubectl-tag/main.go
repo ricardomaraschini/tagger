@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,6 +28,7 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/spf13/cobra"
 
+	"github.com/ricardomaraschini/tagger/infra/fs"
 	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
 	"github.com/ricardomaraschini/tagger/services"
 )
@@ -80,4 +82,22 @@ func namespace(c *cobra.Command) (string, error) {
 		return "", err
 	}
 	return cfg.Contexts[cfg.CurrentContext].Namespace, nil
+}
+
+// createHomeTempDir creates a directory in user's home directory. Creates and return a
+// fs.FS handler using the created directory.
+func createHomeTempDir() (*fs.FS, error) {
+	hdir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	tmpdir := path.Join(hdir, ".tagger")
+	if _, err := os.Stat(tmpdir); os.IsNotExist(err) {
+		if err := os.Mkdir(tmpdir, 0700); err != nil {
+			return nil, err
+		}
+	}
+
+	return fs.New(tmpdir), nil
 }
