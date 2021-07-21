@@ -30,10 +30,6 @@ import (
 	taginformer "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
 )
 
-type mtrsvc struct{}
-
-func (m mtrsvc) ReportWorker(bool) {}
-
 type tagsvc struct {
 	sync.Mutex
 	db     map[string]*imagtagv1beta1.Tag
@@ -88,7 +84,7 @@ func TestTagCreated(t *testing.T) {
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(svc, mtrsvc{})
+	ctrl := NewTag(svc)
 	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 
@@ -151,7 +147,7 @@ func TestTagUpdated(t *testing.T) {
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(svc, mtrsvc{})
+	ctrl := NewTag(svc)
 	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 
@@ -229,7 +225,7 @@ func TestTagParallel(t *testing.T) {
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(svc, mtrsvc{})
+	ctrl := NewTag(svc)
 	ctrl.tokens = make(chan bool, 5)
 	taginf.Start(ctx.Done())
 
@@ -289,7 +285,7 @@ func TestTagDeleted(t *testing.T) {
 		tagcli: tagcli,
 	}
 
-	ctrl := NewTag(svc, mtrsvc{})
+	ctrl := NewTag(svc)
 	ctrl.tokens = make(chan bool, 1)
 	taginf.Start(ctx.Done())
 

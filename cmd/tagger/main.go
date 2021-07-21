@@ -84,10 +84,9 @@ func main() {
 	tiosvc := services.NewTagIO(corinf, tagcli, taginf)
 	podsvc := services.NewPod(corcli, corinf)
 	usrsvc := services.NewUser(corcli)
-	mtrsvc := services.NewMetrics()
 
 	// create controller layer
-	itctrl := controllers.NewTag(tagsvc, mtrsvc)
+	itctrl := controllers.NewTag(tagsvc)
 	mtctrl := controllers.NewMutatingWebHook()
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)

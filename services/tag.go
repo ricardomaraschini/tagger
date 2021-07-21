@@ -31,6 +31,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
 
+	"github.com/ricardomaraschini/tagger/infra/metrics"
 	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
 	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
@@ -89,10 +90,12 @@ func (t *Tag) Sync(ctx context.Context, it *imagtagv1beta1.Tag) error {
 			); nerr != nil {
 				klog.Errorf("error updating tag status: %s", nerr)
 			}
+			metrics.ImportFailures.Inc()
 			return fmt.Errorf("fail importing %s/%s: %w", it.Namespace, it.Name, err)
 		}
 		it.RegisterImportSuccess()
 		it.PrependHashReference(hashref)
+		metrics.ImportSuccesses.Inc()
 
 		klog.Infof("tag %s/%s imported.", it.Namespace, it.Name)
 	}
@@ -301,11 +304,13 @@ func (t *Tag) ImportTag(
 				return zero, fmt.Errorf("unable to get image store: %w", err)
 			}
 
+			mstart := time.Now()
 			if imghash, err = istore.Load(
 				ctx, imghash, sysctx, it.Namespace, it.Name,
 			); err != nil {
 				return zero, fmt.Errorf("fail to mirror image: %w", err)
 			}
+			metrics.MirrorLatency.Observe(time.Since(mstart).Seconds())
 		}
 
 		return imagtagv1beta1.HashReference{

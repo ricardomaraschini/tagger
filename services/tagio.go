@@ -25,6 +25,7 @@ import (
 
 	"github.com/containers/image/v5/transports/alltransports"
 
+	"github.com/ricardomaraschini/tagger/infra/metrics"
 	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 	tagclient "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
 	taginform "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
@@ -85,6 +86,7 @@ func (t *TagIO) tagOrNew(ns, name string) (*imagtagv1beta1.Tag, error) {
 // file, reads it and then pushes it to our mirror registry through an image store
 // implementation (see infra/imagestore/registry.go for a concrete implementation).
 func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
+	metrics.ImagePushes.Inc()
 	istore, err := t.syssvc.GetRegistryStore(ctx)
 	if err != nil {
 		return fmt.Errorf("error creating image store: %w", err)
@@ -129,6 +131,7 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 // content can be read. Caller is responsible for cleaning up after the returned
 // resources by calling the returned function.
 func (t *TagIO) Pull(ctx context.Context, ns, name string) (*os.File, func(), error) {
+	metrics.ImagePulls.Inc()
 	it, err := t.taglis.Tags(ns).Get(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting tag: %w", err)
