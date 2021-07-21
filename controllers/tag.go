@@ -47,7 +47,6 @@ type MetricReporter interface {
 type Tag struct {
 	queue  workqueue.RateLimitingInterface
 	tagsvc TagSyncer
-	mtrsvc MetricReporter
 	appctx context.Context
 	tokens chan bool
 }
@@ -55,12 +54,11 @@ type Tag struct {
 // NewTag returns a new controller for Image Tags. This controller runs image
 // tag imports in parallel, at a given time we can have at max "workers"
 // distinct image tags being processed.
-func NewTag(tagsvc TagSyncer, mtrsvc MetricReporter) *Tag {
+func NewTag(tagsvc TagSyncer) *Tag {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
 	ctrl := &Tag{
 		queue:  workqueue.NewRateLimitingQueue(ratelimit),
 		tagsvc: tagsvc,
-		mtrsvc: mtrsvc,
 		tokens: make(chan bool, 10),
 	}
 	tagsvc.AddEventHandler(ctrl.handlers())
@@ -126,9 +124,7 @@ func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 			defer func() {
 				<-t.tokens
 				running.Done()
-				t.mtrsvc.ReportWorker(false)
 			}()
-			t.mtrsvc.ReportWorker(true)
 
 			namespace, name, err := cache.SplitMetaNamespaceKey(evt.(string))
 			if err != nil {
