@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	"github.com/ricardomaraschini/tagger/infra/metrics"
 	imagtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
 )
 
@@ -121,9 +122,11 @@ func (t *Tag) eventProcessor(wg *sync.WaitGroup) {
 		t.tokens <- true
 		running.Add(1)
 		go func() {
+			metrics.ActiveWorkers.Inc()
 			defer func() {
 				<-t.tokens
 				running.Done()
+				metrics.ActiveWorkers.Dec()
 			}()
 
 			namespace, name, err := cache.SplitMetaNamespaceKey(evt.(string))
