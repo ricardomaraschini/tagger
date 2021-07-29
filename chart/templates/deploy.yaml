@@ -21,7 +21,7 @@ spec:
         image: {{ .Values.image }}
         imagePullPolicy: Always
         volumeMounts:
-          - mountPath: "/assets"
+          - mountPath: "/tmp/k8s-webhook-server/serving-certs"
             name: certs
             readOnly: true
         ports:

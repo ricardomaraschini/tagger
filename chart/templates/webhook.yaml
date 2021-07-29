@@ -18,8 +18,8 @@ data:
   {{- if $secret }}
   {{- toYaml $secret.data | nindent 2 }}
   {{- else }}
-  server.crt: {{ default $cert.Cert .Values.cert | b64enc }}
-  server.key: {{ default $cert.Key .Values.key | b64enc }}
+  tls.crt: {{ default $cert.Cert .Values.cert | b64enc }}
+  tls.key: {{ default $cert.Key .Values.key | b64enc }}
   {{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1

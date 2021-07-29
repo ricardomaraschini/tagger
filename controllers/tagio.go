@@ -64,11 +64,12 @@ type TagIO struct {
 // have hardcoded what seems to be reasonable values in terms of keep
 // alive and connection lifespan management (we may need to better tune
 // this). The implementation here is made so we have a stateless handler.
-// Panics if unable to load certificates located under assets/ dir.
+// Panics if unable to load certificates.
 func NewTagIO(tagexp ImagePusherPuller, usrval UserValidator) *TagIO {
-	creds, err := credentials.NewServerTLSFromFile(
-		"assets/server.crt", "assets/server.key",
-	)
+	olmCertDir := "/tmp/k8s-webhook-server/serving-certs"
+	cert := fmt.Sprintf("%s/tls.crt", olmCertDir)
+	key := fmt.Sprintf("%s/tls.key", olmCertDir)
+	creds, err := credentials.NewServerTLSFromFile(cert, key)
 	if err != nil {
 		klog.Fatalf("error setting up TLS: %s", err)
 	}

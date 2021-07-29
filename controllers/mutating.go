@@ -47,9 +47,11 @@ type MutatingWebHook struct {
 func NewMutatingWebHook() *MutatingWebHook {
 	runtimeScheme := runtime.NewScheme()
 	codecs := serializer.NewCodecFactory(runtimeScheme)
+
+	olmCertDir := "/tmp/k8s-webhook-server/serving-certs"
 	return &MutatingWebHook{
-		key:     "assets/server.key",
-		cert:    "assets/server.crt",
+		key:     fmt.Sprintf("%s/tls.key", olmCertDir),
+		cert:    fmt.Sprintf("%s/tls.crt", olmCertDir),
 		bind:    ":8080",
 		decoder: codecs.UniversalDeserializer(),
 	}
