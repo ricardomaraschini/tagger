@@ -157,73 +157,11 @@ image is build is stored at `https://github.com/ricardomaraschini/tagger-github-
 
 # OLM
 
-After checking out `community-operators` repo, create a Dockerfile:
+Generating the bundle
 
 ```
-FROM quay.io/operator-framework/upstream-registry-builder as builder
-
-COPY upstream-community-operators/tagger manifests
-RUN /bin/initializer -o ./bundles.db
-
-FROM scratch
-COPY --from=builder /etc/nsswitch.conf /etc/nsswitch.conf
-COPY --from=builder /bundles.db /bundles.db
-COPY --from=builder /bin/registry-server /registry-server
-COPY --from=builder /bin/grpc_health_probe /bin/grpc_health_probe
-EXPOSE 50051
-ENTRYPOINT ["/registry-server"]
-CMD ["--database", "bundles.db"]
+$ make get-operator-sdk
+$ BUNDLE_VERSION=2.1.17 make bundle
 ```
 
-
-```
-$ podman build -f Dockerfile -t quay.io/rmarasch/my-test-catalog:latest .
-$ podman push --digestfile=/dev/stdout quay.io/rmarasch/my-test-catalog:latest && echo
-```
-
-Prepare a cluster:
-
-https://operator-framework.github.io/community-operators/testing-operators/
-
-```
-$ kind create cluster
-$ operator-sdk olm install
-$ operator-sdk olm status
-$ kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.17.0/crds.yaml
-$ kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.17.0/olm.yaml
-```
-
-Then create needed CRs:
-
-```
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: tagger-catalog
-  namespace: olm
-spec:
-  sourceType: grpc
-  image: quay.io/rmarasch/my-test-catalog:latest
-```
-
-```
-apiVersion: operators.coreos.com/v1alpha2
-kind: OperatorGroup
-metadata:
-  name: tagger-operatorgroup
-spec: {}
-```
-
-```
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: tagger-subscription
-  namespace: default
-spec:
-  channel: alpha
-  name: tagger
-  startingCSV: tagger.v2.1.16
-  source: tagger-catalog
-  sourceNamespace: olm
-```
+Bundle is placed under `output/bundle` and a new image must exist in your docker instance.
