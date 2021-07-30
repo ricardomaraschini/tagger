@@ -70,6 +70,7 @@ generate-bundle:
 		--package tagger \
 		--version $(BUNDLE_VERSION) \
 		--output-dir $(OUTPUT_OLM_BUNDLE)
+
 .PHONY: bundle
 bundle: generate-bundle
 	$(IMAGE_BUILDER) build -f bundle.Dockerfile --tag=$(BUNDLE_TAG) .
