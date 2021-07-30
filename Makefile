@@ -3,13 +3,17 @@ PLUGIN = kubectl-tag
 PLUGIN_DARWIN = kubectl-tag-darwin
 
 VERSION ?= v0.0.0
+BUNDLE_VERSION ?= 0.0.0
 IMAGE_BUILDER ?= podman
+BUNDLE_IMAGE ?= quay.io/tagger/olm-bundle
 IMAGE ?= quay.io/tagger/operator
 IMAGE_TAG = $(IMAGE):latest
+BUNDLE_TAG = $(IMAGE):latest
 
-OUTPUT_DIR ?= _output
+OUTPUT_DIR ?= output
 OUTPUT_BIN = $(OUTPUT_DIR)/bin
 OUTPUT_DOC = $(OUTPUT_DIR)/doc
+OUTPUT_OLM_BUNDLE = $(OUTPUT_DIR)/bundle
 
 TAGGER_BIN = $(OUTPUT_BIN)/$(APP)
 PLUGIN_BIN = $(OUTPUT_BIN)/$(PLUGIN)
@@ -52,13 +56,23 @@ get-code-generator:
 		https://github.com/kubernetes/code-generator.git \
 		$(GEN_BIN)
 
-generate: generate-proto generate-k8s
-
 .PHONY: generate-proto
 generate-proto:
 	protoc --go-grpc_out=paths=source_relative:. \
 		--go_out=paths=source_relative:. \
 		./infra/pb/*.proto
+
+
+.PHONY: generate-bundle
+generate-bundle:
+	operator-sdk generate bundle \
+		--input-dir olm/  \
+		--package tagger \
+		--version $(BUNDLE_VERSION) \
+		--output-dir $(OUTPUT_OLM_BUNDLE)
+.PHONY: bundle
+bundle: generate-bundle
+	$(IMAGE_BUILDER) build -f bundle.Dockerfile --tag=$(BUNDLE_TAG) .
 
 .PHONY: generate-k8s
 generate-k8s:
@@ -78,6 +92,7 @@ image:
 .PHONY: clean
 clean:
 	rm -rf $(OUTPUT_DIR)
+	rm -rf bundle.Dockerfile
 
 .PHONY: pdf
 pdf:

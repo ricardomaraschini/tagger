@@ -1,4 +1,4 @@
-_output/
+output/
 .env
 .git/
 .gitignore
@@ -6,3 +6,4 @@ _output/
 assets/
 README.md
 LICENSE
+bundle.Dockerfile

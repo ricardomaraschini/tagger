@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tagger
+  labels:
+    app: tagger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tagger
+  template:
+    metadata:
+      labels:
+        app: tagger
+    spec:
+      serviceAccountName: tagger
+      containers:
+      - name: tagger
+        image: quay.io/tagger/operator:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name

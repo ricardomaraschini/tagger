@@ -346,7 +346,7 @@ sudo dnf install -y \
 	btrfs-progs-devel \
 	device-mapper-devel
 make kubectl-tag
-sudo mv _output/bin/kubectl-tag /usr/local/bin/kubectl-tag
+sudo mv output/bin/kubectl-tag /usr/local/bin/kubectl-tag
 ```
 
 You gonna need `go` to be at least version `1.16`. To build in an Ubuntu distribution, after
@@ -360,5 +360,5 @@ sudo apt install -y \
 	libdevmapper-dev \
 	uidmap
 make kubectl-tag
-sudo mv _output/bin/kubectl-tag /usr/local/bin/kubectl-tag
+sudo mv output/bin/kubectl-tag /usr/local/bin/kubectl-tag
 ```
