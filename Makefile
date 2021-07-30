@@ -81,7 +81,7 @@ generate-bundle:
 	sed -i '/scorecard/d' $(OUTPUT_OLM_BUNDLE)/Containerfile
 
 .PHONY: bundle
-bundle: generate-bundle
+bundle:
 	$(IMAGE_BUILDER) build \
 		-f $(OUTPUT_OLM_BUNDLE)/Containerfile \
 		--tag=$(BUNDLE_TAG) \

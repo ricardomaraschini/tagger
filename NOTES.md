@@ -160,8 +160,30 @@ image is build is stored at `https://github.com/ricardomaraschini/tagger-github-
 Generating the bundle
 
 ```
+$ # adjust image version inside olm/deployment.yaml
 $ make get-operator-sdk
+$ make generate-bundle
+$ # edit the icon here, see below
 $ BUNDLE_VERSION=2.1.17 make bundle
 ```
 
 Bundle is placed under `output/bundle` and a new image must exist in your docker instance.
+Base 64 encode the icon and set it properly under spec.icon in  tagger.clusterserviceversion.yaml
+file under output/bundle/manifests/ directory.
+
+
+```
+$ cat assets/icon.png |base64
+```
+
+```
+- icon: |-
+   b64encode
+  mediatype: "image/png"
+```
+
+To run the bundle once it is pushed:
+
+```
+$ operator-sdk run bundle quay.io/tagger/olm-bundle:latest
+```
