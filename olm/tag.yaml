@@ -1,0 +1,9 @@
+---
+apiVersion: tagger.dev/v1beta1
+kind: Tag
+metadata:
+  name: nginx
+spec:
+  from: docker.io/library/nginx:latest
+  mirror: false
+  generation: 0
