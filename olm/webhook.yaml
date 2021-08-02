@@ -1,0 +1,25 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: tagger
+webhooks:
+- name: tag.tagger.dev
+  admissionReviewVersions:
+  - v1
+  sideEffects: None
+  clientConfig:
+    service:
+      name: mutating-webhooks
+      path: "/tag"
+      port: 8080
+  rules:
+  - apiGroups:
+    - "tagger.dev"
+    apiVersions:
+    - "v1beta1"
+    resources:
+    - tags
+    operations:
+    - CREATE
+    - UPDATE

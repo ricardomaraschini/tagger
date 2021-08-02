@@ -26,13 +26,13 @@ jobs:
         run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag
 
       - name: compress linux plugin
-        run: tar -C _output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+        run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
 
       - name: VERSION=${{ steps.get_tag.outputs.tag }} build darwin plugin
         run: make kubectl-tag-darwin
 
       - name: compress darwin plugin
-        run: tar -C _output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
+        run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
 
       - name: setting version in values.yaml
         run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
@@ -53,4 +53,4 @@ jobs:
           prerelease: false
           files: |
             *.tgz
-            _output/doc/README.pdf
+            output/doc/README.pdf

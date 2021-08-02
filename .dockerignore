@@ -1,4 +1,4 @@
-_output/
+output/
 .env
 .git/
 .gitignore

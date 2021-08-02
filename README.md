@@ -274,7 +274,7 @@ You can deploy Tagger using Helm, let's first select the release we want to inst
 the following commands:
 
 ```
-$ RELEASE=v2.1.16
+$ RELEASE=v2.1.17
 $ BASEURL=https://github.com/ricardomaraschini/tagger/releases/download
 ```
 The `RELEASE` variable may be set to any release, to see a full list of releases follow the link
@@ -346,7 +346,7 @@ sudo dnf install -y \
 	btrfs-progs-devel \
 	device-mapper-devel
 make kubectl-tag
-sudo mv _output/bin/kubectl-tag /usr/local/bin/kubectl-tag
+sudo mv output/bin/kubectl-tag /usr/local/bin/kubectl-tag
 ```
 
 You gonna need `go` to be at least version `1.16`. To build in an Ubuntu distribution, after
@@ -360,5 +360,5 @@ sudo apt install -y \
 	libdevmapper-dev \
 	uidmap
 make kubectl-tag
-sudo mv _output/bin/kubectl-tag /usr/local/bin/kubectl-tag
+sudo mv output/bin/kubectl-tag /usr/local/bin/kubectl-tag
 ```

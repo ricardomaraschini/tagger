@@ -1,0 +1,12 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tagger
+subjects:
+- kind: ServiceAccount
+  name: tagger
+roleRef:
+  kind: ClusterRole
+  name: tagger
+  apiGroup: rbac.authorization.k8s.io

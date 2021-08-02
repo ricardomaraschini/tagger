@@ -20,7 +20,7 @@ RUN make tagger
 #
 FROM docker.io/fedora:latest
 RUN dnf install -y device-mapper-libs
-COPY --from=builder /src/_output/bin/tagger /usr/local/bin/tagger
+COPY --from=builder /src/output/bin/tagger /usr/local/bin/tagger
 # 8080 pod mutating webhook handler.
 # 8081 quay webhooks handler.
 # 8082 docker webhooks handler.

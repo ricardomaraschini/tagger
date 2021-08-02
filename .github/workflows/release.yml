@@ -22,13 +22,13 @@ jobs:
         run: make kubectl-tag
 
       - name: compress linux plugin
-        run: tar -C _output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+        run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
 
       - name: build darwin plugin
         run: make kubectl-tag-darwin
 
       - name: compress darwin plugin
-        run: tar -C _output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
+        run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
 
       - name: build helm chart release
         run: helm package chart/
@@ -45,4 +45,4 @@ jobs:
           title: development release build
           files: |
             *.tgz
-            _output/doc/README.pdf
+            output/doc/README.pdf
