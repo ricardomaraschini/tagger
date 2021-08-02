@@ -18,8 +18,8 @@ webhooks:
     - "tagger.dev"
     apiVersions:
     - "v1beta1"
-    resources: 
+    resources:
     - tags
-    operations: 
+    operations:
     - CREATE
     - UPDATE

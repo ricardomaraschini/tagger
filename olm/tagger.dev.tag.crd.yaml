@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   name: tags.tagger.dev
 spec:
-  group: tagger.dev 
+  group: tagger.dev
   names:
     kind: Tag
     listKind: TagList

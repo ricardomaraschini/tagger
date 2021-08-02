@@ -7,7 +7,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods 
+  - pods
   verbs:
   - watch
   - get
@@ -27,9 +27,9 @@ rules:
   - watch
   - get
   - list
-- apiGroups: 
+- apiGroups:
   - ""
-  resources: 
+  resources:
   - configmaps
   verbs:
   - watch
@@ -37,9 +37,9 @@ rules:
   - list
   - create
   - update
-- apiGroups: 
+- apiGroups:
   - apps
-  resources: 
+  resources:
   - replicasets
   - deployments
   verbs:
