@@ -265,6 +265,9 @@ will be automatically updated.
 
 ### Deploying
 
+You can install Tagger in your cluster using [OperatorHub](https://operatorhub.io/operator/tagger).
+For manual install read below.
+
 _The documentation below may not be the right one for the version you want to install.  It is
 recommended that you refer to the documentation specific to the version you are willing to deploy.
 Download a file called `README.pdf` or `README.md` for the release in the Releases section of this
