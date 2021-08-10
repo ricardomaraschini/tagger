@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -148,6 +147,11 @@ type StoreOptions struct {
 	AutoNsMinSize uint32 `json:"auto_userns_min_size,omitempty"`
 	// AutoNsMaxSize is the maximum size for an automatic user namespace.
 	AutoNsMaxSize uint32 `json:"auto_userns_max_size,omitempty"`
+	// PullOptions specifies options to be handed to pull managers
+	// This API is experimental and can be changed without bumping the major version number.
+	PullOptions map[string]string `toml:"pull_options"`
+	// DisableVolatile doesn't allow volatile mounts when it is set.
+	DisableVolatile bool `json:"disable-volatile,omitempty"`
 }
 
 // isRootlessDriver returns true if the given storage driver is valid for containers running as non root
@@ -172,7 +176,10 @@ func getRootlessStorageOpts(rootlessUID int, systemOpts StoreOptions) (StoreOpti
 	}
 	opts.RunRoot = rootlessRuntime
 	if systemOpts.RootlessStoragePath != "" {
-		opts.GraphRoot = systemOpts.RootlessStoragePath
+		opts.GraphRoot, err = expandEnvPath(systemOpts.RootlessStoragePath, rootlessUID)
+		if err != nil {
+			return opts, err
+		}
 	} else {
 		opts.GraphRoot = filepath.Join(dataDir, "containers", "storage")
 	}
@@ -264,19 +271,19 @@ func ReloadConfigurationFileIfNeeded(configFile string, storeOptions *StoreOptio
 // ReloadConfigurationFile parses the specified configuration file and overrides
 // the configuration in storeOptions.
 func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
-	data, err := ioutil.ReadFile(configFile)
-	if err != nil {
+	config := new(tomlConfig)
+
+	meta, err := toml.DecodeFile(configFile, &config)
+	if err == nil {
+		keys := meta.Undecoded()
+		if len(keys) > 0 {
+			logrus.Warningf("Failed to decode the keys %q from %q.", keys, configFile)
+		}
+	} else {
 		if !os.IsNotExist(err) {
 			fmt.Printf("Failed to read %s %v\n", configFile, err.Error())
 			return
 		}
-	}
-
-	config := new(tomlConfig)
-
-	if _, err := toml.Decode(string(data), config); err != nil {
-		fmt.Printf("Failed to parse %s %v\n", configFile, err.Error())
-		return
 	}
 
 	// Clear storeOptions of previos settings
@@ -359,6 +366,11 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 	if config.Storage.Options.AutoUsernsMaxSize > 0 {
 		storeOptions.AutoNsMaxSize = config.Storage.Options.AutoUsernsMaxSize
 	}
+	if config.Storage.Options.PullOptions != nil {
+		storeOptions.PullOptions = config.Storage.Options.PullOptions
+	}
+
+	storeOptions.DisableVolatile = config.Storage.Options.DisableVolatile
 
 	storeOptions.GraphDriverOptions = append(storeOptions.GraphDriverOptions, cfg.GetGraphDriverOptions(storeOptions.GraphDriverName, config.Storage.Options)...)
 

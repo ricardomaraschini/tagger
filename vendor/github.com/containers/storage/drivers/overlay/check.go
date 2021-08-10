@@ -14,6 +14,7 @@ import (
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/system"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -59,7 +60,12 @@ func doesSupportNativeDiff(d, mountOpts string) error {
 		return errors.Wrap(err, "failed to set opaque flag on middle layer")
 	}
 
-	opts := fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, "work"))
+	mountFlags := "lowerdir=%s:%s,upperdir=%s,workdir=%s"
+	if unshare.IsRootless() {
+		mountFlags = mountFlags + ",userxattr"
+	}
+
+	opts := fmt.Sprintf(mountFlags, path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, "work"))
 	flags, data := mount.ParseOptions(mountOpts)
 	if data != "" {
 		opts = fmt.Sprintf("%s,%s", opts, data)
@@ -141,6 +147,9 @@ func doesMetacopy(d, mountOpts string) (bool, error) {
 	}
 	// Mount using the mandatory options and configured options
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", path.Join(td, "l1"), path.Join(td, "l2"), path.Join(td, "work"))
+	if unshare.IsRootless() {
+		opts = fmt.Sprintf("%s,userxattr", opts)
+	}
 	flags, data := mount.ParseOptions(mountOpts)
 	if data != "" {
 		opts = fmt.Sprintf("%s,%s", opts, data)
@@ -164,6 +173,10 @@ func doesMetacopy(d, mountOpts string) (bool, error) {
 	}
 	metacopy, err := system.Lgetxattr(filepath.Join(td, "l2", "f"), archive.GetOverlayXattrName("metacopy"))
 	if err != nil {
+		if errors.Is(err, unix.ENOTSUP) {
+			logrus.Info("metacopy option not supported")
+			return false, nil
+		}
 		return false, errors.Wrap(err, "metacopy flag was not set on file in upper layer")
 	}
 	return metacopy != nil, nil
