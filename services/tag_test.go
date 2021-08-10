@@ -794,7 +794,7 @@ func TestImportPath(t *testing.T) {
 		},
 		{
 			name: "non existent registry by name",
-			err:  "error pinging docker registry",
+			err:  "unable to create image closer: pinging container registry",
 			tag: &imagtagv1beta1.Tag{
 				Spec: imagtagv1beta1.TagSpec{
 					From: "i.do.not.exist.com/centos:latest",
