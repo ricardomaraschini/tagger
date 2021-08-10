@@ -146,11 +146,11 @@ type IDMappings struct {
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
 func NewIDMappings(username, groupname string) (*IDMappings, error) {
-	subuidRanges, err := parseSubuid(username)
+	subuidRanges, err := readSubuid(username)
 	if err != nil {
 		return nil, err
 	}
-	subgidRanges, err := parseSubgid(groupname)
+	subgidRanges, err := readSubgid(groupname)
 	if err != nil {
 		return nil, err
 	}
@@ -244,14 +244,6 @@ func createIDMap(subidRanges ranges) []IDMap {
 	return idMap
 }
 
-func parseSubuid(username string) (ranges, error) {
-	return parseSubidFile(subuidFileName, username)
-}
-
-func parseSubgid(username string) (ranges, error) {
-	return parseSubidFile(subgidFileName, username)
-}
-
 // parseSubidFile will read the appropriate file (/etc/subuid or /etc/subgid)
 // and return all found ranges for a specified username. If the special value
 // "ALL" is supplied for username, then all ranges in the file will be returned
@@ -322,4 +314,41 @@ func SafeLchown(name string, uid, gid int) error {
 		}
 	}
 	return checkChownErr(os.Lchown(name, uid, gid), name, uid, gid)
+}
+
+type sortByHostID []IDMap
+
+func (e sortByHostID) Len() int           { return len(e) }
+func (e sortByHostID) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
+func (e sortByHostID) Less(i, j int) bool { return e[i].HostID < e[j].HostID }
+
+type sortByContainerID []IDMap
+
+func (e sortByContainerID) Len() int           { return len(e) }
+func (e sortByContainerID) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
+func (e sortByContainerID) Less(i, j int) bool { return e[i].ContainerID < e[j].ContainerID }
+
+// IsContiguous checks if the specified mapping is contiguous and doesn't
+// have any hole.
+func IsContiguous(mappings []IDMap) bool {
+	if len(mappings) < 2 {
+		return true
+	}
+
+	var mh sortByHostID = mappings[:]
+	sort.Sort(mh)
+	for i := 1; i < len(mh); i++ {
+		if mh[i].HostID != mh[i-1].HostID+mh[i-1].Size {
+			return false
+		}
+	}
+
+	var mc sortByContainerID = mappings[:]
+	sort.Sort(mc)
+	for i := 1; i < len(mc); i++ {
+		if mc[i].ContainerID != mc[i-1].ContainerID+mc[i-1].Size {
+			return false
+		}
+	}
+	return true
 }

@@ -3,21 +3,21 @@ module github.com/ricardomaraschini/tagger
 go 1.16
 
 require (
-	github.com/containers/image/v5 v5.11.1
-	github.com/containers/storage v1.29.0
-	github.com/google/uuid v1.1.2
+	github.com/containers/image/v5 v5.15.0
+	github.com/containers/storage v1.34.0
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/prometheus/client_golang v1.7.1
-	github.com/spf13/cobra v1.0.0
-	github.com/vbauerster/mpb/v6 v6.0.3
-	golang.org/x/text v0.3.5 // indirect
-	google.golang.org/genproto v0.0.0-20210207032614-bba0dbe2a9ea // indirect
-	google.golang.org/grpc v1.35.0
-	google.golang.org/protobuf v1.25.0
+	github.com/magefile/mage v1.10.0 // indirect
+	github.com/pquerna/ffjson v0.0.0-20190930134022-aa0246cd15f7 // indirect
+	github.com/prometheus/client_golang v1.11.0
+	github.com/spf13/cobra v1.2.1
+	github.com/vbauerster/mpb/v6 v6.0.4
+	google.golang.org/grpc v1.39.1
+	google.golang.org/protobuf v1.26.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.21.2
-	k8s.io/apimachinery v0.21.2
-	k8s.io/client-go v0.21.2
-	k8s.io/klog/v2 v2.8.0
-	k8s.io/utils v0.0.0-20210709001253-0e1f9d693477
+	k8s.io/api v0.22.0
+	k8s.io/apimachinery v0.22.0
+	k8s.io/client-go v0.22.0
+	k8s.io/klog/v2 v2.10.0
+	k8s.io/utils v0.0.0-20210802155522-efc7438f0176
 )
