@@ -21,6 +21,8 @@ spec:
       - name: tagger
         image: {{ .Values.image }}
         imagePullPolicy: Always
+        command:
+          - /usr/local/bin/tagger
         volumeMounts:
           - mountPath: "/tmp/k8s-webhook-server/serving-certs"
             name: certs

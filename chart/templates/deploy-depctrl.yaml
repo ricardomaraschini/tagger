@@ -21,6 +21,8 @@ spec:
       - name: depctrl
         image: {{ .Values.image }}
         imagePullPolicy: Always
+        command:
+          - /usr/local/bin/depctrl
         env:
         - name: POD_NAMESPACE
           valueFrom:

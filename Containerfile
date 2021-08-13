@@ -29,4 +29,3 @@ COPY --from=builder /src/output/bin/depctrl /usr/local/bin/depctrl
 # 8083 tags export/import handler.
 # 8090 metrics endpoint.
 EXPOSE 8080 8081 8082 8083 8090
-ENTRYPOINT [ "/usr/local/bin/tagger" ]
