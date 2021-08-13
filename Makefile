@@ -1,4 +1,5 @@
-APP = tagger
+TAGGER = tagger
+DEPCTRL = depctrl
 PLUGIN = kubectl-tag
 PLUGIN_DARWIN = kubectl-tag-darwin
 
@@ -10,23 +11,31 @@ OUTPUT_DIR ?= output
 OUTPUT_BIN = $(OUTPUT_DIR)/bin
 OUTPUT_DOC = $(OUTPUT_DIR)/doc
 
-TAGGER_BIN = $(OUTPUT_BIN)/$(APP)
+TAGGER_BIN = $(OUTPUT_BIN)/$(TAGGER)
+DEPCTRL_BIN = $(OUTPUT_BIN)/$(DEPCTRL)
 PLUGIN_BIN = $(OUTPUT_BIN)/$(PLUGIN)
 GEN_BIN = $(OUTPUT_DIR)/code-generator
 
-PROJECT = github.com/ricardomaraschini/$(APP)
+PROJECT = github.com/ricardomaraschini/$(TAGGER)
 GEN_OUTPUT = /tmp/$(PROJECT)/infra/tags
 
 default: build
 
-build: $(APP) $(PLUGIN)
+build: $(TAGGER) $(DEPCTRL) $(PLUGIN)
 
-.PHONY: $(APP)
-$(APP):
+.PHONY: $(TAGGER)
+$(TAGGER):
 	go build \
 		-ldflags="-X 'main.Version=$(VERSION)'" \
 		-o $(TAGGER_BIN) \
-		./cmd/$(APP)
+		./cmd/$(TAGGER)
+
+.PHONY: $(DEPCTRL)
+$(DEPCTRL):
+	go build \
+		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-o $(DEPCTRL_BIN) \
+		./cmd/$(DEPCTRL)
 
 .PHONY: $(PLUGIN)
 $(PLUGIN):
@@ -79,7 +88,7 @@ clean:
 .PHONY: pdf
 pdf:
 	mkdir -p $(OUTPUT_DOC)
-	grep -v badge.svg README.md | pandoc \
+	cat README.md | pandoc \
 		-fmarkdown-implicit_figures \
 		-V geometry:margin=1in \
 		-o $(OUTPUT_DOC)/README.pdf
