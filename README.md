@@ -1,11 +1,5 @@
 ![Tagger logo](./assets/tagger.png)
 
-![lint](https://github.com/ricardomaraschini/Tagger/workflows/lint/badge.svg?branch=main)
-![unit](https://github.com/ricardomaraschini/Tagger/workflows/unit/badge.svg?branch=main)
-![build](https://github.com/ricardomaraschini/Tagger/workflows/build/badge.svg?branch=main)
-![image](https://github.com/ricardomaraschini/Tagger/workflows/image/badge.svg?branch=main)
-![release](https://github.com/ricardomaraschini/Tagger/workflows/release/badge.svg?branch=main)
-
 ### Motivation
 
 Keeping track of all Container Images in use in a Kubernetes cluster is a complicated task.

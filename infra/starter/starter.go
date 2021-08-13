@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package starter
 
 import (
 	"context"
@@ -49,9 +49,9 @@ type Starter struct {
 	cancel    context.CancelFunc
 }
 
-// NewStarter returns a new controller starter. We read some env variables
+// New returns a new controller starter. We read some env variables
 // directly here and fall back to default values if they are not set.
-func NewStarter(corcli corecli.Interface, ctrls ...Controller) *Starter {
+func New(corcli corecli.Interface, ctrls ...Controller) *Starter {
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
 		namespace = "tagger"
@@ -108,8 +108,10 @@ func (s *Starter) startController(ctx context.Context, c Controller) {
 
 // Start starts all controllers within a Starter. This function only
 // returns when all controllers have finished their job, i.e. provided
-// context has been cancelled or the leader lease has been lost.
-func (s *Starter) Start(ctx context.Context) error {
+// context has been cancelled or the leader lease has been lost. lockID
+// holds an arbitrary ID for the binary calling this function, it is
+// used as config map name during leader election.
+func (s *Starter) Start(ctx context.Context, lockID string) error {
 	// we wrap the provided context into our own context. This way
 	// we can cancel everything here if we feel like doing so. All
 	// controllers receive this context as theirs during a Start()
@@ -119,7 +121,7 @@ func (s *Starter) Start(ctx context.Context) error {
 	lock, err := resourcelock.New(
 		resourcelock.ConfigMapsResourceLock,
 		s.namespace,
-		"leader-election",
+		lockID,
 		s.corcli.CoreV1(),
 		s.corcli.CoordinationV1(),
 		resourcelock.ResourceLockConfig{

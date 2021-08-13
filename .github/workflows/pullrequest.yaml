@@ -1,0 +1,71 @@
+---
+name: pullrequest
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/tagger/actions-image:latest
+    steps:
+    - name: check out code
+      uses: actions/checkout@v2
+
+    - name: run linter
+      run: golint -set_exit_status ./cmd/kubectl-tag ./cmd/tagger ./cmd/depctrl ./controllers/... ./services/...
+
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/tagger/actions-image:latest
+    steps:
+    - name: check out source code
+      uses: actions/checkout@v2
+
+    - name: run tests
+      run: go test -mod vendor -v ./...
+
+  build:
+    name: build
+    needs:
+      - lint
+      - unit
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/tagger/actions-image:latest
+    steps:
+    - name: check out code
+      uses: actions/checkout@v2
+
+    - name: build daemon
+      run: make build
+
+    - name: build plugin linux
+      run: make kubectl-tag
+
+    - name: build plugin darwin
+      run: make kubectl-tag-darwin
+
+  image:
+    name: image
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: check out code
+        uses: actions/checkout@v2
+
+      - name: build image
+        id: push
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./Containerfile
+          tags: quay.io/tagger/operator:devel

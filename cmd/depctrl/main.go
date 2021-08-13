@@ -51,12 +51,14 @@ func main() {
 		stop()
 	}()
 
-	klog.Info(` _|_  __,   __,  __,  _   ,_     `)
-	klog.Info(`  |  /  |  /  | /  | |/  /  |    `)
-	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/. `)
-	klog.Info(`             /|   /|             `)
-	klog.Info(`             \|   \|             `)
-	klog.Info(`starting image tag controller... `)
+	klog.Info(`                               _    `)
+	klog.Info(`    |                         | |   `)
+	klog.Info(`  __|   _    _   __ _|_  ,_   | |   `)
+	klog.Info(` /  |  |/  |/ \_/    |  /  |  |/    `)
+	klog.Info(` \_/|_/|__/|__/ \___/|_/   |_/|__/. `)
+	klog.Info(`          /|                        `)
+	klog.Info(`          \|                        `)
+	klog.Info(`starting deployment controller...   `)
 	klog.Info(`version `, Version)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
@@ -81,16 +83,12 @@ func main() {
 
 	// create our service layer
 	tagsvc := services.NewTag(corinf, tagcli, taginf)
-	tiosvc := services.NewTagIO(corinf, tagcli, taginf)
-	usrsvc := services.NewUser(corcli)
+	depsvc := services.NewDeployment(corcli, corinf, taginf)
+	podsvc := services.NewPod(corcli, corinf)
 
 	// create controller layer
-	itctrl := controllers.NewTag(tagsvc)
-	mtctrl := controllers.NewMutatingWebHook()
-	qyctrl := controllers.NewQuayWebHook(tagsvc)
-	dkctrl := controllers.NewDockerWebHook(tagsvc)
-	tioctr := controllers.NewTagIO(tiosvc, usrsvc)
-	moctrl := controllers.NewMetric()
+	dpctrl := controllers.NewDeployment(depsvc, tagsvc)
+	pdctrl := controllers.NewPod(podsvc)
 
 	// starts up all informers and waits for their cache to sync up,
 	// only then we start the controllers i.e. start to process events
@@ -100,16 +98,16 @@ func main() {
 	taginf.Start(ctx.Done())
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
-		corinf.Core().V1().ConfigMaps().Informer().HasSynced,
-		corinf.Core().V1().Secrets().Informer().HasSynced,
+		corinf.Core().V1().Pods().Informer().HasSynced,
+		corinf.Apps().V1().Deployments().Informer().HasSynced,
 		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
 	) {
 		klog.Fatal("caches not syncing")
 	}
 	klog.Info("caches in sync, moving on.")
 
-	st := starter.New(corcli, mtctrl, qyctrl, dkctrl, itctrl, moctrl, tioctr)
-	if err := st.Start(ctx, "tagger-leader-election"); err != nil {
+	st := starter.New(corcli, dpctrl, pdctrl)
+	if err := st.Start(ctx, "depctrl-leader-election"); err != nil {
 		klog.Errorf("unable to start controllers: %s", err)
 	}
 }

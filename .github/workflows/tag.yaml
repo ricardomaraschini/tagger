@@ -1,5 +1,5 @@
 ---
-name: stable release
+name: tag
 
 on:
   push:
@@ -7,6 +7,34 @@ on:
       - "v*"
 
 jobs:
+  image:
+    name: image build and push
+    runs-on: ubuntu-latest
+    steps:
+      - name: check out code
+        uses: actions/checkout@v2
+
+      - name: registry login
+        uses: docker/login-action@v1 
+        with:
+          registry: quay.io
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: extract current tag
+        id: get_tag
+        run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
+
+      - name: build image and push
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          build-args:
+            version=${{ steps.get_tag.outputs.tag }}
+          context: ./
+          file: ./Containerfile
+          tags: quay.io/tagger/operator:${{ steps.get_tag.outputs.tag }}
+
   release:
     name: tagger stable release
     runs-on: ubuntu-latest
@@ -15,8 +43,6 @@ jobs:
     steps:
       - name: checkout source code
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
 
       - name: extract current tag
         id: get_tag
@@ -28,13 +54,13 @@ jobs:
       - name: compress linux plugin
         run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
 
-      - name: VERSION=${{ steps.get_tag.outputs.tag }} build darwin plugin
-        run: make kubectl-tag-darwin
+      - name: build darwin plugin
+        run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag-darwin
 
       - name: compress darwin plugin
         run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
 
-      - name: setting version in values.yaml
+      - name: setting image tag in values.yaml
         run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
 
       - name: setting version in chart.yaml
