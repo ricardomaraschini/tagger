@@ -44,14 +44,8 @@ jobs:
     - name: check out code
       uses: actions/checkout@v2
 
-    - name: build daemon
+    - name: build all
       run: make build
-
-    - name: build plugin linux
-      run: make kubectl-tag
-
-    - name: build plugin darwin
-      run: make kubectl-tag-darwin
 
   image:
     name: image

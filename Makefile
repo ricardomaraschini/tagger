@@ -21,7 +21,7 @@ GEN_OUTPUT = /tmp/$(PROJECT)/infra/tags
 
 default: build
 
-build: $(TAGGER) $(DEPCTRL) $(PLUGIN)
+build: $(TAGGER) $(DEPCTRL) $(PLUGIN_DARWIN) $(PLUGIN)
 
 .PHONY: $(TAGGER)
 $(TAGGER):
