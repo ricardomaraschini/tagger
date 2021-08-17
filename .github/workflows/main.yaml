@@ -17,9 +17,9 @@ jobs:
       - name: registry login
         uses: docker/login-action@v1 
         with:
-          registry: quay.io
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ricardomaraschini
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: build image and push
         uses: docker/build-push-action@v2
@@ -27,7 +27,7 @@ jobs:
           push: true
           context: ./
           file: ./Containerfile
-          tags: quay.io/tagger/operator:latest
+          tags: ghcr.io/ricardomaraschini/tagger:latest
 
   release:
     name: tagger development release
