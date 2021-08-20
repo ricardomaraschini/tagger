@@ -8,7 +8,7 @@ on:
 
 jobs:
   image:
-    name: image build and push
+    name: image
     runs-on: ubuntu-latest
     steps:
       - name: check out code
@@ -36,7 +36,9 @@ jobs:
           tags: quay.io/tagger/operator:${{ steps.get_tag.outputs.tag }}
 
   release:
-    name: tagger stable release
+    name: release
+    needs:
+      - image
     runs-on: ubuntu-latest
     container:
       image: quay.io/tagger/actions-image:latest
