@@ -11,23 +11,23 @@ jobs:
     name: image
     runs-on: ubuntu-latest
     steps:
-      - name: check out code
-        uses: actions/checkout@v2
+    - name: check out code
+      uses: actions/checkout@v2
 
-      - name: registry login
-        uses: docker/login-action@v1 
-        with:
-          registry: quay.io
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+    - name: registry login
+      uses: docker/login-action@v1 
+      with:
+        registry: quay.io
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: build image and push
-        uses: docker/build-push-action@v2
-        with:
-          push: true
-          context: ./
-          file: ./Containerfile
-          tags: quay.io/tagger/operator:latest
+    - name: build image and push
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        context: ./
+        file: ./Containerfile
+        tags: quay.io/tagger/operator:latest
 
   release:
     name: release
@@ -37,34 +37,34 @@ jobs:
     container:
       image: quay.io/tagger/actions-image:latest
     steps:
-      - name: checkout source code
-        uses: actions/checkout@v2
+    - name: checkout source code
+      uses: actions/checkout@v2
 
-      - name: build linux plugin
-        run: make kubectl-tag
+    - name: build linux plugin
+      run: make kubectl-tag
 
-      - name: compress linux plugin
-        run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+    - name: compress linux plugin
+      run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
 
-      - name: build darwin plugin
-        run: make kubectl-tag-darwin
+    - name: build darwin plugin
+      run: make kubectl-tag-darwin
 
-      - name: compress darwin plugin
-        run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
+    - name: compress darwin plugin
+      run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
 
-      - name: build helm chart release
-        run: helm package chart/
+    - name: build helm chart release
+      run: helm package chart/
 
-      - name: build readme pdf
-        run: make pdf
+    - name: build readme pdf
+      run: make pdf
 
-      - name: publish release
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          automatic_release_tag: latest
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          prerelease: true
-          title: development release build
-          files: |
-            *.tgz
-            output/doc/README.pdf
+    - name: publish release
+      uses: marvinpinto/action-automatic-releases@latest
+      with:
+        automatic_release_tag: latest
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: true
+        title: development release build
+        files: |
+          *.tgz
+          output/doc/README.pdf

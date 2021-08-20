@@ -43,42 +43,42 @@ jobs:
     container:
       image: quay.io/tagger/actions-image:latest
     steps:
-      - name: checkout source code
-        uses: actions/checkout@v2
+    - name: checkout source code
+      uses: actions/checkout@v2
 
-      - name: extract current tag
-        id: get_tag
-        run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
+    - name: extract current tag
+      id: get_tag
+      run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
-      - name: build linux plugin
-        run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag
+    - name: build linux plugin
+      run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag
 
-      - name: compress linux plugin
-        run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+    - name: compress linux plugin
+      run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
 
-      - name: build darwin plugin
-        run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag-darwin
+    - name: build darwin plugin
+      run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag-darwin
 
-      - name: compress darwin plugin
-        run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
+    - name: compress darwin plugin
+      run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
 
-      - name: setting image tag in values.yaml
-        run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
+    - name: setting image tag in values.yaml
+      run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
 
-      - name: setting version in chart.yaml
-        run: sed -i 's/v0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
+    - name: setting version in chart.yaml
+      run: sed -i 's/v0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
 
-      - name: build helm chart release
-        run: helm package chart/
+    - name: build helm chart release
+      run: helm package chart/
 
-      - name: build readme pdf
-        run: make pdf
+    - name: build readme pdf
+      run: make pdf
 
-      - name: publish release
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          prerelease: false
-          files: |
-            *.tgz
-            output/doc/README.pdf
+    - name: publish release
+      uses: marvinpinto/action-automatic-releases@latest
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: false
+        files: |
+          *.tgz
+          output/doc/README.pdf
