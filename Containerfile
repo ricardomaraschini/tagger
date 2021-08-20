@@ -13,7 +13,6 @@ WORKDIR /src
 ARG version
 ENV VERSION=${version:-v0.0.0}
 COPY . .
-COPY README.md /README.md
 RUN make tagger
 RUN make depctrl
 
