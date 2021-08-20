@@ -1,8 +1,12 @@
+# for pull request the actions context is a little bit different. we always use the workflow as
+# defined in the main branch, therefore any change in .github/workflow directory introduced by
+# the PR is ignored. this happens because if we leverage the "on: pull_request" instead of
+# "on: pull_request_target".
 ---
 name: pullrequest
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
 
@@ -16,6 +20,9 @@ jobs:
     steps:
     - name: check out code
       uses: actions/checkout@v2
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.ref }}
 
     - name: run linter
       run: golint -set_exit_status ./cmd/kubectl-tag ./cmd/tagger ./cmd/depctrl ./controllers/... ./services/...
@@ -28,6 +35,9 @@ jobs:
     steps:
     - name: check out source code
       uses: actions/checkout@v2
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.ref }}
 
     - name: run tests
       run: go test -mod vendor -v ./...
@@ -43,6 +53,9 @@ jobs:
     steps:
     - name: check out code
       uses: actions/checkout@v2
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.ref }}
 
     - name: build all
       run: make build
@@ -53,13 +66,24 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - name: check out code
-        uses: actions/checkout@v2
+    - name: check out code
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: build image
-        id: push
-        uses: docker/build-push-action@v2
-        with:
-          context: ./
-          file: ./Containerfile
-          tags: quay.io/tagger/operator:devel
+    - name: registry login
+      uses: docker/login-action@v1
+      with:
+        registry: quay.io
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+
+    - name: build image
+      id: push
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        context: ./
+        file: ./Containerfile
+        tags: quay.io/tagger/operator:pr-${{ github.event.number }}
