@@ -512,3 +512,4 @@ $ operator-sdk run bundle quay.io/tagger/olm-bundle:latest
       ib6z6YKhPD8xudaryOd3LFslReox/z/L5qujE9k/OQAAAABJRU5ErkJggg==
     mediatype: "image/png"
 ```
+
