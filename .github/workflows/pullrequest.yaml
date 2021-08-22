@@ -15,16 +15,17 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/tagger/actions-image:latest
     steps:
-    - uses: actions/checkout@v2
+    - name: check out code
+      uses: actions/checkout@v2
       with:
         repository: ${{ github.event.pull_request.head.repo.full_name }}
         ref: ${{ github.event.pull_request.head.ref }}
 
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v2
-      with:
-        version: latest
+    - name: run linter
+      run: golint -set_exit_status ./cmd/kubectl-tag ./cmd/tagger ./cmd/depctrl ./controllers/... ./services/...
 
   unit:
     name: unit
