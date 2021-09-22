@@ -118,6 +118,12 @@ jobs:
       - release
     runs-on: ubuntu-latest
     steps:
+    - name: download helm chart artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: helm-chart
+        path: chart
+
     - name: install kind
       uses: engineerd/setup-kind@v0.5.0
       with:
@@ -128,14 +134,8 @@ jobs:
         kubectl create namespace tagger
         kubectl config set-context --current --namespace=tagger
 
-    - name: download helm chart artifact
-      uses: actions/download-artifact@v2
-      with:
-        name: helm-chart
-
     - name: install helm chart
-      run: |-
-        helm install tagger ./chart
+      run: helm install tagger ./chart
 
     - name: sleep for a while
       run: sleep 30
