@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: test-registry
+  labels:
+    app: registry
+spec:
+  containers:
+  - name: registry
+status:
+  phase: Running

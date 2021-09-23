@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mirror-registry-config
+  namespace: tagger
+data:
+  address: cmVnaXN0cnkudGVzdC1yZWdpc3RyeS5zdmM6NTAwMA==
+  insecure: dHJ1ZQ==
