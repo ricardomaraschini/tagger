@@ -1,0 +1,14 @@
+apiVersion: tagger.dev/v1beta1
+kind: Tag
+metadata:
+  name: myfedora
+spec:
+  from: docker.io/library/fedora:latest
+  mirror: false
+status:
+  generation: 0
+  lastImportAttempt:
+    succeed: true
+  references:
+  - from: docker.io/library/fedora:latest
+    generation: 0
