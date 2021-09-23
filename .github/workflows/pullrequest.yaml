@@ -112,18 +112,27 @@ jobs:
         path: chart
 
   install:
-    # deploys kind and installs tagger helm chart on it. XXX this action is a work in progress.
-    # TODO(ricardo) e2e tests must follow this step, we do not even check the deploy result.
     name: install
     needs:
       - release
     runs-on: ubuntu-latest
     steps:
+    - name: check out code
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.ref }}
+
     - name: download helm chart artifact
       uses: actions/download-artifact@v2
       with:
         name: helm-chart
-        path: chart
+        path: downloaded-chart
+
+    - name: install kuttl
+      run: |-
+        curl -o kuttl -L https://github.com/kudobuilder/kuttl/releases/download/v0.11.1/kubectl-kuttl_0.11.1_linux_x86_64
+        chmod 755 kuttl
 
     - name: install kind
       uses: engineerd/setup-kind@v0.5.0
@@ -136,10 +145,28 @@ jobs:
         kubectl config set-context --current --namespace=tagger
 
     - name: install helm chart
-      run: helm install tagger ./chart
+      run: helm install tagger ./downloaded-chart
 
     - name: sleep for a while
       run: sleep 30
 
-    - name: get pod statuses
-      run: kubectl get pods
+    - name: check deployments
+      run: |-
+        READY=$(kubectl get deploy tagger --no-headers -o=custom-columns=:.status.readyReplicas)
+        if [ $READY -ne 1 ]; then
+          echo tagger deployment not ready
+          kubectl get deploy -o yaml
+          kubectl get pods -o yaml
+          exit 1
+        fi
+
+        READY=$(kubectl get deploy depctrl --no-headers -o=custom-columns=:.status.readyReplicas)
+        if [ $READY -ne 1 ]; then
+          echo depctrl deployment not ready
+          kubectl get deploy -o yaml
+          kubectl get pods -o yaml
+          exit 1
+        fi
+
+    - name: e2e
+      run: ./kuttl test e2e
