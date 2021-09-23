@@ -111,8 +111,8 @@ jobs:
         name: helm-chart
         path: chart
 
-  e2e:
-    name: e2e
+  integration:
+    name: integration
     needs:
       - release
     runs-on: ubuntu-latest
