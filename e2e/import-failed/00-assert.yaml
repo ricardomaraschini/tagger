@@ -9,8 +9,4 @@ status:
   generation: 0
   lastImportAttempt:
     succeed: false
-    reason: "unable to import image: 1 error occurred:\n\t* unable to get hash for
-      image tag: 1 error occurred:\n\t* unable to create image closer: pinging container
-      registry a.b.c.d: Get \"https://a.b.c.d/v2/\": dial tcp: lookup a.b.c.d: no
-      such host\n\n\n\n"
   references: null
