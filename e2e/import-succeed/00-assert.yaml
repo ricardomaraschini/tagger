@@ -1,0 +1,14 @@
+apiVersion: tagger.dev/v1beta1
+kind: Tag
+metadata:
+  name: tagger-operator
+spec:
+  from: quay.io/tagger/operator:latest
+  mirror: false
+status:
+  generation: 0
+  lastImportAttempt:
+    succeed: true
+  references:
+  - from: quay.io/tagger/operator:latest
+    generation: 0
