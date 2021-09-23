@@ -15,6 +15,8 @@ TAGGER_BIN = $(OUTPUT_BIN)/$(TAGGER)
 DEPCTRL_BIN = $(OUTPUT_BIN)/$(DEPCTRL)
 PLUGIN_BIN = $(OUTPUT_BIN)/$(PLUGIN)
 GEN_BIN = $(OUTPUT_DIR)/code-generator
+KUTTL_BIN = $(OUTPUT_DIR)/kuttl
+KUTTL_REPO = https://github.com/kudobuilder/kuttl
 
 PROJECT = github.com/ricardomaraschini/$(TAGGER)
 GEN_OUTPUT = /tmp/$(PROJECT)/infra/tags
@@ -60,6 +62,18 @@ get-code-generator:
 		https://github.com/kubernetes/code-generator.git \
 		$(GEN_BIN)
 
+.PHONY: get-kuttl
+get-kuttl:
+	rm -rf $(KUTTL_BIN) || true
+	mkdir -p $(OUTPUT_DIR) || true
+	curl -o $(KUTTL_BIN) -L \
+		$(KUTTL_REPO)/releases/download/v0.11.1/kubectl-kuttl_0.11.1_linux_x86_64
+	chmod 755 $(KUTTL_BIN)
+
+.PHONY: e2e
+e2e:
+	$(KUTTL_BIN) test e2e
+
 .PHONY: generate-proto
 generate-proto:
 	protoc --go-grpc_out=paths=source_relative:. \
@@ -78,6 +92,7 @@ generate-k8s:
 	rm -rf infra/tags/v1beta1/gen
 	mv $(GEN_OUTPUT)/v1beta1/* infra/tags/v1beta1/
 
+.PHONY: image
 image:
 	VERSION=$(VERSION) $(IMAGE_BUILDER) build -f Containerfile -t $(IMAGE) .
 

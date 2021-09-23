@@ -1,0 +1,7 @@
+apiVersion: tagger.dev/v1beta1
+kind: Tag
+metadata:
+  name: invalid
+spec:
+  from: a.b.c.d/test/123:latest
+  mirror: false

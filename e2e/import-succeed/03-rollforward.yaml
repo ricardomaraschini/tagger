@@ -1,0 +1,6 @@
+apiVersion: tagger.dev/v1beta1
+kind: Tag
+metadata:
+  name: tagger-operator
+spec:
+  generation: 1
