@@ -40,8 +40,10 @@ github.com/bits-and-blooms/bitset
 github.com/cespare/xxhash/v2
 # github.com/containerd/cgroups v1.0.1
 github.com/containerd/cgroups/stats/v1
-# github.com/containerd/containerd v1.5.1
+# github.com/containerd/containerd v1.5.2
 github.com/containerd/containerd/errdefs
+github.com/containerd/containerd/log
+github.com/containerd/containerd/platforms
 # github.com/containers/image/v5 v5.15.0
 ## explicit
 github.com/containers/image/v5/copy
@@ -164,7 +166,7 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/docker v1.4.2-0.20191219165747-a9416c67da9f
+# github.com/docker/docker v20.10.7+incompatible
 github.com/docker/docker/api
 github.com/docker/docker/api/types
 github.com/docker/docker/api/types/blkiodev
@@ -216,7 +218,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/golang/snappy v0.0.3
 github.com/golang/snappy
-# github.com/google/go-cmp v0.5.5
+# github.com/google/go-cmp v0.5.6
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
@@ -224,8 +226,9 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/go-intervals v0.0.2
 github.com/google/go-intervals/intervalset
-# github.com/google/gofuzz v1.1.0
+# github.com/google/gofuzz v1.2.0
 github.com/google/gofuzz
+github.com/google/gofuzz/bytesource
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
@@ -256,8 +259,6 @@ github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/klauspost/pgzip v1.2.5
 github.com/klauspost/pgzip
-# github.com/magefile/mage v1.10.0
-## explicit
 # github.com/mattn/go-runewidth v0.0.13
 github.com/mattn/go-runewidth
 # github.com/mattn/go-shellwords v1.0.12
@@ -295,8 +296,6 @@ github.com/ostreedev/ostree-go/pkg/glibobject
 github.com/ostreedev/ostree-go/pkg/otbuiltin
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
-# github.com/pquerna/ffjson v0.0.0-20190930134022-aa0246cd15f7
-## explicit
 # github.com/prometheus/client_golang v1.11.0
 ## explicit
 github.com/prometheus/client_golang/prometheus
@@ -314,6 +313,17 @@ github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/rivo/uniseg v0.2.0
 github.com/rivo/uniseg
+# github.com/shipwright-io/build v0.6.0
+## explicit
+github.com/shipwright-io/build/pkg/apis/build/v1alpha1
+github.com/shipwright-io/build/pkg/client/clientset/versioned
+github.com/shipwright-io/build/pkg/client/clientset/versioned/scheme
+github.com/shipwright-io/build/pkg/client/clientset/versioned/typed/build/v1alpha1
+github.com/shipwright-io/build/pkg/client/informers/externalversions
+github.com/shipwright-io/build/pkg/client/informers/externalversions/build
+github.com/shipwright-io/build/pkg/client/informers/externalversions/build/v1alpha1
+github.com/shipwright-io/build/pkg/client/informers/externalversions/internalinterfaces
+github.com/shipwright-io/build/pkg/client/listers/build/v1alpha1
 # github.com/sirupsen/logrus v1.8.1
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v1.2.1
@@ -368,7 +378,7 @@ golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/pbkdf2
-# golang.org/x/net v0.0.0-20210520170846-37e1c6afe023
+# golang.org/x/net v0.0.0-20210525063256-abc453219eb5
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -379,7 +389,7 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
+# golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
@@ -863,6 +873,8 @@ k8s.io/utils/buffer
 k8s.io/utils/integer
 k8s.io/utils/pointer
 k8s.io/utils/trace
+# sigs.k8s.io/controller-runtime v0.6.1
+sigs.k8s.io/controller-runtime/pkg/scheme
 # sigs.k8s.io/structured-merge-diff/v4 v4.1.2
 sigs.k8s.io/structured-merge-diff/v4/fieldpath
 sigs.k8s.io/structured-merge-diff/v4/schema
