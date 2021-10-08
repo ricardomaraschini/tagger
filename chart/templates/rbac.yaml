@@ -27,6 +27,14 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - shipwright.io
+  resources:
+  - buildruns
+  verbs:
+  - watch
+  - get
+  - list
+- apiGroups:
   - ""
   resources:
   - secrets

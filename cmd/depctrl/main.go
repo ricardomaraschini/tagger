@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -70,14 +69,14 @@ func main() {
 	// creates tag client and informer.
 	tagcli, err := itagcli.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("unable to create image tag client: %v", err)
+		klog.Fatalf("unable to create image tag client: %v", err)
 	}
 	taginf := itaginf.NewSharedInformerFactory(tagcli, time.Minute)
 
 	// creates core client and informer.
 	corcli, err := corecli.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("unable to create core client: %v", err)
+		klog.Fatalf("unable to create core client: %v", err)
 	}
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 

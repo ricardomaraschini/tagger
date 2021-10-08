@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,6 +27,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+
+	shpwv1alpha1 "github.com/shipwright-io/build/pkg/apis/build/v1alpha1"
+	shpwcli "github.com/shipwright-io/build/pkg/client/clientset/versioned"
+	shpwinf "github.com/shipwright-io/build/pkg/client/informers/externalversions"
 
 	"github.com/ricardomaraschini/tagger/controllers"
 	"github.com/ricardomaraschini/tagger/infra/starter"
@@ -68,24 +71,33 @@ func main() {
 	// creates tag client and informer.
 	tagcli, err := itagcli.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("unable to create image tag client: %v", err)
+		klog.Fatalf("unable to create image tag client: %v", err)
 	}
 	taginf := itaginf.NewSharedInformerFactory(tagcli, time.Minute)
 
 	// creates core client and informer.
 	corcli, err := corecli.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("unable to create core client: %v", err)
+		klog.Fatalf("unable to create core client: %v", err)
 	}
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 
+	// creates build client and informer
+	shpcli, err := shpwcli.NewForConfig(config)
+	if err != nil {
+		klog.Fatalf("unable to create build client: %v", err)
+	}
+	shpinf := shpwinf.NewSharedInformerFactory(shpcli, time.Minute)
+
 	// create our service layer
+	shpsvc := services.NewBuild(corinf, tagcli, taginf, shpinf)
 	tagsvc := services.NewTag(corinf, tagcli, taginf)
 	tiosvc := services.NewTagIO(corinf, tagcli, taginf)
 	usrsvc := services.NewUser(corcli)
 
 	// create controller layer
 	itctrl := controllers.NewTag(tagsvc)
+	shctrl := controllers.NewBuild(shpsvc)
 	mtctrl := controllers.NewMutatingWebHook()
 	qyctrl := controllers.NewQuayWebHook(tagsvc)
 	dkctrl := controllers.NewDockerWebHook(tagsvc)
@@ -95,21 +107,50 @@ func main() {
 	// starts up all informers and waits for their cache to sync up,
 	// only then we start the controllers i.e. start to process events
 	// from the queue.
-	klog.Info("waiting for caches to sync ...")
 	corinf.Start(ctx.Done())
 	taginf.Start(ctx.Done())
-	if !cache.WaitForCacheSync(
-		ctx.Done(),
+
+	syncs := []cache.InformerSynced{
 		corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 		corinf.Core().V1().Secrets().Informer().HasSynced,
 		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
-	) {
+	}
+	if hasShipwright(shpcli) {
+		// we only need to start this informer if shipwright is installed in the
+		// cluster.
+		shpinf.Start(ctx.Done())
+		syncs = append(
+			syncs,
+			shpinf.Shipwright().V1alpha1().BuildRuns().Informer().HasSynced,
+		)
+	}
+
+	klog.Info("waiting for caches to sync ...")
+	if !cache.WaitForCacheSync(ctx.Done(), syncs...) {
 		klog.Fatal("caches not syncing")
 	}
 	klog.Info("caches in sync, moving on.")
 
-	st := starter.New(corcli, mtctrl, qyctrl, dkctrl, itctrl, moctrl, tioctr)
+	st := starter.New(corcli, mtctrl, qyctrl, dkctrl, itctrl, moctrl, tioctr, shctrl)
 	if err := st.Start(ctx, "tagger-leader-election"); err != nil {
 		klog.Errorf("unable to start controllers: %s", err)
 	}
+}
+
+// hasShipwright returns true if we can find "shipwright.io" object group installed in the
+// cluster. This function inspects API groups, filtering by shipwright group.
+func hasShipwright(shpcli *shpwcli.Clientset) bool {
+	list, err := shpcli.Discovery().ServerGroups()
+	if err != nil {
+		klog.Fatalf("error listing server groups: %v", err)
+	}
+	for _, group := range list.Groups {
+		if group.Name != shpwv1alpha1.SchemeGroupVersion.Group {
+			continue
+		}
+		klog.Infof("shipwright support enabled")
+		return true
+	}
+	klog.Infof("shipwright support disabled")
+	return false
 }

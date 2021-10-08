@@ -230,7 +230,7 @@ func (t *Tag) NewGeneration(ctx context.Context, ns, name string) (*imagtagv1bet
 func (t *Tag) Get(ctx context.Context, ns, name string) (*imagtagv1beta1.Tag, error) {
 	tag, err := t.taglis.Tags(ns).Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get tag: %w", err)
+		return nil, err
 	}
 	return tag.DeepCopy(), nil
 }
