@@ -64,11 +64,12 @@ func (t tagindex) containerRuntime() (int, error) {
 
 // localStorageRef returns an ImageReference pointing to the local storage.
 // The returned reference points or to podman or docker storage, according
-// to what is installed in the system.
+// to what is installed in the system. If we could not determine the runtime
+// podman is used by default.
 func (t tagindex) localStorageRef() (types.ImageReference, error) {
 	runtime, err := t.containerRuntime()
 	if err != nil {
-		return nil, err
+		runtime = PodmanRuntime
 	}
 
 	transport := "containers-storage"
