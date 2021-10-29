@@ -62,6 +62,12 @@ var mirror_help_header string
 //go:embed "src/mirror_help_examples"
 var mirror_help_examples string
 
+//go:embed "src/localpush_help_examples"
+var localpush_help_examples string
+
+//go:embed "src/localpush_help_header"
+var localpush_help_header string
+
 //go:embed src/*
 var FS embed.FS
 
@@ -82,4 +88,6 @@ var Text = map[string]string{
 	"new_help_examples":       new_help_examples,
 	"mirror_help_header":      mirror_help_header,
 	"mirror_help_examples":    mirror_help_examples,
+	"localpush_help_header":   localpush_help_header,
+	"localpush_help_examples": localpush_help_examples,
 }

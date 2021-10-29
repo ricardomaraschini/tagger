@@ -48,8 +48,9 @@ func main() {
 		SilenceUsage: true,
 	}
 	root.AddCommand(
-		tagupgrade, tagimport, tagversion, tagpush,
-		tagdowngrade, tagpull, tagmirror, tagnew,
+		tagupgrade, tagimport, tagversion,
+		tagmirror, tagnew, tagdowngrade,
+		taglocalpush, tagpush, tagpull,
 	)
 	root.ExecuteContext(ctx)
 }

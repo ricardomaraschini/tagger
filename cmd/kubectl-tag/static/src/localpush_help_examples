@@ -1,0 +1,21 @@
+  In order to push a locally saved image you first need to save the image
+  locally. If using Docker one can run the following command:
+
+  $ docker save -o fedora.tar fedora:latest
+
+  If using podman one can save an image as tar by running:
+
+  $ podman save                    \
+           --format docker-archive \
+	   -o fedora.tar           \
+	   fedora:latest
+
+  Once the image is saved user can then push it as a new generation for a
+  Tag by running:
+
+  $ kubectl tag localpush      \
+           --file=./fedora.tar \
+	   ip.or.tagger.dns.name:port/myteam/server
+
+  This will push the locally saved tar file as a new generation for Tag
+  "server" in namespace "myteam".
