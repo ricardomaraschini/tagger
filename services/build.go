@@ -37,6 +37,7 @@ type Build struct {
 	brinf  shpwinf.SharedInformerFactory
 	brlis  shpwlist.BuildRunLister
 	tagsvc *Tag
+	syssvc *SysContext
 }
 
 // NewBuild returns a new service entity providing services (actions) for shipwright buildrun
@@ -56,12 +57,15 @@ func NewBuild(
 		brinf:  brinf,
 		brlis:  brlis,
 		tagsvc: NewTag(corinf, tagcli, taginf),
+		syssvc: NewSysContext(corinf),
 	}
 }
 
 // hasSucceeded returns if provided BuildRun has been succeeded. This is useful
 // when determining if a BuildRun can be turned into a Tag (or a new generation
-// of an existing Tag).
+// of an existing Tag). We can only create a Tag (or a new generation for an
+// existing one) if the BuildRun has succeeded and the image is already hosted
+// in a remote registry.
 func (b *Build) hasSucceeded(br *shpv1alpha1.BuildRun) bool {
 	for _, cond := range br.Status.Conditions {
 		if cond.Type != shpv1alpha1.Succeeded {
@@ -93,12 +97,12 @@ func (b *Build) validateBuildRun(br *shpv1alpha1.BuildRun) error {
 // generation for the Tag is created.
 func (b *Build) Sync(ctx context.Context, br *shpv1alpha1.BuildRun) error {
 	if !b.hasSucceeded(br) {
-		klog.Infof("build run not succeeded yet")
+		klog.Infof("build %s/%s run not succeeded", br.Namespace, br.Name)
 		return nil
 	}
 
 	if err := b.validateBuildRun(br); err != nil {
-		return err
+		return fmt.Errorf("%s/%s: %w", br.Namespace, br.Name, err)
 	}
 	tagname := br.Spec.BuildRef.Name
 	imgdest := br.Status.BuildSpec.Output.Image
@@ -108,9 +112,16 @@ func (b *Build) Sync(ctx context.Context, br *shpv1alpha1.BuildRun) error {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("unable to get tag: %w", err)
 		}
-		// a tag with the Build name still does not exist, from this point
-		// one we just create one. XXX We do not use mirroring for it.
-		return b.tagsvc.NewTag(ctx, br.Namespace, tagname, imgdest, false)
+
+		// attempts to load the backend registry, this function will succeed if
+		// there is a valid configuration for it. If it fails then we can't use
+		// mirror.
+		usemirror := true
+		if _, err := b.syssvc.GetRegistryStore(ctx); err != nil {
+			klog.Infof("won't be able to mirror build run image: %s", err)
+			usemirror = false
+		}
+		return b.tagsvc.NewTag(ctx, br.Namespace, tagname, imgdest, usemirror)
 	}
 
 	// if there is an inflight import for the Tag postpone the sync.
