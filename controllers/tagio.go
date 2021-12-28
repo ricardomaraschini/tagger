@@ -91,7 +91,7 @@ func NewTagIO(tagexp ImagePusherPuller, usrval UserValidator) *TagIO {
 		bind:   ":8083",
 		tagexp: tagexp,
 		usrval: usrval,
-		fs:     fs.New(""),
+		fs:     fs.New(),
 		srv:    grpc.NewServer(opts...),
 	}
 	pb.RegisterTagIOServiceServer(tio.srv, tio)
