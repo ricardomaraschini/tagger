@@ -268,18 +268,18 @@ func getCredentialsWithHomeDir(sys *types.SystemContext, ref reference.Named, re
 	}
 
 	// Anonymous function to query credentials from auth files.
-	getCredentialsFromAuthFiles := func() (types.DockerAuthConfig, error) {
+	getCredentialsFromAuthFiles := func() (types.DockerAuthConfig, string, error) {
 		for _, path := range getAuthFilePaths(sys, homeDir) {
 			authConfig, err := findAuthentication(ref, registry, path.path, path.legacyFormat)
 			if err != nil {
-				return types.DockerAuthConfig{}, err
+				return types.DockerAuthConfig{}, "", err
 			}
 
 			if (authConfig.Username != "" && authConfig.Password != "") || authConfig.IdentityToken != "" {
-				return authConfig, nil
+				return authConfig, path.path, nil
 			}
 		}
-		return types.DockerAuthConfig{}, nil
+		return types.DockerAuthConfig{}, "", nil
 	}
 
 	helpers, err := sysregistriesv2.CredentialHelpers(sys)
@@ -289,12 +289,15 @@ func getCredentialsWithHomeDir(sys *types.SystemContext, ref reference.Named, re
 
 	var multiErr error
 	for _, helper := range helpers {
-		var creds types.DockerAuthConfig
-		var err error
+		var (
+			creds          types.DockerAuthConfig
+			credHelperPath string
+			err            error
+		)
 		switch helper {
 		// Special-case the built-in helper for auth files.
 		case sysregistriesv2.AuthenticationFileHelper:
-			creds, err = getCredentialsFromAuthFiles()
+			creds, credHelperPath, err = getCredentialsFromAuthFiles()
 		// External helpers.
 		default:
 			creds, err = getAuthFromCredHelper(helper, registry)
@@ -307,7 +310,11 @@ func getCredentialsWithHomeDir(sys *types.SystemContext, ref reference.Named, re
 		if len(creds.Username)+len(creds.Password)+len(creds.IdentityToken) == 0 {
 			continue
 		}
-		logrus.Debugf("Found credentials for %s in credential helper %s", registry, helper)
+		msg := fmt.Sprintf("Found credentials for %s in credential helper %s", registry, helper)
+		if credHelperPath != "" {
+			msg = fmt.Sprintf("%s in file %s", msg, credHelperPath)
+		}
+		logrus.Debug(msg)
 		return creds, nil
 	}
 	if multiErr != nil {
@@ -478,7 +485,7 @@ func listAuthsFromCredHelper(credHelper string) (map[string]string, error) {
 	return helperclient.List(p)
 }
 
-// getPathToAuth gets the path of the auth.json file used for reading and writting credentials
+// getPathToAuth gets the path of the auth.json file used for reading and writing credentials
 // returns the path, and a bool specifies whether the file is in legacy format
 func getPathToAuth(sys *types.SystemContext) (string, bool, error) {
 	return getPathToAuthWithOS(sys, runtime.GOOS)
@@ -601,10 +608,18 @@ func getAuthFromCredHelper(credHelper, registry string) (types.DockerAuthConfig,
 	if err != nil {
 		return types.DockerAuthConfig{}, err
 	}
-	return types.DockerAuthConfig{
-		Username: creds.Username,
-		Password: creds.Secret,
-	}, nil
+
+	switch creds.Username {
+	case "<token>":
+		return types.DockerAuthConfig{
+			IdentityToken: creds.Secret,
+		}, nil
+	default:
+		return types.DockerAuthConfig{
+			Username: creds.Username,
+			Password: creds.Secret,
+		}, nil
+	}
 }
 
 func setAuthToCredHelper(credHelper, registry, username, password string) error {

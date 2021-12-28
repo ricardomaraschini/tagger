@@ -19,7 +19,7 @@ type WalkFunc = filepath.WalkFunc
 //
 // Note that this implementation only supports primitive error handling:
 //
-// - no errors are ever passed to WalkFn;
+// - no errors are ever passed to walkFn;
 //
 // - once a walkFn returns any error, all further processing stops
 // and the error is returned to the caller of Walk;
@@ -51,6 +51,9 @@ func WalkN(root string, walkFn WalkFunc, num int) error {
 	var (
 		err error
 		wg  sync.WaitGroup
+
+		rootLen   = len(root)
+		rootEntry *walkArgs
 	)
 	wg.Add(1)
 	go func() {
@@ -58,6 +61,11 @@ func WalkN(root string, walkFn WalkFunc, num int) error {
 			if err != nil {
 				close(files)
 				return err
+			}
+			if len(p) == rootLen {
+				// Root entry is processed separately below.
+				rootEntry = &walkArgs{path: p, info: &info}
+				return nil
 			}
 			// add a file to the queue unless a callback sent an error
 			select {
@@ -92,10 +100,14 @@ func WalkN(root string, walkFn WalkFunc, num int) error {
 
 	wg.Wait()
 
+	if err == nil {
+		err = walkFn(rootEntry.path, *rootEntry.info, nil)
+	}
+
 	return err
 }
 
-// walkArgs holds the arguments that were passed to the Walk or WalkLimit
+// walkArgs holds the arguments that were passed to the Walk or WalkN
 // functions.
 type walkArgs struct {
 	path string
