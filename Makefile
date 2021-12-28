@@ -48,8 +48,8 @@ $(PLUGIN):
 
 .PHONY: $(PLUGIN_DARWIN)
 $(PLUGIN_DARWIN):
-	GOOS=darwin GOARCH=amd64 \
-		go build -tags containers_image_openpgp \
+	GOOS=darwin GOARCH=amd64 go build \
+		-tags containers_image_openpgp \
 		-ldflags="-X 'main.Version=$(VERSION)'" \
 		-o $(PLUGIN_BIN) \
 		./cmd/$(PLUGIN)

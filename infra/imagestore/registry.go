@@ -56,7 +56,7 @@ func NewRegistry(
 	polctx *signature.PolicyContext,
 ) *Registry {
 	return &Registry{
-		fs:      fs.New(""),
+		fs:      fs.New(),
 		regaddr: regaddr,
 		polctx:  polctx,
 		regctx:  sysctx,

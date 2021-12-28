@@ -23,6 +23,13 @@ import (
 	"testing"
 )
 
+func TestOptions(t *testing.T) {
+	f := New(WithTmpDir("/abc"))
+	if f.tmpdir != "/abc" {
+		t.Errorf("temp dir not being set by option")
+	}
+}
+
 func TestTempDir(t *testing.T) {
 	fs := &FS{}
 	dir, clean, err := fs.TempDir()

@@ -25,16 +25,28 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// Option sets an option in a FS instance.
+type Option func(*FS)
+
+// WithTmpDir sets a different base temp directory.
+func WithTmpDir(tmpdir string) Option {
+	return func(f *FS) {
+		f.tmpdir = tmpdir
+	}
+}
+
 // FS gathers services related to filesystem operations.
 type FS struct {
 	tmpdir string
 }
 
 // New returns a handler for filesystem related activities.
-func New(tmpdir string) *FS {
-	return &FS{
-		tmpdir: tmpdir,
+func New(opts ...Option) *FS {
+	f := &FS{}
+	for _, opt := range opts {
+		opt(f)
 	}
+	return f
 }
 
 // TempDir creates and returns a temporary dir inside our base temp dir

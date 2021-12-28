@@ -102,5 +102,7 @@ func createHomeTempDir() (*fs.FS, error) {
 		}
 	}
 
-	return fs.New(tmpdir), nil
+	return fs.New(
+		fs.WithTmpDir(tmpdir),
+	), nil
 }
