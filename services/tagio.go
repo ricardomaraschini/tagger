@@ -121,6 +121,12 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 		return err
 	}
 
+	if it.Spec.SignOnPush {
+		if err := istore.Sign(ctx, dstref); err != nil {
+			return err
+		}
+	}
+
 	_, err = t.tagcli.TaggerV1beta1().Tags(ns).Update(
 		ctx, it, metav1.UpdateOptions{},
 	)

@@ -23,6 +23,8 @@ import (
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	"github.com/sigstore/cosign/cmd/cosign/cli/options"
+	"github.com/sigstore/cosign/cmd/cosign/cli/sign"
 
 	"github.com/ricardomaraschini/tagger/infra/fs"
 )
@@ -38,10 +40,32 @@ type CleanFn func()
 // made, this strange naming is an attempt to make it similar to the
 // 'docker save/load' commands.
 type Registry struct {
-	fs      *fs.FS
-	regaddr string
-	polctx  *signature.PolicyContext
-	regctx  *types.SystemContext
+	fs       *fs.FS
+	regaddr  string
+	polctx   *signature.PolicyContext
+	regctx   *types.SystemContext
+	signkey  []byte
+	signpass []byte
+}
+
+// Option sets an optional argument in a Registry reference.
+type Option func(*Registry)
+
+// WithSignKey sets the key to be used when signing images stored in
+// our mirror registry. It is expected to by a private key generated
+// by cosign.
+func WithSignKey(key []byte) Option {
+	return func(i *Registry) {
+		i.signkey = key
+	}
+}
+
+// WithSignKeyPass sets the key password. This password is needed when
+// using signkey to sign an image.
+func WithSignKeyPass(pass []byte) Option {
+	return func(i *Registry) {
+		i.signpass = pass
+	}
 }
 
 // NewRegistry creates an entity capable of load objects to or save
@@ -54,13 +78,20 @@ func NewRegistry(
 	regaddr string,
 	sysctx *types.SystemContext,
 	polctx *signature.PolicyContext,
+	opts ...Option,
 ) *Registry {
-	return &Registry{
-		fs:      fs.New(),
-		regaddr: regaddr,
-		polctx:  polctx,
-		regctx:  sysctx,
+	reg := &Registry{
+		fs:       fs.New(),
+		regaddr:  regaddr,
+		polctx:   polctx,
+		regctx:   sysctx,
+		signkey:  []byte{},
+		signpass: []byte{},
 	}
+	for _, opt := range opts {
+		opt(reg)
+	}
+	return reg
 }
 
 // Load pushes an image reference into the backend registry using repo/name
@@ -140,4 +171,54 @@ func (i *Registry) NewLocalReference() (types.ImageReference, CleanFn, error) {
 		return nil, nil, fmt.Errorf("error creating new local ref: %w", err)
 	}
 	return ref, cleanup, nil
+}
+
+// Sign signs an image hosted in our mirror registry. Uses properties signkey and
+// signpass to sign images. TODO this function still does not support authentication.
+func (i *Registry) Sign(ctx context.Context, ref types.ImageReference) error {
+	if len(i.signkey) == 0 {
+		return fmt.Errorf("no key provided to sign %s", ref.DockerReference().String())
+	}
+
+	tfile, cleanup, err := i.fs.TempFile()
+	if err != nil {
+		return fmt.Errorf("error creating temp key file: %w", err)
+	}
+	defer cleanup()
+
+	if _, err := tfile.Write(i.signkey); err != nil {
+		return fmt.Errorf("error writting temp key file: %w", err)
+	}
+
+	var regopts options.RegistryOptions
+	if i.regctx.DockerInsecureSkipTLSVerify == types.OptionalBoolTrue {
+		regopts.AllowInsecure = true
+	}
+
+	keyopts := sign.KeyOpts{
+		KeyRef: tfile.Name(),
+		PassFunc: func(bool) ([]byte, error) {
+			return i.signpass, nil
+		},
+	}
+
+	if err := sign.SignCmd(
+		ctx,
+		keyopts,
+		regopts,
+		map[string]interface{}{},
+		[]string{ref.DockerReference().String()},
+		"",
+		true,
+		"",
+		"",
+		"",
+		false,
+		false,
+		"",
+	); err != nil {
+		return fmt.Errorf("error signing image: %w", err)
+	}
+
+	return nil
 }

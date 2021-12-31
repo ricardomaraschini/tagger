@@ -226,6 +226,24 @@ func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemCon
 	}
 }
 
+// SignContext returns the key and the password to be used when signing images in our
+// mirror registry. All data is read from a secret called "mirror-sign-config" inside
+// the namespace where the operator is running. Secret is expected to contain "key"
+// and "pass" entries.
+func (s *SysContext) SignContext(ctx context.Context) ([]byte, []byte, error) {
+	namespace := os.Getenv("POD_NAMESPACE")
+	if len(namespace) == 0 {
+		return nil, nil, fmt.Errorf("unbound POD_NAMESPACE variable")
+	}
+
+	sct, err := s.sclister.Secrets(namespace).Get("mirror-sign-config")
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to read sign config: %w", err)
+	}
+
+	return sct.Data["key"], sct.Data["pass"], nil
+}
+
 // SystemContextsFor builds a series of types.SystemContexts, all of them
 // using one of the auth credentials present in the namespace. The last
 // entry is always a nil SystemContext, this last entry means "no auth".
@@ -315,7 +333,17 @@ func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry
 		return nil, fmt.Errorf("error reading default policy: %w", err)
 	}
 
-	return imagestore.NewRegistry(regaddr, sysctx, defpol), nil
+	signkey, signpass, err := s.SignContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error reading sign key: %w", err)
+	}
+
+	opts := []imagestore.Option{
+		imagestore.WithSignKey(signkey),
+		imagestore.WithSignKeyPass(signpass),
+	}
+
+	return imagestore.NewRegistry(regaddr, sysctx, defpol, opts...), nil
 }
 
 // RegistriesToSearch returns a list of registries to be used when looking for

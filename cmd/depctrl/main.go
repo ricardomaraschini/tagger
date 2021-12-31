@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -40,9 +39,6 @@ import (
 var Version = "v0.0.0"
 
 func main() {
-	klog.InitFlags(nil)
-	flag.Parse()
-
 	ctx, stop := signal.NotifyContext(
 		context.Background(), syscall.SIGTERM, syscall.SIGINT,
 	)
