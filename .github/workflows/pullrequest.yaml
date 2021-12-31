@@ -153,7 +153,7 @@ jobs:
     - name: check deployments
       run: |-
         READY=$(kubectl get deploy tagger --no-headers -o=custom-columns=:.status.readyReplicas)
-        if [ $READY -ne 1 ]; then
+        if [ "$READY" != "1" ]; then
           echo tagger deployment not ready
           kubectl get deploy -o yaml
           kubectl get pods -o yaml
@@ -161,7 +161,7 @@ jobs:
         fi
 
         READY=$(kubectl get deploy depctrl --no-headers -o=custom-columns=:.status.readyReplicas)
-        if [ $READY -ne 1 ]; then
+        if [ "$READY" != "1" ]; then
           echo depctrl deployment not ready
           kubectl get deploy -o yaml
           kubectl get pods -o yaml
