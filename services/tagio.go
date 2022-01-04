@@ -123,7 +123,7 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 
 	if it.Spec.SignOnPush {
 		if err := istore.Sign(ctx, dstref); err != nil {
-			return err
+			return fmt.Errorf("error signing image: %w", err)
 		}
 	}
 
