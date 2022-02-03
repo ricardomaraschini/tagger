@@ -140,7 +140,7 @@ On a Tag `.spec` property these fields are valid:
 | from       | Indicates the source of the image (from where Tagger should import it)            |
 | generation | Points to the desired generation for the Tag, more on this below                  |
 | mirror     | Informs if a Tag should be mirrored to another registry, more on this below       |
-| insecure   | Indicates that tagger should skip tls verification during the image import/mirror |
+| insecure   | Indicates that Tagger should skip tls verification during the image import/mirror |
 
 #### Tag generation
 
