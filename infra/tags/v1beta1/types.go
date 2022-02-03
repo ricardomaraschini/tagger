@@ -127,6 +127,7 @@ type TagSpec struct {
 	From       string `json:"from"`
 	Mirror     bool   `json:"mirror"`
 	Generation int64  `json:"generation"`
+	Insecure   bool   `json:"insecure,omitempty"`
 }
 
 // TagStatus is the current status for an image tag.
