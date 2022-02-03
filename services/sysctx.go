@@ -229,21 +229,56 @@ func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemCon
 // SystemContextsFor builds a series of types.SystemContexts, all of them
 // using one of the auth credentials present in the namespace. The last
 // entry is always a nil SystemContext, this last entry means "no auth".
+// Insecure indicate if the returned SystemContexts tolerate invalid tls
+// certificates.
 func (s *SysContext) SystemContextsFor(
-	ctx context.Context, imgref types.ImageReference, namespace string,
+	ctx context.Context,
+	imgref types.ImageReference,
+	namespace string,
+	insecure bool,
 ) ([]*types.SystemContext, error) {
+	// if imgref points to an image hosted in our mirror registry we
+	// return a SystemContext using default user and pass (the ones
+	// user has configured tagger with). XXX i am not sure yet this
+	// is a good idea permission wide.
+	domain := reference.Domain(imgref.DockerReference())
+	regaddr, _, err := s.MirrorRegistryAddresses()
+	if err != nil {
+		klog.Infof("no mirror registry configured, moving on")
+	} else if regaddr == domain {
+		mirrorctx := s.MirrorRegistryContext(ctx)
+		return []*types.SystemContext{mirrorctx}, nil
+	}
+
 	auths, err := s.authsFor(ctx, imgref, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error reading auths: %w", err)
 	}
 
+	optinsecure := types.OptionalBoolFalse
+	if insecure {
+		optinsecure = types.OptionalBoolTrue
+	}
+
 	ctxs := make([]*types.SystemContext, len(auths))
 	for i, auth := range auths {
 		ctxs[i] = &types.SystemContext{
-			DockerAuthConfig: auth,
+			DockerInsecureSkipTLSVerify: optinsecure,
+			DockerAuthConfig:            auth,
 		}
 	}
-	ctxs = append(ctxs, nil)
+
+	// here we append a SystemContext without authentications set,
+	// we want to allow imports without using authentication. This
+	// entry will be nil if we want to use the system defaults.
+	var noauth *types.SystemContext
+	if insecure {
+		noauth = &types.SystemContext{
+			DockerInsecureSkipTLSVerify: optinsecure,
+		}
+	}
+
+	ctxs = append(ctxs, noauth)
 	return ctxs, nil
 }
 

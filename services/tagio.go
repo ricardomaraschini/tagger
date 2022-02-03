@@ -98,6 +98,13 @@ func (t *TagIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	}
 	isnew := it.Spec.From == ""
 
+	// if someone is pushing an image for the first time and our mirror registry
+	// is using invalid certs (insecure) then we need to set this accordingly in
+	// the new Tag object.
+	if isnew && istore.Insecure() {
+		it.Spec.Insecure = true
+	}
+
 	refstr := fmt.Sprintf("docker-archive://%s", fpath)
 	srcref, err := alltransports.ParseImageName(refstr)
 	if err != nil {

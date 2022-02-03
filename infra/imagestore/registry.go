@@ -63,6 +63,16 @@ func NewRegistry(
 	}
 }
 
+// Insecure returns true if the underlying mirror registry is using
+// invalid certificates. Analyses the registry context (regctx).
+func (i *Registry) Insecure() bool {
+	if i.regctx == nil {
+		return false
+	}
+	skip := i.regctx.DockerInsecureSkipTLSVerify
+	return skip == types.OptionalBoolTrue
+}
+
 // Load pushes an image reference into the backend registry using repo/name
 // as its destination. Uses srcctx (of type types.SystemContext) when reading
 // image from srcref, so when copying from one remote registry into our mirror

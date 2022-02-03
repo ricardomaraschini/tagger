@@ -286,7 +286,9 @@ func (t *Tag) ImportTag(
 			continue
 		}
 
-		sysctxs, err := t.syssvc.SystemContextsFor(ctx, imgref, it.Namespace)
+		sysctxs, err := t.syssvc.SystemContextsFor(
+			ctx, imgref, it.Namespace, it.Spec.Insecure,
+		)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
