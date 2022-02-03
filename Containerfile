@@ -2,7 +2,7 @@
 # Builder
 #
 
-FROM docker.io/fedora:latest AS builder
+FROM docker.io/fedora:34 AS builder
 RUN dnf install -y \
     btrfs-progs-devel \
     device-mapper-devel \
@@ -20,7 +20,7 @@ RUN make kubectl-tag
 #
 # Application
 #
-FROM docker.io/fedora:latest
+FROM docker.io/fedora:34
 RUN dnf install -y device-mapper-libs
 COPY --from=builder /src/output/bin/tagger /usr/local/bin/tagger
 COPY --from=builder /src/output/bin/depctrl /usr/local/bin/depctrl
