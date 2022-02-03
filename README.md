@@ -360,3 +360,4 @@ sudo apt install -y \
 make kubectl-tag
 sudo mv output/bin/kubectl-tag /usr/local/bin/kubectl-tag
 ```
+testing
