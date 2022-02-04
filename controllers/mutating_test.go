@@ -1,4 +1,4 @@
-// Copyright 2020 The Tagger Authors.
+// Copyright 2020 The Imageger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -27,8 +28,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	imgv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	imgv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
 )
+
+type imgImportValidator struct{}
+
+func (t imgImportValidator) Validate(_ context.Context, ti *imgv1beta1.ImageImport) error {
+	return nil
+}
+
+type imgValidator struct{}
+
+func (t imgValidator) Validate(_ context.Context, ti *imgv1beta1.Image) error {
+	return nil
+}
 
 func Test_responseError(t *testing.T) {
 	for _, tt := range []struct {
@@ -55,7 +68,7 @@ func Test_responseError(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			wr := httptest.NewRecorder()
-			mt := NewMutatingWebHook()
+			mt := NewMutatingWebHook(imgImportValidator{}, imgValidator{})
 			mt.responseError(wr, tt.req, fmt.Errorf("error"))
 
 			if wr.Code != tt.code {
@@ -99,7 +112,7 @@ func Test_responseAuthorized(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			wr := httptest.NewRecorder()
-			mt := NewMutatingWebHook()
+			mt := NewMutatingWebHook(imgImportValidator{}, imgValidator{})
 			mt.responseAuthorized(wr, tt.req)
 
 			if wr.Code != tt.code {
@@ -122,42 +135,32 @@ func Test_responseAuthorized(t *testing.T) {
 	}
 }
 
-func Test_tag(t *testing.T) {
+func Test_image(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		kind    string
-		tag     *imgv1beta1.Tag
+		img     *imgv1beta1.Image
 		allowed bool
 	}{
 		{
 			name:    "happy path",
-			kind:    "Tag",
-			tag:     &imgv1beta1.Tag{},
+			kind:    "Image",
+			img:     &imgv1beta1.Image{},
 			allowed: true,
 		},
 		{
 			name:    "invalid kind",
 			kind:    "Pod",
-			tag:     &imgv1beta1.Tag{},
+			img:     &imgv1beta1.Image{},
 			allowed: true,
-		},
-		{
-			name:    "invalid tag generation",
-			kind:    "Tag",
-			allowed: false,
-			tag: &imgv1beta1.Tag{
-				Spec: imgv1beta1.TagSpec{
-					Generation: 10,
-				},
-			},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			mt := NewMutatingWebHook()
+			mt := NewMutatingWebHook(imgImportValidator{}, imgValidator{})
 
-			tagjson, err := json.Marshal(tt.tag)
+			imgjson, err := json.Marshal(tt.img)
 			if err != nil {
-				t.Fatalf("error marshaling tag: %s", err)
+				t.Fatalf("error marshaling img: %s", err)
 			}
 
 			req := admnv1.AdmissionReview{
@@ -166,8 +169,8 @@ func Test_tag(t *testing.T) {
 						Kind: tt.kind,
 					},
 					Object: runtime.RawExtension{
-						Object: tt.tag,
-						Raw:    tagjson,
+						Object: tt.img,
+						Raw:    imgjson,
 					},
 					UID: types.UID(tt.name),
 				},
@@ -179,8 +182,8 @@ func Test_tag(t *testing.T) {
 			}
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest("POST", "/tag", buf)
-			mt.tag(w, r)
+			r := httptest.NewRequest("POST", "/image", buf)
+			mt.image(w, r)
 			defer r.Body.Close()
 
 			var resp admnv1.AdmissionReview

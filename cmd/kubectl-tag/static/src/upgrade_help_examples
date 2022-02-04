@@ -1,5 +1,0 @@
-  Assuming one want to move to the next Generation of a tag called
-  "mytag" in "production" namespace:
-
-  $ kubectl tag upgrade mytag -n production
-

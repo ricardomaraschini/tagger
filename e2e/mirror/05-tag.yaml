@@ -1,7 +1,0 @@
-apiVersion: tagger.dev/v1beta1
-kind: Tag
-metadata:
-  name: alpine-mirror
-spec:
-  from: docker.io/library/alpine:latest
-  mirror: true

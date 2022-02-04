@@ -1,5 +1,0 @@
-  Assuming one want to move to the previous Generation of a tag called
-  "mytag" in "production" namespace:
-
-  $ kubectl tag downgrade mytag -n production
-

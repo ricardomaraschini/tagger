@@ -1,4 +1,4 @@
-// Copyright 2020 The Tagger Authors.
+// Copyright 2020 The Imageger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,9 +38,9 @@ func NewUser(corcli corecli.Interface) *User {
 	}
 }
 
-// CanUpdateTags returns nil if provided token is able to update Tag entities
+// CanUpdateImages returns nil if provided token is able to update Image entities
 // in a namespace.
-func (u *User) CanUpdateTags(ctx context.Context, ns, token string) error {
+func (u *User) CanUpdateImages(ctx context.Context, ns, token string) error {
 	if _, err := u.corcli.CoreV1().Namespaces().Get(
 		ctx, ns, metav1.GetOptions{},
 	); err != nil {
@@ -69,7 +69,7 @@ func (u *User) CanUpdateTags(ctx context.Context, ns, token string) error {
 			Groups: tr.Status.User.Groups,
 			ResourceAttributes: &authov1.ResourceAttributes{
 				Namespace: ns,
-				Resource:  "tags",
+				Resource:  "images",
 				Verb:      "update",
 				Group:     "tagger.dev",
 			},

@@ -1,14 +1,11 @@
 apiVersion: tagger.dev/v1beta1
-kind: Tag
+kind: Image
 metadata:
   name: alpine-mirror
 spec:
   from: docker.io/library/alpine:latest
   mirror: true
+  insecure: false
 status:
-  generation: 0
-  lastImportAttempt:
-    succeed: true
-  references:
+  hashReferences:
   - from: docker.io/library/alpine:latest
-    generation: 0

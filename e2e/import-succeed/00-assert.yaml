@@ -1,14 +1,11 @@
 apiVersion: tagger.dev/v1beta1
-kind: Tag
+kind: Image
 metadata:
   name: tagger-operator
 spec:
   from: quay.io/tagger/operator:latest
+  insecure: false
   mirror: false
 status:
-  generation: 0
-  lastImportAttempt:
-    succeed: true
-  references:
+  hashReferences:
   - from: quay.io/tagger/operator:latest
-    generation: 0

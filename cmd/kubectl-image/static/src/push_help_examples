@@ -1,0 +1,9 @@
+  Assuming one wants to push an image into a Image called "server" living 
+  in "myteam" namespace one could use:
+
+  $ kubectl image push ip.or.tagger.dns.name:port/myteam/server
+
+  Once the command has been finished you must be able to see a new
+  image reference in the target Image:
+
+  $ kubectl get -n myteam image/server -o yaml

@@ -1,0 +1,4 @@
+Imports an image
+
+This commands informs Tagger that a new import is needed for a given
+image.

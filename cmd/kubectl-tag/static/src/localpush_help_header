@@ -1,6 +1,0 @@
-Pushes a locally saved image as a new generation of a Tag
-
-This commands reads a locally saved file (docker-archive tar) and pushes
-it as a new generation for a Tag. If the Tag does not exist a new one
-is created. User issuing this command must have enough permissions to
-update Tags in the destination namespace.

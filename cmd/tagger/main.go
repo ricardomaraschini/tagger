@@ -30,9 +30,9 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/ricardomaraschini/tagger/controllers"
+	iimgcli "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
+	iimginf "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions"
 	"github.com/ricardomaraschini/tagger/infra/starter"
-	itagcli "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/clientset/versioned"
-	itaginf "github.com/ricardomaraschini/tagger/infra/tags/v1beta1/gen/informers/externalversions"
 	"github.com/ricardomaraschini/tagger/services"
 )
 
@@ -56,7 +56,7 @@ func main() {
 	klog.Info(`  |_/\_/|_/\_/|/\_/|/|__/   |_/. `)
 	klog.Info(`             /|   /|             `)
 	klog.Info(`             \|   \|             `)
-	klog.Info(`starting image tag controller... `)
+	klog.Info(`starting image controller...     `)
 	klog.Info(`version `, Version)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
@@ -65,12 +65,12 @@ func main() {
 		klog.Fatalf("unable to read kubeconfig: %v", err)
 	}
 
-	// creates tag client and informer.
-	tagcli, err := itagcli.NewForConfig(config)
+	// creates image client and informer.
+	imgcli, err := iimgcli.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("unable to create image tag client: %v", err)
+		log.Fatalf("unable to create image image client: %v", err)
 	}
-	taginf := itaginf.NewSharedInformerFactory(tagcli, time.Minute)
+	imginf := iimginf.NewSharedInformerFactory(imgcli, time.Minute)
 
 	// creates core client and informer.
 	corcli, err := corecli.NewForConfig(config)
@@ -80,16 +80,16 @@ func main() {
 	corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 
 	// create our service layer
-	tagsvc := services.NewTag(corinf, tagcli, taginf)
-	tiosvc := services.NewTagIO(corinf, tagcli, taginf)
+	impsvc := services.NewImageImport(corinf, imgcli, imginf)
+	imgsvc := services.NewImage(corinf, imgcli, imginf)
+	tiosvc := services.NewImageIO(corinf, imgcli, imginf)
 	usrsvc := services.NewUser(corcli)
 
 	// create controller layer
-	itctrl := controllers.NewTag(tagsvc)
-	mtctrl := controllers.NewMutatingWebHook()
-	qyctrl := controllers.NewQuayWebHook(tagsvc)
-	dkctrl := controllers.NewDockerWebHook(tagsvc)
-	tioctr := controllers.NewTagIO(tiosvc, usrsvc)
+	imctrl := controllers.NewImageImport(impsvc)
+	itctrl := controllers.NewImage(imgsvc)
+	mtctrl := controllers.NewMutatingWebHook(impsvc, imgsvc)
+	tioctr := controllers.NewImageIO(tiosvc, usrsvc)
 	moctrl := controllers.NewMetric()
 
 	// starts up all informers and waits for their cache to sync up,
@@ -97,18 +97,19 @@ func main() {
 	// from the queue.
 	klog.Info("waiting for caches to sync ...")
 	corinf.Start(ctx.Done())
-	taginf.Start(ctx.Done())
+	imginf.Start(ctx.Done())
 	if !cache.WaitForCacheSync(
 		ctx.Done(),
 		corinf.Core().V1().ConfigMaps().Informer().HasSynced,
 		corinf.Core().V1().Secrets().Informer().HasSynced,
-		taginf.Tagger().V1beta1().Tags().Informer().HasSynced,
+		imginf.Tagger().V1beta1().Images().Informer().HasSynced,
+		imginf.Tagger().V1beta1().ImageImports().Informer().HasSynced,
 	) {
 		klog.Fatal("caches not syncing")
 	}
 	klog.Info("caches in sync, moving on.")
 
-	st := starter.New(corcli, mtctrl, qyctrl, dkctrl, itctrl, moctrl, tioctr)
+	st := starter.New(corcli, mtctrl, itctrl, moctrl, tioctr, imctrl)
 	if err := st.Start(ctx, "tagger-leader-election"); err != nil {
 		klog.Errorf("unable to start controllers: %s", err)
 	}
