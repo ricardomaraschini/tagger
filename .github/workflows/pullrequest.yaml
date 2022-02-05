@@ -25,7 +25,7 @@ jobs:
         ref: ${{ github.event.pull_request.head.ref }}
 
     - name: run linter
-      run: golint -set_exit_status ./cmd/kubectl-tag ./cmd/tagger ./cmd/depctrl ./controllers/... ./services/...
+      run: golint -set_exit_status ./cmd/kubectl-tag ./cmd/tagger ./controllers/... ./services/...
 
   unit:
     name: unit
@@ -155,14 +155,6 @@ jobs:
         READY=$(kubectl get deploy tagger --no-headers -o=custom-columns=:.status.readyReplicas)
         if [ "$READY" != "1" ]; then
           echo tagger deployment not ready
-          kubectl get deploy -o yaml
-          kubectl get pods -o yaml
-          exit 1
-        fi
-
-        READY=$(kubectl get deploy depctrl --no-headers -o=custom-columns=:.status.readyReplicas)
-        if [ "$READY" != "1" ]; then
-          echo depctrl deployment not ready
           kubectl get deploy -o yaml
           kubectl get pods -o yaml
           exit 1
