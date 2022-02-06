@@ -45,11 +45,12 @@ type dockerAuthConfig struct {
 // MirrorRegistryConfig holds the needed data that allows tagger to contact the
 // mirror registry.
 type MirrorRegistryConfig struct {
-	Address  string
-	Username string
-	Password string
-	Token    string
-	Insecure bool
+	Address    string
+	Username   string
+	Password   string
+	Repository string
+	Token      string
+	Insecure   bool
 }
 
 // LocalRegistryHostingV1 describes a local registry that developer tools can
@@ -131,9 +132,9 @@ func (s *SysContext) UnqualifiedRegistries(ctx context.Context) ([]string, error
 	return s.unqualifiedRegistries, nil
 }
 
-// parseMirrorRegistryConfig reads configmap local-registry-hosting from kube-public
+// ParseMirrorRegistryConfig reads configmap local-registry-hosting from kube-public
 // namespace, parses its content and returns the local registry configuration.
-func (s *SysContext) parseMirrorRegistryConfig() (*LocalRegistryHostingV1, error) {
+func (s *SysContext) ParseMirrorRegistryConfig() (*LocalRegistryHostingV1, error) {
 	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
 	if err != nil {
 		return nil, fmt.Errorf("error getting registry configmap: %w", err)
@@ -151,10 +152,31 @@ func (s *SysContext) parseMirrorRegistryConfig() (*LocalRegistryHostingV1, error
 	return cfg, nil
 }
 
-// parseTaggerMirrorRegistryConfig parses a secret called "mirror-registry-config" in
+// MirrorConfig returns the mirror configuration as read from Tagger namespace or from the
+// kube-public namespace as per KEP.
+func (s *SysContext) MirrorConfig() (MirrorRegistryConfig, error) {
+	var errors *multierror.Error
+	taggercfg, err := s.ParseTaggerMirrorRegistryConfig()
+	if err == nil {
+		return taggercfg, nil
+	}
+	multierror.Append(errors, err)
+
+	kubecfg, err := s.ParseMirrorRegistryConfig()
+	if err != nil {
+		multierror.Append(errors, err)
+		return MirrorRegistryConfig{}, fmt.Errorf("unable to config mirror: %w", errors)
+	}
+
+	return MirrorRegistryConfig{
+		Address: kubecfg.HostFromContainerRuntime,
+	}, nil
+}
+
+// ParseTaggerMirrorRegistryConfig parses a secret called "mirror-registry-config" in
 // the pod namespace. This secret holds information on how to connect to the mirror
 // registry.
-func (s *SysContext) parseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, error) {
+func (s *SysContext) ParseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, error) {
 	var zero MirrorRegistryConfig
 
 	namespace := os.Getenv("POD_NAMESPACE")
@@ -171,10 +193,12 @@ func (s *SysContext) parseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, er
 	}
 
 	return MirrorRegistryConfig{
-		Address:  string(sct.Data["address"]),
-		Username: string(sct.Data["username"]),
-		Password: string(sct.Data["password"]),
-		Insecure: string(sct.Data["insecure"]) == "true",
+		Address:    string(sct.Data["address"]),
+		Username:   string(sct.Data["username"]),
+		Password:   string(sct.Data["password"]),
+		Repository: string(sct.Data["repository"]),
+		Token:      string(sct.Data["token"]),
+		Insecure:   string(sct.Data["insecure"]) == "true",
 	}, nil
 }
 
@@ -186,14 +210,14 @@ func (s *SysContext) parseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, er
 // for the secret in the current namespace.
 func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
 	var errors *multierror.Error
-	cfg, err := s.parseTaggerMirrorRegistryConfig()
+	cfg, err := s.ParseTaggerMirrorRegistryConfig()
 	if err == nil {
 		return cfg.Address, cfg.Address, nil
 	}
 	multierror.Append(errors, err)
 
 	// moves to check through the KEP implementation.
-	kepcfg, err := s.parseMirrorRegistryConfig()
+	kepcfg, err := s.ParseMirrorRegistryConfig()
 	if err != nil {
 		multierror.Append(errors, err)
 		return "", "", fmt.Errorf("mirror registry address unknown: %w", errors)
@@ -204,7 +228,7 @@ func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
 // MirrorRegistryContext returns the context to be used when talking to the the registry used
 // for mirroring images.
 func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemContext {
-	cfg, err := s.parseTaggerMirrorRegistryConfig()
+	cfg, err := s.ParseTaggerMirrorRegistryConfig()
 	if err != nil {
 		klog.Infof("unable to read tagger mirror registry config: %s", err)
 	}
@@ -337,18 +361,18 @@ func (s *SysContext) DefaultPolicyContext() (*signature.PolicyContext, error) {
 // GetRegistryStore creates an instance of an Registry store entity configured
 // to use our internal registry as underlying storage.
 func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry, error) {
-	sysctx := s.MirrorRegistryContext(ctx)
-	regaddr, _, err := s.MirrorRegistryAddresses()
-	if err != nil {
-		return nil, fmt.Errorf("unable to discover mirror registry: %w", err)
-	}
-
 	defpol, err := s.DefaultPolicyContext()
 	if err != nil {
 		return nil, fmt.Errorf("error reading default policy: %w", err)
 	}
 
-	return imagestore.NewRegistry(regaddr, sysctx, defpol), nil
+	mcfg, err := s.MirrorConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to acccess mirror: %w", err)
+	}
+
+	sysctx := s.MirrorRegistryContext(ctx)
+	return imagestore.NewRegistry(mcfg.Address, mcfg.Repository, sysctx, defpol), nil
 }
 
 // RegistriesToSearch returns a list of registries to be used when looking for
