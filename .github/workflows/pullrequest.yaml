@@ -161,4 +161,4 @@ jobs:
         fi
 
     - name: e2e
-      run: ./kuttl test e2e
+      run: ./kuttl test --timeout=180 e2e
