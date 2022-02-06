@@ -41,16 +41,16 @@ jobs:
       uses: actions/checkout@v2
 
     - name: build linux plugin
-      run: make kubectl-tag
+      run: make kubectl-image
 
     - name: compress linux plugin
-      run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+      run: tar -C output/bin -czvf kubectl-image-linux-amd64.tgz kubectl-image
 
     - name: build darwin plugin
-      run: make kubectl-tag-darwin
+      run: make kubectl-image-darwin
 
     - name: compress darwin plugin
-      run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
+      run: tar -C output/bin -czvf kubectl-image-darwin-amd64.tgz kubectl-image
 
     - name: build helm chart release
       run: helm package chart/

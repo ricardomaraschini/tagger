@@ -51,16 +51,16 @@ jobs:
       run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
     - name: build linux plugin
-      run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag
+      run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-image
 
     - name: compress linux plugin
-      run: tar -C output/bin -czvf kubectl-tag-linux-amd64.tgz kubectl-tag
+      run: tar -C output/bin -czvf kubectl-image-linux-amd64.tgz kubectl-image
 
     - name: build darwin plugin
-      run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-tag-darwin
+      run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-image-darwin
 
     - name: compress darwin plugin
-      run: tar -C output/bin -czvf kubectl-tag-darwin-amd64.tgz kubectl-tag
+      run: tar -C output/bin -czvf kubectl-image-darwin-amd64.tgz kubectl-image
 
     - name: setting image tag in values.yaml
       run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
