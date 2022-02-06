@@ -1,4 +1,4 @@
-// Copyright 2020 The Tagger Authors.
+// Copyright 2020 The Imageger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,22 +29,37 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	imgtagv1beta1 "github.com/ricardomaraschini/tagger/infra/tags/v1beta1"
+	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
 )
 
+// ImageImportValidator is implemented in services/imageimport.go. This abstraction
+// exists to make tests easier. It is anything capable of checking if a given
+// ImageImport is valid (contain all needed fields and refers to a valid Image).
+type ImageImportValidator interface {
+	Validate(context.Context, *imgv1b1.ImageImport) error
+}
+
+// ImageValidator is implemented in services/image.go. Validates that provided Image
+// contain all mandatory fields.
+type ImageValidator interface {
+	Validate(context.Context, *imgv1b1.Image) error
+}
+
 // MutatingWebHook handles Mutation requests from kubernetes api.
-// I.E. validate Tag objects.
+// I.E. validate Image objects.
 type MutatingWebHook struct {
 	key     string
 	cert    string
 	bind    string
+	tival   ImageImportValidator
+	imgval  ImageValidator
 	decoder runtime.Decoder
 }
 
 // NewMutatingWebHook returns a web hook handler for kubernetes api
-// mutation requests. This webhook validate tag objects when user saves
+// mutation requests. This webhook validate Image objects when user saves
 // them.
-func NewMutatingWebHook() *MutatingWebHook {
+func NewMutatingWebHook(tival ImageImportValidator, imgval ImageValidator) *MutatingWebHook {
 	runtimeScheme := runtime.NewScheme()
 	codecs := serializer.NewCodecFactory(runtimeScheme)
 
@@ -53,6 +68,8 @@ func NewMutatingWebHook() *MutatingWebHook {
 		key:     fmt.Sprintf("%s/tls.key", olmCertDir),
 		cert:    fmt.Sprintf("%s/tls.crt", olmCertDir),
 		bind:    ":8080",
+		tival:   tival,
+		imgval:  imgval,
 		decoder: codecs.UniversalDeserializer(),
 	}
 }
@@ -127,8 +144,10 @@ func (m *MutatingWebHook) responseAuthorized(w http.ResponseWriter, req *admnv1.
 	_, _ = w.Write(resp)
 }
 
-// tag is our http handler for tag validation.
-func (m *MutatingWebHook) tag(w http.ResponseWriter, r *http.Request) {
+// imageimport is our http handler for ImageImport objects validation.
+func (m *MutatingWebHook) imageimport(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	reviewReq := &admnv1.AdmissionReview{}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -144,20 +163,77 @@ func (m *MutatingWebHook) tag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	objkind := reviewReq.Request.Kind.Kind
-	if objkind != "Tag" {
+	if objkind != "ImageImport" {
 		klog.Errorf("received event for %s, authorizing", objkind)
 		m.responseAuthorized(w, reviewReq)
 		return
 	}
 
-	var tag imgtagv1beta1.Tag
-	if err := json.Unmarshal(reviewReq.Request.Object.Raw, &tag); err != nil {
-		klog.Errorf("unable to decode tag: %s", err)
+	timp := &imgv1b1.ImageImport{}
+	if err := json.Unmarshal(reviewReq.Request.Object.Raw, timp); err != nil {
+		klog.Errorf("unable to decode image: %s", err)
 		m.responseError(w, reviewReq, err)
 		return
 	}
 
-	if err := tag.ValidateTagGeneration(); err != nil {
+	if err := m.tival.Validate(ctx, timp); err != nil {
+		m.responseError(w, reviewReq, err)
+		return
+	}
+
+	reviewResp := &admnv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admission.k8s.io/v1",
+			Kind:       "AdmissionReview",
+		},
+		Response: &admnv1.AdmissionResponse{
+			Allowed: true,
+			UID:     reviewReq.Request.UID,
+		},
+	}
+
+	resp, err := json.Marshal(reviewResp)
+	if err != nil {
+		errstr := fmt.Sprintf("error encoding response: %v", err)
+		http.Error(w, errstr, http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write(resp)
+}
+
+// image is our http handler for image validation.
+func (m *MutatingWebHook) image(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	reviewReq := &admnv1.AdmissionReview{}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		klog.Errorf("error reading body: %s", err)
+		m.responseError(w, reviewReq, err)
+		return
+	}
+
+	if _, _, err := m.decoder.Decode(body, nil, reviewReq); err != nil {
+		klog.Errorf("cant decoding body: %s", err)
+		m.responseError(w, reviewReq, err)
+		return
+	}
+
+	objkind := reviewReq.Request.Kind.Kind
+	if objkind != "Image" {
+		klog.Errorf("received event for %s, authorizing", objkind)
+		m.responseAuthorized(w, reviewReq)
+		return
+	}
+
+	img := &imgv1b1.Image{}
+	if err := json.Unmarshal(reviewReq.Request.Object.Raw, img); err != nil {
+		klog.Errorf("unable to decode image: %s", err)
+		m.responseError(w, reviewReq, err)
+		return
+	}
+
+	if err := m.imgval.Validate(ctx, img); err != nil {
 		m.responseError(w, reviewReq, err)
 		return
 	}
@@ -185,7 +261,8 @@ func (m *MutatingWebHook) tag(w http.ResponseWriter, r *http.Request) {
 // Start puts the http server online.
 func (m *MutatingWebHook) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/tag", m.tag)
+	mux.HandleFunc("/image", m.image)
+	mux.HandleFunc("/imageimport", m.imageimport)
 	server := &http.Server{
 		Addr:    m.bind,
 		Handler: mux,

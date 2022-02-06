@@ -29,16 +29,15 @@ type PacketSender interface {
 	Send(*Packet) error
 }
 
-// ProgressTracker is the interface used to track progress during a send or
-// receive of a file. SetMax is called only once and prior to any SetCurrent
-// call.
+// ProgressTracker is the interface used to track progress during a send or receive of a file.
+// SetMax is called only once and prior to any SetCurrent call.
 type ProgressTracker interface {
 	SetMax(int64)
 	SetCurrent(int64)
 }
 
-// SendProgressMessage sends a progress message down the protobuf connection.
-// This message contains the total file size and the current offset.
+// SendProgressMessage sends a progress message down the protobuf connection.  This message
+// contains the total file size and the current offset.
 func SendProgressMessage(offset int64, size int64, sender PacketSender) error {
 	return sender.Send(
 		&Packet{
@@ -52,8 +51,8 @@ func SendProgressMessage(offset int64, size int64, sender PacketSender) error {
 	)
 }
 
-// Receive receives Packets from provided PacketReceiver and writes their content into
-// the provided Writer. Progress is reported through a ProgressTracker.
+// Receive receives Packets from provided PacketReceiver and writes their content into the
+// provided Writer. Progress is reported through a ProgressTracker.
 func Receive(from PacketReceiver, to io.Writer, tracker ProgressTracker) error {
 	var fsize int64
 	var tracktotal bool
@@ -93,12 +92,10 @@ func Receive(from PacketReceiver, to io.Writer, tracker ProgressTracker) error {
 	return nil
 }
 
-// Send sends contents of provided Reader through a PacketSender. Content is split
-// into chunks of 1024 bytes. From time to time this function also sends over the
-// wire a progress message, informing the total file size and the current offset.
-func Send(
-	from io.Reader, totalSize int64, to PacketSender, tracker ProgressTracker,
-) error {
+// Send sends contents of provided Reader through a PacketSender. Content is split into chunks
+// of 1024 bytes. From time to time this function also sends over the wire a progress message,
+// informing the total file size and the current offset.
+func Send(from io.Reader, totalSize int64, to PacketSender, tracker ProgressTracker) error {
 	var counter int
 	var totread int64
 	for {
@@ -113,6 +110,7 @@ func Send(
 		totread += int64(read)
 
 		if counter%50 == 0 {
+			// from time to time we send over a progress status update.
 			if err := SendProgressMessage(totread, totalSize, to); err != nil {
 				return fmt.Errorf("error sending progress: %w", err)
 			}

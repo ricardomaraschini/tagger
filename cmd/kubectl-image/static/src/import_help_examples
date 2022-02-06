@@ -1,0 +1,15 @@
+  This is a valid command usage:
+
+  kubectl image import					\
+  	--from docker.io/library/fedora:latest		\
+	--mirror=false					\
+	--insecure-source=false				\
+	-n devel					\
+	fedora 
+
+  The command above imports image docker.io/library/fedora:latest
+  into an Image called fedora in the devel namespace.
+
+  Mirror informs Tagger that we need to mirror the image into our
+  mirror registry while Insecure Source informs that TLS checks
+  should be omitted when reaching the remote registry.

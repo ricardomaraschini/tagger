@@ -37,11 +37,11 @@ func Test_authsFor(t *testing.T) {
 	auths, _ := json.Marshal(
 		dockerAuthConfig{
 			Auths: map[string]types.DockerAuthConfig{
-				"docker.io": types.DockerAuthConfig{
+				"docker.io": {
 					Username: "user",
 					Password: "pass",
 				},
-				"quay.io": types.DockerAuthConfig{
+				"quay.io": {
 					Username: "another-user",
 					Password: "another-pass",
 				},

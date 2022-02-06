@@ -14,15 +14,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods 
-  verbs:
-  - watch
-  - get
-  - list
-  - update
-- apiGroups:
-  - ""
-  resources:
   - namespaces
   verbs:
   - get
@@ -44,21 +35,13 @@ rules:
   - list
   - create
   - update
-- apiGroups: 
-  - apps
-  resources: 
-  - replicasets
-  - deployments
-  verbs:
-  - watch
-  - get
-  - list
-  - update
 - apiGroups:
   - tagger.dev
   resources:
-  - tags
-  - tags/status
+  - images
+  - images/status
+  - imageimports
+  - imageimports/status
   verbs:
   - "*"
 - apiGroups:

@@ -35,7 +35,7 @@ webhooks:
     service:
       name: mutating-webhooks
       namespace: {{ .Release.Namespace }}
-      path: "/tag"
+      path: "/image"
       port: 8080
     {{- if $secret }}
     caBundle: {{ (index $secret "data" "server.crt") }}
@@ -48,7 +48,32 @@ webhooks:
     apiVersions:
     - "v1beta1"
     resources: 
-    - tags
+    - images
+    operations: 
+    - CREATE
+    - UPDATE
+- name: imageimport.tagger.dev
+  admissionReviewVersions:
+  - v1
+  sideEffects: None
+  clientConfig:
+    service:
+      name: mutating-webhooks
+      namespace: {{ .Release.Namespace }}
+      path: "/imageimport"
+      port: 8080
+    {{- if $secret }}
+    caBundle: {{ (index $secret "data" "server.crt") }}
+    {{- else }}
+    caBundle: {{ default $cert.Cert .Values.cert | b64enc }}
+    {{- end }}
+  rules:
+  - apiGroups:
+    - "tagger.dev"
+    apiVersions:
+    - "v1beta1"
+    resources: 
+    - imageimports
     operations: 
     - CREATE
     - UPDATE

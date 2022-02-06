@@ -1,7 +1,6 @@
 TAGGER = tagger
-DEPCTRL = depctrl
-PLUGIN = kubectl-tag
-PLUGIN_DARWIN = kubectl-tag-darwin
+PLUGIN = kubectl-image
+PLUGIN_DARWIN = kubectl-image-darwin
 
 VERSION ?= v0.0.0
 IMAGE_BUILDER ?= podman
@@ -12,18 +11,17 @@ OUTPUT_BIN = $(OUTPUT_DIR)/bin
 OUTPUT_DOC = $(OUTPUT_DIR)/doc
 
 TAGGER_BIN = $(OUTPUT_BIN)/$(TAGGER)
-DEPCTRL_BIN = $(OUTPUT_BIN)/$(DEPCTRL)
 PLUGIN_BIN = $(OUTPUT_BIN)/$(PLUGIN)
 GEN_BIN = $(OUTPUT_DIR)/code-generator
 KUTTL_BIN = $(OUTPUT_DIR)/kuttl
 KUTTL_REPO = https://github.com/kudobuilder/kuttl
 
 PROJECT = github.com/ricardomaraschini/$(TAGGER)
-GEN_OUTPUT = /tmp/$(PROJECT)/infra/tags
+GEN_OUTPUT = /tmp/$(PROJECT)/infra/images
 
 default: build
 
-build: $(TAGGER) $(DEPCTRL) $(PLUGIN_DARWIN) $(PLUGIN)
+build: $(TAGGER) $(PLUGIN_DARWIN) $(PLUGIN)
 
 .PHONY: $(TAGGER)
 $(TAGGER):
@@ -31,13 +29,6 @@ $(TAGGER):
 		-ldflags="-X 'main.Version=$(VERSION)'" \
 		-o $(TAGGER_BIN) \
 		./cmd/$(TAGGER)
-
-.PHONY: $(DEPCTRL)
-$(DEPCTRL):
-	go build \
-		-ldflags="-X 'main.Version=$(VERSION)'" \
-		-o $(DEPCTRL_BIN) \
-		./cmd/$(DEPCTRL)
 
 .PHONY: $(PLUGIN)
 $(PLUGIN):
@@ -84,13 +75,13 @@ generate-proto:
 generate-k8s:
 	rm -rf $(GEN_OUTPUT) || true
 	$(GEN_BIN)/generate-groups.sh all \
-		$(PROJECT)/infra/tags/v1beta1/gen \
+		$(PROJECT)/infra/images/v1beta1/gen \
 		$(PROJECT) \
-		infra/tags:v1beta1 \
+		infra/images:v1beta1 \
 		--go-header-file=$(GEN_BIN)/hack/boilerplate.go.txt \
 		--output-base=/tmp
-	rm -rf infra/tags/v1beta1/gen
-	mv $(GEN_OUTPUT)/v1beta1/* infra/tags/v1beta1/
+	rm -rf infra/images/v1beta1/gen
+	mv $(GEN_OUTPUT)/v1beta1/* infra/images/v1beta1/
 
 .PHONY: image
 image:

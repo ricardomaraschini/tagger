@@ -178,14 +178,12 @@ func (s *SysContext) parseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, er
 	}, nil
 }
 
-// MirrorRegistryAddresses returns the configured registry address used
-// for mirroring images using tags. This is implemented to comply with
-// KEP at https://github.com/kubernetes/enhancements/ repository, see
-// keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
-// There are two ways of providing the mirror registry information, the
-// first one is to populate a secret in the current namespace, the other
-// one is by complying with the KEP. We give preference for the secret
-// in the current namespace.
+// MirrorRegistryAddresses returns the configured registry address used for mirroring images.
+// This is implemented to comply with KEP at https://github.com/kubernetes/enhancements/ repo,
+// see keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry. There are two
+// ways of providing the mirror registry information, the first one is to populate a secret
+// in the current namespace, the other one is by complying with the KEP. We give preference
+// for the secret in the current namespace.
 func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
 	var errors *multierror.Error
 	cfg, err := s.parseTaggerMirrorRegistryConfig()
@@ -203,8 +201,8 @@ func (s *SysContext) MirrorRegistryAddresses() (string, string, error) {
 	return kepcfg.HostFromClusterNetwork, kepcfg.HostFromContainerRuntime, nil
 }
 
-// MirrorRegistryContext returns the context to be used when talking to
-// the the registry used for mirroring tags.
+// MirrorRegistryContext returns the context to be used when talking to the the registry used
+// for mirroring images.
 func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemContext {
 	cfg, err := s.parseTaggerMirrorRegistryConfig()
 	if err != nil {

@@ -5,11 +5,8 @@ go 1.16
 require (
 	github.com/containers/image/v5 v5.17.0
 	github.com/containers/storage v1.37.0
-	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a // indirect
-	github.com/lunixbochs/vtclean v0.0.0-20180621232353-2d01aacdc34a // indirect
 	github.com/prometheus/client_golang v1.11.0
 	github.com/spf13/cobra v1.2.1
 	github.com/vbauerster/mpb/v6 v6.0.4

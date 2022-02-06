@@ -2,14 +2,14 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: tags.tagger.dev
+  name: imageimports.tagger.dev
 spec:
-  group: tagger.dev 
+  group: tagger.dev
   names:
-    kind: Tag
-    listKind: TagList
-    plural: tags
-    singular: tag
+    kind: ImageImport
+    listKind: ImageImportList
+    plural: imageimports
+    singular: imageimport
   preserveUnknownFields: false
   scope: Namespaced
   versions:
@@ -17,10 +17,91 @@ spec:
     served: true
     storage: true
     additionalPrinterColumns:
-    - description: Current generation
-      jsonPath: .spec.generation
-      name: generation
-      type: integer
+    - description: Insecure
+      jsonPath: .spec.insecure
+      name: insecure
+      type: boolean
+    - description: Mirroring
+      jsonPath: .spec.mirror
+      name: mirror
+      type: boolean
+    - description: Target Image
+      jsonPath: .spec.targetImage
+      name: targetImage
+      type: string
+    - description: Imported At
+      jsonPath: .status.hashReference.importedAt
+      name: importedAt
+      type: string
+    - description: Image Reference
+      jsonPath: .status.hashReference.imageReference
+      name: imageReference 
+      type: string
+    subresources:
+      status: {}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              targetImage:
+                type: string
+              from:
+                type: string
+              mirror:
+                type: boolean
+              insecure:
+                type: boolean
+          status:
+            type: object
+            properties:
+              importAttempts:
+                type: array
+                nullable: true
+                items:
+                  type: object
+                  properties:
+                    when:
+                      type: string
+                      nullable: true
+                    succeed:
+                      type: boolean
+                    reason:
+                      type: string
+              hashReference:
+                type: object
+                properties:
+                  from:
+                    type: string
+                  importedAt:
+                    type: string
+                  imageReference:
+                    type: string
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: images.tagger.dev
+spec:
+  group: tagger.dev 
+  names:
+    kind: Image
+    listKind: ImageList
+    plural: images
+    singular: image
+  preserveUnknownFields: false
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - description: Insecure
+      jsonPath: .spec.insecure
+      name: insecure
+      type: boolean
     - description: Mirroring
       jsonPath: .spec.mirror
       name: mirror
@@ -40,8 +121,6 @@ spec:
             properties:
               from:
                 type: string
-              generation:
-                type: integer
               mirror:
                 type: boolean
               insecure:
@@ -49,29 +128,15 @@ spec:
           status:
             type: object
             properties:
-              generation:
-                type: integer
-              references:
+              hashReferences:
                 type: array
                 nullable: true
                 items:
                   type: object
                   properties:
-                    generation:
-                      type: integer
                     from:
                       type: string
                     importedAt:
                       type: string
                     imageReference:
                       type: string
-              lastImportAttempt:
-                type: object
-                properties:
-                  when:
-                    type: string
-                    nullable: true
-                  succeed:
-                    type: boolean
-                  reason:
-                    type: string

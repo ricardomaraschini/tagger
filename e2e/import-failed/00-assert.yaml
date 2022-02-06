@@ -1,12 +1,10 @@
 apiVersion: tagger.dev/v1beta1
-kind: Tag
+kind: ImageImport
 metadata:
   name: invalid
 spec:
   from: a.b.c.d/test/123:latest
   mirror: false
 status:
-  generation: 0
-  lastImportAttempt:
-    succeed: false
-  references: null
+  importAttempts:
+    - succeed: false

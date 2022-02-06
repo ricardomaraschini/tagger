@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	imgcopy "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -61,16 +62,6 @@ func NewRegistry(
 		polctx:  polctx,
 		regctx:  sysctx,
 	}
-}
-
-// Insecure returns true if the underlying mirror registry is using
-// invalid certificates. Analyses the registry context (regctx).
-func (i *Registry) Insecure() bool {
-	if i.regctx == nil {
-		return false
-	}
-	skip := i.regctx.DockerInsecureSkipTLSVerify
-	return skip == types.OptionalBoolTrue
 }
 
 // Load pushes an image reference into the backend registry using repo/name
@@ -118,6 +109,11 @@ func (i *Registry) Load(
 func (i *Registry) Save(
 	ctx context.Context, ref types.ImageReference,
 ) (types.ImageReference, CleanFn, error) {
+	domain := reference.Domain(ref.DockerReference())
+	if domain != i.regaddr {
+		return nil, nil, fmt.Errorf("mirror doesn't know about this image")
+	}
+
 	dstref, cleanup, err := i.NewLocalReference()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating temp file: %w", err)

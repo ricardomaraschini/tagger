@@ -1,8 +1,8 @@
 apiVersion: tagger.dev/v1beta1
-kind: Tag
+kind: ImageImport
 metadata:
   name: tagger-operator
 spec:
+  targetImage: tagger-operator
   from: quay.io/tagger/operator:latest
   mirror: false
-  generation: 0
