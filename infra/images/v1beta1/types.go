@@ -107,7 +107,7 @@ type ImageSpec struct {
 
 // ImageStatus is the current status for an image tag.
 type ImageStatus struct {
-	HashReferences []HashReference `json:"hashReferences"`
+	HashReferences []HashReference `json:"hashReferences,omitempty"`
 }
 
 // ImportAttempt holds data about an import cycle. Keeps track if it

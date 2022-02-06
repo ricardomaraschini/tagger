@@ -127,14 +127,14 @@ things such as authentication thus should not be used in production. Tagger can 
 of the mirror registry location through a Secret called `mirror-registry-config`, this secret may
 contain the following properties:
 
-
-| Name     | Description                                                                         |
-| ---------| ----------------------------------------------------------------------------------- |
-| address  | The mirror registry URL                                                             |
-| username | Username Tagger should use when accessing the mirror registry                       |
-| password | The password to be used by Tagger                                                   |
-| token    | The auth token to be used by Tagger (optional)                                      |
-| insecure | Allows Tagger to access insecure registry if set to "true" (string)                 |
+| Name       | Description                                                                       |
+| -----------| --------------------------------------------------------------------------------- |
+| address    | The mirror registry URL                                                           |
+| username   | Username Tagger should use when accessing the mirror registry                     |
+| password   | The password to be used by Tagger                                                 |
+| token      | The auth token to be used by Tagger (optional)                                    |
+| insecure   | Allows Tagger to access insecure registry if set to "true" (string)               |
+| repository | If set Tagger will mirror all images inside the same Registry repository          |
 
 Follow below an example of a `mirror-registry-config` Secret:
 
