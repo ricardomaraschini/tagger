@@ -24,8 +24,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Metric is our controller for metric requests. Spawns an http metric and
-// exposes all metrics registered on prometheus.
+// Metric is our controller for metric requests. Spawns an http metric and exposes all metrics
+// registered on prometheus (see infra/metrics package to see what are we monitoring).
 type Metric struct {
 	bind string
 }
@@ -42,8 +42,7 @@ func (m *Metric) Name() string {
 	return "metrics http server"
 }
 
-// RequiresLeaderElection returns if this controller requires or not a
-// leader lease to run.
+// RequiresLeaderElection returns if this controller requires or not a leader lease to run.
 func (m *Metric) RequiresLeaderElection() bool {
 	return false
 }

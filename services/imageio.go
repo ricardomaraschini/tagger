@@ -32,16 +32,16 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/metrics"
 )
 
-// ImageIO is an entity that gather operations related to Image images input and
-// output. This entity allow users to pull images from or to push images to
-// a Image.
+// ImageIO is an entity that gather operations related to Image images input and output. This
+// entity allow users to pull images from or to push images to our mirror registry.
 type ImageIO struct {
 	imgcli imgclient.Interface
 	imglis imglist.ImageLister
 	syssvc *SysContext
 }
 
-// NewImageIO returns a new ImageIO object, capable of import and export Image images.
+// NewImageIO returns a new ImageIO object, capable of pulling and pushing Images from our
+// configured mirror registry.
 func NewImageIO(
 	corinf informers.SharedInformerFactory,
 	imgcli imgclient.Interface,
@@ -59,9 +59,8 @@ func NewImageIO(
 	}
 }
 
-// Push expects "fpath" to point to a valid docker image stored on disk as a tar
-// file, reads it and then pushes it to our mirror registry through an image store
-// implementation (see infra/imagestore/registry.go for a concrete implementation).
+// Push expects "fpath" to point to a valid docker image stored on disk as a tar file, reads it
+// and then pushes it to our mirror registry through an image store implementation.
 func (t *ImageIO) Push(ctx context.Context, ns, name string, fpath string) error {
 	start := time.Now()
 
@@ -87,9 +86,8 @@ func (t *ImageIO) Push(ctx context.Context, ns, name string, fpath string) error
 		return fmt.Errorf("error parsing image name: %w", err)
 	}
 
-	// we pass nil as source context reference as to read the file from disk
-	// no authentication is needed. Namespace is used as repository and
-	// name as image name.
+	// we pass nil as source context reference as to read the file from disk no authentication
+	// is needed. Namespace is used as repository and name as image name.
 	dstref, err := istore.Load(ctx, srcref, nil, ns, name)
 	if err != nil {
 		return fmt.Errorf("error loading image into registry: %w", err)
@@ -106,8 +104,8 @@ func (t *ImageIO) Push(ctx context.Context, ns, name string, fpath string) error
 		Insecure:    pointer.Bool(insecure),
 	}
 
-	tisvc := NewImageImport(nil, t.imgcli, nil)
-	if _, err := tisvc.NewImport(ctx, opts); err != nil {
+	impsvc := NewImageImport(nil, t.imgcli, nil)
+	if _, err := impsvc.NewImport(ctx, opts); err != nil {
 		return fmt.Errorf("unable to create image import: %w", err)
 	}
 
@@ -115,9 +113,9 @@ func (t *ImageIO) Push(ctx context.Context, ns, name string, fpath string) error
 	return nil
 }
 
-// Pull saves a Image image into a tar file and returns a reader from where the image
-// content can be read. Caller is responsible for cleaning up after the returned
-// resources by calling the returned function.
+// Pull saves an Image into a tar file and returns a reader from where the image content can
+// be read. Caller is responsible for cleaning up after the returned resources by calling the
+// returned function.
 func (t *ImageIO) Pull(ctx context.Context, ns, name string) (*os.File, func(), error) {
 	start := time.Now()
 
@@ -133,7 +131,7 @@ func (t *ImageIO) Pull(ctx context.Context, ns, name string) (*os.File, func(), 
 		metrics.PullSuccesses.Inc()
 	}()
 
-	it, err := t.imglis.Images(ns).Get(name)
+	img, err := t.imglis.Images(ns).Get(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting image: %w", err)
 	}
@@ -143,7 +141,7 @@ func (t *ImageIO) Pull(ctx context.Context, ns, name string) (*os.File, func(), 
 		return nil, nil, fmt.Errorf("error creating image store: %w", err)
 	}
 
-	imgref := it.CurrentReferenceForImage()
+	imgref := img.CurrentReferenceForImage()
 	if len(imgref) == 0 {
 		return nil, nil, fmt.Errorf("reference for current generation not found")
 	}

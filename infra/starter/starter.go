@@ -29,17 +29,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// Controller is implemented by all controllers inside controllers directory.
-// They should be able to be started, have a name, and to inform if they need
-// or not to be run only after a leader election.
+// Controller is implemented by all controllers inside controllers directory.  They should be
+// able to be started, have a name, and to inform if they need or not to be run only after a
+// leader election.
 type Controller interface {
 	Start(ctx context.Context) error
 	RequiresLeaderElection() bool
 	Name() string
 }
 
-// Starter provides facilities around starting Controllers. Leader election
-// logic is embed into this entity.
+// Starter provides facilities around starting Controllers. Leader election logic is embed into
+// this entity.
 type Starter struct {
 	corcli    corecli.Interface
 	name      string
@@ -49,8 +49,8 @@ type Starter struct {
 	cancel    context.CancelFunc
 }
 
-// New returns a new controller starter. We read some env variables
-// directly here and fall back to default values if they are not set.
+// New returns a new controller starter. We read some env variables directly here and fall back
+// to default values if they are not set.
 func New(corcli corecli.Interface, ctrls ...Controller) *Starter {
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
@@ -72,9 +72,9 @@ func New(corcli corecli.Interface, ctrls ...Controller) *Starter {
 	}
 }
 
-// OnStartedLeading is called when we start being the leader of the pack.
-// Goes through all controllers and start the ones that require a leader
-// lease in place to run. Each controller is started in its own goroutine.
+// OnStartedLeading is called when we start being the leader of the pack.  Goes through all
+// controllers and start the ones that require a leader lease in place to run. Each controller
+// is started in its own goroutine.
 func (s *Starter) OnStartedLeading(ctx context.Context) {
 	klog.Infof("we are now the leader, starting controllers.")
 	for _, c := range s.ctrls {
@@ -86,9 +86,9 @@ func (s *Starter) OnStartedLeading(ctx context.Context) {
 	}
 }
 
-// OnStoppedLeading awaits for all running controllers to end before returning.
-// As we don't know exactly why we are not the leader anymore we just cancel our
-// internal context and wait for all the Controllers to finish before returning.
+// OnStoppedLeading awaits for all running controllers to end before returning. As we don't know
+// exactly why we are not the leader anymore we just cancel our internal context and wait for all
+// the Controllers to finish before returning.
 func (s *Starter) OnStoppedLeading() {
 	klog.Infof("we are no longer the leader, ending controllers.")
 	s.cancel()
@@ -106,16 +106,14 @@ func (s *Starter) startController(ctx context.Context, c Controller) {
 	klog.Infof("%q controller ended.", c.Name())
 }
 
-// Start starts all controllers within a Starter. This function only
-// returns when all controllers have finished their job, i.e. provided
-// context has been cancelled or the leader lease has been lost. lockID
-// holds an arbitrary ID for the binary calling this function, it is
-// used as config map name during leader election.
+// Start starts all controllers within a Starter. This function only returns when all controllers
+// have finished their job, i.e. provided context has been cancelled or the leader lease has been
+// lost. lockID holds an arbitrary ID for the binary calling this function, it is used as config
+// map name during leader election.
 func (s *Starter) Start(ctx context.Context, lockID string) error {
-	// we wrap the provided context into our own context. This way
-	// we can cancel everything here if we feel like doing so. All
-	// controllers receive this context as theirs during a Start()
-	// call.
+	// we wrap the provided context into our own context. This way we can cancel everything
+	// here if we feel like doing so. All controllers receive this context as theirs during
+	// a Start() call.
 	ctx, s.cancel = context.WithCancel(ctx)
 
 	lock, err := resourcelock.New(
@@ -149,10 +147,9 @@ func (s *Starter) Start(ctx context.Context, lockID string) error {
 		return fmt.Errorf("error creating elector: %w", err)
 	}
 
-	// let's start the controllers that do not require leader
-	// election right here. Controllers requiring leader election
-	// are going to be started as soon as we get a lease, see
-	// OnStartedLeading.
+	// let's start the controllers that do not require leader election right here.
+	// Controllers requiring leader election are going to be started as soon as we
+	// get a lease, see OnStartedLeading.
 	for _, c := range s.ctrls {
 		if c.RequiresLeaderElection() {
 			continue
@@ -161,8 +158,8 @@ func (s *Starter) Start(ctx context.Context, lockID string) error {
 		go s.startController(ctx, c)
 	}
 
-	// runs the leader election. this locks the flow here until
-	// the context is cancelled or we lost the leadership.
+	// runs the leader election. this locks the flow here until the context is cancelled
+	// or we lost the leadership.
 	election.Run(ctx)
 	return nil
 }

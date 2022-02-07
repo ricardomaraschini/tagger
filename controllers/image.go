@@ -1,4 +1,4 @@
-// Copyright 2020 The Imageger Authors.
+// Copyright 2020 The Tagger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,17 +27,16 @@ import (
 	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
 )
 
-// ImageSyncer abstraction exists to make testing easier. You most likely wanna
-// see Image struct under services/image.go for a concrete implementation of this.
+// ImageSyncer abstraction exists to make testing easier. You most likely wanna see Image struct
+// under services/image.go for a concrete implementation of this.
 type ImageSyncer interface {
 	Sync(context.Context, *imgv1b1.Image) error
 	Get(context.Context, string, string) (*imgv1b1.Image, error)
 	AddEventHandler(cache.ResourceEventHandler)
 }
 
-// Image controller handles events related to Images. It starts and receives events
-// from the informer, calling appropriate functions on our concrete services
-// layer implementation.
+// Image controller handles events related to Images. It starts and receives events from the
+// informer, calling appropriate functions on our concrete services layer implementation.
 type Image struct {
 	queue  workqueue.RateLimitingInterface
 	imgsvc ImageSyncer
@@ -45,9 +44,8 @@ type Image struct {
 	tokens chan bool
 }
 
-// NewImage returns a new controller for Image Images. This controller runs image
-// imports in parallel, at a given time we can have at max "workers" distinct images
-// being processed.
+// NewImage returns a new controller for Images. This controller runs image imports in parallel,
+// at a given time we can have at max "tokens" distinct images being processed (hardcoded to 10).
 func NewImage(imgsvc ImageSyncer) *Image {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
 	ctrl := &Image{
@@ -64,14 +62,13 @@ func (t *Image) Name() string {
 	return "image"
 }
 
-// RequiresLeaderElection returns if this controller requires or not a
-// leader lease to run.
+// RequiresLeaderElection returns if this controller requires or not a leader lease to run.
 func (t *Image) RequiresLeaderElection() bool {
 	return true
 }
 
-// enqueueEvent generates a key using "namespace/name" for the event received
-// and then enqueues this index to be processed.
+// enqueueEvent generates a key using "namespace/name" for the event received and then enqueues
+// it to be processed.
 func (t *Image) enqueueEvent(o interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(o)
 	if err != nil {
@@ -81,9 +78,8 @@ func (t *Image) enqueueEvent(o interface{}) {
 	t.queue.AddRateLimited(key)
 }
 
-// handlers return a event handler that will be called by the informer
-// whenever an event occurs. This handler basically enqueues everything
-// in our work queue.
+// handlers return a event handler that will be called by the informer whenever an event occurs.
+// This handler basically enqueues everything in our work queue using enqueueEvent.
 func (t *Image) handlers() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
@@ -98,8 +94,8 @@ func (t *Image) handlers() cache.ResourceEventHandler {
 	}
 }
 
-// eventProcessor reads our events calling syncImage for all of them. Uses t.tokens
-// to control how many images are processed in parallel.
+// eventProcessor reads our events calling syncImage for all of them. Uses t.tokens to control
+// how many images are processed in parallel.
 func (t *Image) eventProcessor(wg *sync.WaitGroup) {
 	var running sync.WaitGroup
 	defer wg.Done()
@@ -142,10 +138,9 @@ func (t *Image) eventProcessor(wg *sync.WaitGroup) {
 	}
 }
 
-// syncImage process an event for an image stream. A max of three minutes is
-// allowed per image stream sync.
+// syncImage process an event for an Image. A max of one minute is allowed per image sync.
 func (t *Image) syncImage(namespace, name string) error {
-	ctx, cancel := context.WithTimeout(t.appctx, 3*time.Minute)
+	ctx, cancel := context.WithTimeout(t.appctx, time.Minute)
 	defer cancel()
 
 	it, err := t.imgsvc.Get(ctx, namespace, name)

@@ -1,4 +1,4 @@
-// Copyright 2020 The Imageger Authors.
+// Copyright 2020 The Tagger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,21 +32,21 @@ import (
 	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
 )
 
-// ImageImportValidator is implemented in services/imageimport.go. This abstraction
-// exists to make tests easier. It is anything capable of checking if a given
-// ImageImport is valid (contain all needed fields and refers to a valid Image).
+// ImageImportValidator is implemented in services/imageimport.go. This abstraction exists to make
+// tests easier. It is anything capable of checking if a given ImageImport is valid (contain all
+// needed fields and refers to a valid Image).
 type ImageImportValidator interface {
 	Validate(context.Context, *imgv1b1.ImageImport) error
 }
 
-// ImageValidator is implemented in services/image.go. Validates that provided Image
-// contain all mandatory fields.
+// ImageValidator is implemented in services/image.go. Validates that provided Image contain all
+// mandatory fields.
 type ImageValidator interface {
 	Validate(context.Context, *imgv1b1.Image) error
 }
 
-// MutatingWebHook handles Mutation requests from kubernetes api.
-// I.E. validate Image objects.
+// MutatingWebHook handles Mutation requests from kubernetes api, e.g. validate Image and
+// ImageImport objects.
 type MutatingWebHook struct {
 	key     string
 	cert    string
@@ -56,9 +56,10 @@ type MutatingWebHook struct {
 	decoder runtime.Decoder
 }
 
-// NewMutatingWebHook returns a web hook handler for kubernetes api
-// mutation requests. This webhook validate Image objects when user saves
-// them.
+// NewMutatingWebHook returns a web hook handler for kubernetes api mutation requests. This
+// webhook validate Image and ImageImport objects when user saves them. This function will
+// panic if certificates are not found under "olmCertDir". When deploying this operator using
+// OLM the certificates will be automatically mounted in this location.
 func NewMutatingWebHook(tival ImageImportValidator, imgval ImageValidator) *MutatingWebHook {
 	runtimeScheme := runtime.NewScheme()
 	codecs := serializer.NewCodecFactory(runtimeScheme)
@@ -79,15 +80,13 @@ func (m *MutatingWebHook) Name() string {
 	return "mutating webhook"
 }
 
-// RequiresLeaderElection returns if this controller requires or not a
-// leader lease to run.
+// RequiresLeaderElection returns if this controller requires or not a leader lease to run.
 func (m *MutatingWebHook) RequiresLeaderElection() bool {
 	return false
 }
 
-// responseError writes in the provided ResponseWriter an AdmissionReview
-// with response status set to an error. If AdmissionReview contains an UID
-// that is inserted into the reply.
+// responseError writes in the provided ResponseWriter an AdmissionReview with response status set
+// to an error. If AdmissionReview contains an UID that is inserted into the reply as well.
 func (m *MutatingWebHook) responseError(
 	w http.ResponseWriter, req *admnv1.AdmissionReview, err error,
 ) {
@@ -117,8 +116,7 @@ func (m *MutatingWebHook) responseError(
 	_, _ = w.Write(resp)
 }
 
-// responseAuthorized informs kubernetes the object creation is authorized
-// without modifications.
+// responseAuthorized informs kubernetes the object creation is authorized without modifications.
 func (m *MutatingWebHook) responseAuthorized(w http.ResponseWriter, req *admnv1.AdmissionReview) {
 	var ruid types.UID
 	if req.Request != nil {
@@ -171,7 +169,7 @@ func (m *MutatingWebHook) imageimport(w http.ResponseWriter, r *http.Request) {
 
 	timp := &imgv1b1.ImageImport{}
 	if err := json.Unmarshal(reviewReq.Request.Object.Raw, timp); err != nil {
-		klog.Errorf("unable to decode image: %s", err)
+		klog.Errorf("unable to decode image import: %s", err)
 		m.responseError(w, reviewReq, err)
 		return
 	}
@@ -201,7 +199,7 @@ func (m *MutatingWebHook) imageimport(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
-// image is our http handler for image validation.
+// image is our http handler for Image validation.
 func (m *MutatingWebHook) image(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

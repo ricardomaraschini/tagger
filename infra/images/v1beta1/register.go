@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-//SchemeGroupVersion is the group/version for image tag resources.
+//SchemeGroupVersion is the group/version for Image resources.
 var SchemeGroupVersion = schema.GroupVersion{
 	Group:   "tagger.dev",
 	Version: "v1beta1",

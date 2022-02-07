@@ -34,16 +34,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// We use dockerAuthConfig to unmarshal a default docker configuration present on
-// secrets of type SecretTypeDockerConfigJson. XXX doesn't containers/image export
-// a similar structure? Of maybe even a function to parse a docker configuration
-// file?
+// We use dockerAuthConfig to unmarshal a default docker configuration present on secrets of
+// type SecretTypeDockerConfigJson. XXX doesn't containers/image export a similar structure?
+// Or maybe even a function to parse a docker configuration file?
 type dockerAuthConfig struct {
 	Auths map[string]types.DockerAuthConfig
 }
 
-// MirrorRegistryConfig holds the needed data that allows tagger to contact the
-// mirror registry.
+// MirrorRegistryConfig holds the needed data that allows tagger to contact the mirror registry.
 type MirrorRegistryConfig struct {
 	Address    string
 	Username   string
@@ -53,56 +51,42 @@ type MirrorRegistryConfig struct {
 	Insecure   bool
 }
 
-// LocalRegistryHostingV1 describes a local registry that developer tools can
-// connect to. A local registry allows clients to load images into the local
-// cluster by pushing to this registry. This is a verbatim copy of what is
-// in the enhancement proposal in https://github.com/kubernetes/enhancements/
-// repo: keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+// LocalRegistryHostingV1 describes a local registry that developer tools can connect to. A local
+// registry allows clients to load images into the local cluster by pushing to this registry.
+// This is a verbatim copy of what is in the enhancement proposal at
+// https://github.com/kubernetes/enhancements repo
+// keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 type LocalRegistryHostingV1 struct {
-	// Host documents the host (hostname and port) of the registry, as seen from
-	// outside the cluster.
-	//
-	// This is the registry host that tools outside the cluster should push images
+	// Host documents the host (hostname and port) of the registry, as seen from outside the
+	// cluster. This is the registry host that tools outside the cluster should push images
 	// to.
 	Host string `yaml:"host,omitempty"`
 
-	// HostFromClusterNetwork documents the host (hostname and port) of the
-	// registry, as seen from networking inside the container pods.
-	//
-	// This is the registry host that tools running on pods inside the cluster
-	// should push images to. If not set, then tools inside the cluster should
-	// assume the local registry is not available to them.
+	// HostFromClusterNetwork documents the host (hostname and port) of the registry, as seen
+	// from networking inside the container pods. This is the registry host that tools running
+	// on pods inside the cluster should push images to. If not set, then tools inside the
+	// cluster should assume the local registry is not available to them.
 	HostFromClusterNetwork string `yaml:"hostFromClusterNetwork,omitempty"`
 
-	// HostFromContainerRuntime documents the host (hostname and port) of the
-	// registry, as seen from the cluster's container runtime.
-	//
-	// When tools apply Kubernetes objects to the cluster, this host should be
-	// used for image name fields. If not set, users of this field should use the
-	// value of Host instead.
-	//
-	// Note that it doesn't make sense semantically to define this field, but not
-	// define Host or HostFromClusterNetwork. That would imply a way to pull
-	// images without a way to push images.
+	// HostFromContainerRuntime documents the host (hostname and port) of the registry, as
+	// seen from the cluster's container runtime. When tools apply Kubernetes objects to the
+	// cluster, this host should be used for image name fields. If not set, users of this
+	// field should use the value of Host instead. Note that it doesn't make sense
+	// semantically to define this field, but not define Host or HostFromClusterNetwork. That
+	// would imply a way to pull images without a way to push images.
 	HostFromContainerRuntime string `yaml:"hostFromContainerRuntime,omitempty"`
 
-	// Help contains a URL pointing to documentation for users on how to set
-	// up and configure a local registry.
-	//
-	// Tools can use this to nudge users to enable the registry. When possible,
-	// the writer should use as permanent a URL as possible to prevent drift
-	// (e.g., a version control SHA).
-	//
-	// When image pushes to a registry host specified in one of the other fields
-	// fail, the tool should display this help URL to the user. The help URL
-	// should contain instructions on how to diagnose broken or misconfigured
-	// registries.
+	// Help contains a URL pointing to documentation for users on how to set up and configure
+	// a local registry. Tools can use this to nudge users to enable the registry.
+	// When possible, the writer should use as permanent a URL as possible to prevent drift
+	// (e.g., a version control SHA). When image pushes to a registry host specified in one of
+	// the other fields fail, the tool should display this help URL to the user. The help URL
+	// should contain instructions on how to diagnose broken or misconfigured registries.
 	Help string `yaml:"help,omitempty"`
 }
 
-// SysContext groups tasks related to system context/configuration, deal
-// with things such as configured docker authentications or unqualified
-// registries configs.
+// SysContext groups tasks related to system context/configuration, deal with things such as
+// configured docker authentications or unqualified registries configs.
 type SysContext struct {
 	sclister              corelister.SecretLister
 	cmlister              corelister.ConfigMapLister
@@ -125,15 +109,15 @@ func NewSysContext(corinf informers.SharedInformerFactory) *SysContext {
 	}
 }
 
-// UnqualifiedRegistries returns the list of unqualified registries configured on
-// the system. XXX this is a place holder as we most likely gonna need to read this
-// from a configuration somewhere.
+// UnqualifiedRegistries returns the list of unqualified registries configured on the system.
+// XXX this is a place holder as we most likely gonna need to read this from a configuration
+// somewhere.
 func (s *SysContext) UnqualifiedRegistries(ctx context.Context) ([]string, error) {
 	return s.unqualifiedRegistries, nil
 }
 
-// ParseMirrorRegistryConfig reads configmap local-registry-hosting from kube-public
-// namespace, parses its content and returns the local registry configuration.
+// ParseMirrorRegistryConfig reads configmap local-registry-hosting from kube-public namespace,
+// parses its content and returns the local registry configuration.
 func (s *SysContext) ParseMirrorRegistryConfig() (*LocalRegistryHostingV1, error) {
 	cm, err := s.cmlister.ConfigMaps("kube-public").Get("local-registry-hosting")
 	if err != nil {
@@ -173,9 +157,8 @@ func (s *SysContext) MirrorConfig() (MirrorRegistryConfig, error) {
 	}, nil
 }
 
-// ParseTaggerMirrorRegistryConfig parses a secret called "mirror-registry-config" in
-// the pod namespace. This secret holds information on how to connect to the mirror
-// registry.
+// ParseTaggerMirrorRegistryConfig parses a secret called "mirror-registry-config" in the pod
+// namespace. This secret holds information on how to connect to the mirror registry.
 func (s *SysContext) ParseTaggerMirrorRegistryConfig() (MirrorRegistryConfig, error) {
 	var zero MirrorRegistryConfig
 
@@ -248,10 +231,9 @@ func (s *SysContext) MirrorRegistryContext(ctx context.Context) *types.SystemCon
 	}
 }
 
-// SystemContextsFor builds a series of types.SystemContexts, all of them
-// using one of the auth credentials present in the namespace. The last
-// entry is always a nil SystemContext, this last entry means "no auth".
-// Insecure indicate if the returned SystemContexts tolerate invalid tls
+// SystemContextsFor builds a series of types.SystemContexts, all of them using one of the auth
+// credentials present in the namespace. The last entry is always a nil SystemContext, this last
+// entry means "no auth". Insecure indicate if the returned SystemContexts tolerate invalid TLS
 // certificates.
 func (s *SysContext) SystemContextsFor(
 	ctx context.Context,
@@ -259,10 +241,9 @@ func (s *SysContext) SystemContextsFor(
 	namespace string,
 	insecure bool,
 ) ([]*types.SystemContext, error) {
-	// if imgref points to an image hosted in our mirror registry we
-	// return a SystemContext using default user and pass (the ones
-	// user has configured tagger with). XXX i am not sure yet this
-	// is a good idea permission wide.
+	// if imgref points to an image hosted in our mirror registry we return a SystemContext
+	// using default user and pass (the ones user has configured tagger with). XXX i am not
+	// sure yet this is a good idea permission wide.
 	domain := reference.Domain(imgref.DockerReference())
 	regaddr, _, err := s.MirrorRegistryAddresses()
 	if err != nil {
@@ -290,9 +271,9 @@ func (s *SysContext) SystemContextsFor(
 		}
 	}
 
-	// here we append a SystemContext without authentications set,
-	// we want to allow imports without using authentication. This
-	// entry will be nil if we want to use the system defaults.
+	// here we append a SystemContext without authentications set, we want to allow imports
+	// without using authentication. This entry will be nil if we want to use the system
+	// defaults.
 	var noauth *types.SystemContext
 	if insecure {
 		noauth = &types.SystemContext{
@@ -304,9 +285,8 @@ func (s *SysContext) SystemContextsFor(
 	return ctxs, nil
 }
 
-// authsFor return configured authentications for the registry hosting
-// the image reference. Namespace is the namespace from where read docker
-// authentications.
+// authsFor return configured authentications for the registry hosting the image reference.
+// Namespace is the namespace from where read docker authentications.
 func (s *SysContext) authsFor(
 	ctx context.Context, imgref types.ImageReference, namespace string,
 ) ([]*types.DockerAuthConfig, error) {
@@ -347,8 +327,7 @@ func (s *SysContext) authsFor(
 	return dockerAuths, nil
 }
 
-// DefaultPolicyContext returns the default policy context. XXX this should
-// be reviewed.
+// DefaultPolicyContext returns the default policy context. XXX this should be reviewed.
 func (s *SysContext) DefaultPolicyContext() (*signature.PolicyContext, error) {
 	pol := &signature.Policy{
 		Default: signature.PolicyRequirements{
@@ -358,8 +337,8 @@ func (s *SysContext) DefaultPolicyContext() (*signature.PolicyContext, error) {
 	return signature.NewPolicyContext(pol)
 }
 
-// GetRegistryStore creates an instance of an Registry store entity configured
-// to use our internal registry as underlying storage.
+// GetRegistryStore creates an instance of an Registry store entity configured to use our mirror
+// registry as underlying storage.
 func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry, error) {
 	defpol, err := s.DefaultPolicyContext()
 	if err != nil {
@@ -375,13 +354,12 @@ func (s *SysContext) GetRegistryStore(ctx context.Context) (*imagestore.Registry
 	return imagestore.NewRegistry(mcfg.Address, mcfg.Repository, sysctx, defpol), nil
 }
 
-// RegistriesToSearch returns a list of registries to be used when looking for
-// an image. It is either the provided domain or a list of unqualified domains
-// configured globally and returned by UnqualifiedRegistries(). This function
-// is used when trying to understand what an user means when she/he simply asks
-// to import an image called "centos:latest" for instance,  in what registries
-// do we need to look for this image? This is the place where we can implement
-// a mirror search.
+// RegistriesToSearch returns a list of registries to be used when looking for an image. It is
+// either the provided domain or a list of unqualified domains configured globally and returned
+// by UnqualifiedRegistries(). This function is used when trying to understand what an user means
+// when she/he simply asks to import an image called "centos:latest" for instance, in what
+// registries do we need to look for this image? This is the place where we can implement a mirror
+// search.
 func (s *SysContext) RegistriesToSearch(ctx context.Context, domain string) ([]string, error) {
 	if domain != "" {
 		return []string{domain}, nil
