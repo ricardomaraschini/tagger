@@ -16,6 +16,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -33,6 +34,9 @@ var (
 	ImageKind = "Image"
 	// ImageImportKind holds the kind we use when saving ImageImports in the k8s API.
 	ImageImportKind = "ImageImport"
+	// FlaggedForDeletionAnnotation is the annotation set in an object whenever the operator
+	// feels like it has no use for it.
+	FlaggedForDeletionAnnotation = "tagger.dev/delete"
 )
 
 // +genclient
@@ -89,6 +93,39 @@ func (t *Image) Validate() error {
 		return fmt.Errorf("empty spec.from")
 	}
 	return nil
+}
+
+// FlagForDeletion is used whenever we don't want this instance anymore. This Annotation does
+// not indicate anything at the k8s scope and it is solely used inside this operator. The value
+// in the annotation is the current date and time encoded as time.ANSIC.
+func (t *ImageImport) FlagForDeletion() {
+	if t.Annotations == nil {
+		t.Annotations = map[string]string{}
+	}
+	t.Annotations[FlaggedForDeletionAnnotation] = time.Now().Format(time.ANSIC)
+}
+
+// FlaggedForDeletion returns if this ImageImport is flagged for deletion. Inspects the
+// object's Annotations.
+func (t *ImageImport) FlaggedForDeletion() bool {
+	_, ok := t.Annotations[FlaggedForDeletionAnnotation]
+	return ok
+}
+
+// FlaggedForDeletionDuration returns the amount of time that has passed since the ImageImport
+// was flagged for deletion.
+func (t *ImageImport) FlaggedForDeletionDuration() (time.Duration, error) {
+	if !t.FlaggedForDeletion() {
+		return 0, fmt.Errorf("image import not flagged for deletion")
+	}
+
+	strsince := t.Annotations[FlaggedForDeletionAnnotation]
+	since, err := time.Parse(time.ANSIC, strsince)
+	if err != nil {
+		return 0, fmt.Errorf("bogus %s annotation: %w", FlaggedForDeletionAnnotation, err)
+	}
+
+	return time.Now().Sub(since), nil
 }
 
 // CurrentReferenceForImage looks through provided Image  and returns the most recent imported

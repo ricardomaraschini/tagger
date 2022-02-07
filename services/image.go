@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
 	imgclient "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
@@ -76,7 +77,7 @@ func (t *Image) RecentlyFinishedImports(
 
 	var sortme []imgv1b1.ImageImport
 	for _, imp := range imports {
-		if !imp.AlreadyImported() || !imp.OwnedByImage(img) {
+		if !imp.AlreadyImported() || !imp.OwnedByImage(img) || imp.FlaggedForDeletion() {
 			continue
 		}
 
@@ -125,6 +126,24 @@ func (t *Image) Sync(ctx context.Context, img *imgv1b1.Image) error {
 	); err != nil {
 		return fmt.Errorf("error updating image: %w", err)
 	}
+
+	// Now that we have successfully saved the ImageImports inside the Image object we
+	// can flag them for deletion. We ignore any errors here, the flagging process will
+	// be retried during next Sync call.
+	for _, imp := range newimports {
+		imp.FlagForDeletion()
+		if _, err := t.imgcli.TaggerV1beta1().ImageImports(img.Namespace).Update(
+			ctx, &imp, metav1.UpdateOptions{},
+		); err != nil {
+			klog.V(5).Infof(
+				"unable to flag image import for deletion %s/%s: %s",
+				imp.Namespace,
+				imp.Name,
+				err,
+			)
+		}
+	}
+
 	return nil
 }
 
