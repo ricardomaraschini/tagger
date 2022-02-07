@@ -124,12 +124,50 @@ func (t *ImageImport) NewImageFor(
 	return imgsvc.NewImage(ctx, opts)
 }
 
+// Delete deletes an ImageImport according to some rules. In order to delete an import this
+// import must be flagged for deletion for at least one hour. The exception made is if the
+// import has a bogus or "unparseable" deletion timestamp, then we log the fact and delete.
+// We only return an error when we actually attempt to delete using k8s api, if the import
+// is filtered out by any of the forementioned rules a nil is returned instead.
+func (t *ImageImport) Delete(ctx context.Context, ii *imgv1b1.ImageImport) error {
+	if !ii.FlaggedForDeletion() {
+		return nil
+	}
+
+	// we save all ImageImport whose deletion flags are readable and they have been
+	// flagged less than one hour ago.
+	duration, err := ii.FlaggedForDeletionDuration()
+	if err == nil && duration < time.Hour {
+		return nil
+	}
+
+	// if we could not parse the deletion flag then we at least log this fact. We
+	// gonna go ahead and delete them.
+	if err != nil {
+		klog.Infof("deleting %s/%s: %s", ii.Namespace, ii.Name, err)
+	}
+
+	return t.imgcli.TaggerV1beta1().ImageImports(ii.Namespace).Delete(
+		ctx, ii.Name, metav1.DeleteOptions{},
+	)
+}
+
 // Sync manages image import change, assuring we have the image imported. Beware that we change
 // ImageImport in place before updating it on api server, i.e. use DeepCopy() before passing the
 // image import in.
 func (t *ImageImport) Sync(ctx context.Context, ii *imgv1b1.ImageImport) error {
-	if len(ii.Spec.TargetImage) == 0 {
-		return fmt.Errorf("image import without target image")
+	if err := ii.Validate(); err != nil {
+		return fmt.Errorf("invalid image import: %w", err)
+	}
+
+	if ii.FlaggedForDeletion() {
+		if err := t.Delete(ctx, ii); err != nil {
+			klog.V(5).Infof(
+				"unable to delete image import %s/%s: %s",
+				ii.Namespace, ii.Name, err,
+			)
+		}
+		return nil
 	}
 
 	if ii.AlreadyImported() {
@@ -137,8 +175,20 @@ func (t *ImageImport) Sync(ctx context.Context, ii *imgv1b1.ImageImport) error {
 		return nil
 	}
 
+	// if no more attempts are going to be made on this ImageImport we can flag it for
+	// deletion. Deletion tends to take a while, check Delete() func for more on this.
 	if ii.FailedImportAttempts() >= imgv1b1.MaxImportAttempts {
-		klog.Infof("image %s/%s has failed to import", ii.Namespace, ii.Name)
+		ii.FlagForDeletion()
+		if _, err := t.imgcli.TaggerV1beta1().ImageImports(ii.Namespace).Update(
+			ctx, ii, metav1.UpdateOptions{},
+		); err != nil {
+			klog.V(5).Infof(
+				"unable to flag image import %s/%s for deletion: %s",
+				ii.Namespace, ii.Name, err,
+			)
+		}
+
+		klog.Infof("image import %s/%s has failed", ii.Namespace, ii.Name)
 		return nil
 	}
 
@@ -188,7 +238,7 @@ func (t *ImageImport) Sync(ctx context.Context, ii *imgv1b1.ImageImport) error {
 		return fmt.Errorf("fail importing %s/%s: %w", ii.Namespace, ii.Name, err)
 	}
 
-	metrics.ImportSuccesses.Inc()
+	ii.RegisterImportSuccess()
 	ii.Status.HashReference = hashref
 	if _, err = t.imgcli.TaggerV1beta1().ImageImports(ii.Namespace).UpdateStatus(
 		ctx, ii, metav1.UpdateOptions{},
@@ -196,6 +246,7 @@ func (t *ImageImport) Sync(ctx context.Context, ii *imgv1b1.ImageImport) error {
 		return fmt.Errorf("error updating image import: %w", err)
 	}
 
+	metrics.ImportSuccesses.Inc()
 	klog.Infof("image import %s/%s processed.", ii.Namespace, ii.Name)
 	return nil
 }

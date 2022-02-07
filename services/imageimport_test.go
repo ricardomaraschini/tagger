@@ -108,7 +108,7 @@ func TestImageImportSync(t *testing.T) {
 		},
 		{
 			name:    "empty target img",
-			err:     "image import without target image",
+			err:     "empty spec.targetImage",
 			succeed: false,
 			timp: &imgv1b1.ImageImport{
 				ObjectMeta: metav1.ObjectMeta{
