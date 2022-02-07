@@ -9,24 +9,24 @@ this, Container Runtimes rely on remote registries (from the cluster's point of 
 obtaining Container Images, potentially making the process of pulling their blobs (manifests,
 config, and layers) slower.
 
-The notion of indexing Container Image versions by tags is helpful. Still, it does not provide
-users with the right confidence to always use the intended Container Image – today's "latest"
-tag might not be tomorrow's "latest" tag. In addition to that, these Image Registries allow
-access to Container Images by their Manifest content's hash (i.e., usually sha256), which gives
-users the confidence at a cost in semantics.
+The notion of indexing Container Image versions by "tags" is helpful. Still it does not provide
+users with the right confidence to always pull the intended Container Image – today's "latest"
+tag may not be tomorrow's "latest" tag. In addition to that, these Image Registries allow access
+to Container Images by their Manifest content's hash (i.e., usually sha256), which gives users the
+confidence at a cost in semantics.
 
 When releasing a new version of an application to Push and to Deploy are split into two distinct
 steps. Both the pusher and the puller need access to the same Image Registry, adding complexity.
 Credentials are one example of the concerns. Other factors may pop up when running, for instance,
-in an air-gapped environment, where the cluster may not reach external Image Registries.
+in an air-gapped environment, where the cluster may not be ablt to reach external Registries.
 
 Tagger aims to overcome these caveats by providing an image management abstraction layer. For
 instance, by providing a direct mapping between a Container Image tag (e.g., "latest") and its
 correspondent Manifest content's hash.
 
-When integrated with a Internal or Mirror Registry, Tagger allows users to push or pull Images
-directly without requiring an external Image Registry. It works as a layer between the user and
-the Internal Registry.
+When integrated with an Internal or Mirror Registry, Tagger allows users to mirror remotely hosted
+images into the cluster and to push or pull Images directly without requiring an external Image
+Registry. It works as a layer between the user and the Internal or Mirror Registry.
 
 In summary, Tagger mirrors remote Container Images into a Kubernetes cluster, provides an
 interface allowing users to pull and push images directly to the Kubernetes cluster.
@@ -42,50 +42,27 @@ creates references to image tags using their respective hashes (a hash, in such 
 may be considered a "fixed point in time" for a given image tag). Every time one imports an
 image Tagger creates a new reference for that image tag,
 
-### Architecture
+### Usage examples
 
-![Tagger architecture](./assets/architecture.png)
-
-### Mirroring images
-
-Tagger allows administrators to mirror images locally within the cluster. You need to have an
-image registry running inside the cluster (or anywhere else) and ask `Tagger` to do the mirror.
-By doing so a copy of the remote image is going to be made into the mirror registry.
-
-### How to use
-
-Tagger leverages a _custom resource definition_ called Image. An Image represents an image tag
-in a remote registry. For instance, a Image called `myapp-devel` may be created to keep track of
-the image `quay.io/company/myapp:latest`. An Image _custom resource_ layout looks like this:
-
-```yaml
-apiVersion: tagger.dev/v1beta1
-kind: Image
-metadata:
-  name: myapp-devel
-spec:
-  from: quay.io/company/myapp:latest
-  mirror: false
-  insecure: false
-```
-
-Users can mirror an Image by running the following command:
+In order to use `kubectl image` you gonna need to install `kubectl-image` plugin, there is
+a section below showing how to properly compile it. The following command mirrors into the
+cluster a Container Image hosted in quay.io:
 
 ```
 $ kubectl image import operator --from quay.io/tagger/operator:latest --mirror
 ```
 
-This will create an Image called `operator` and once that is done a new ImageImport instance
-will be created (Tagger will act on created ImageImport and assure the image is imported). After
-a few seconds the ImageImport should be present in the namespace:
+Users can observe the mirror process by inspected the created ImageImport object:
 
 ```
 $ kubectl get imageimports.tagger
-NAME                INSECURE   MIRROR   TARGETIMAGE   IMPORTEDAT             IMAGEREFERENCE
-operator-efe3380a   false      true     operator      2022-02-06T19:06:24Z   <redacted>
+NAME         INSECURE   MIRROR   TARGETIMAGE   IMPORTEDAT             IMAGEREFERENCE
+operator-0   false      true     operator      2022-02-06T19:06:24Z   mirror.registry/ns/name@sha
 ```
 
-Once it is imported we can see the image reference inside the `operator` Image:
+Once the ImageImport got processed its `status.hashReference.imageReference` property will be not
+empty. After a while the result of the import/mirror will be copied to an image called `operator`,
+users can observe this by inspecting the `operator` image inside the same namespace:
 
 ```
 $ kubectl get images.tagger operator -o yaml
@@ -101,82 +78,107 @@ spec:
 status:
   hashReferences:
   - from: quay.io/tagger/operator:latest
-    imageReference: <redacted>
+    imageReference: mirror.registry/ns/name@<sha>
     importedAt: "2022-02-06T19:06:24Z"
 ```
 
+Once you have an Image created you don't need to provide the `--from` flag if you want to import
+the image from the same repository again. Imagining that eventually `operator:latest` will differ
+from the version we just mirrored users can issue the following command:
 
-### Image structure
+```
+$ kubectl image import operator
+```
 
-On an Image `.spec` property these fields are valid:
+This command will locate an Image called `operator` and mirror it again. Once again we will have
+an ImageImport object being processed by Tagger and eventually the `operator` Image will be
+updated to contain a second `hashReference` (the result of the new mirror command):
+
+```
+$ kubectl get images.tagger operator -o yaml
+apiVersion: tagger.dev/v1beta1
+kind: Image
+metadata:
+  name: operator
+  namespace: namespace
+spec:
+  from: quay.io/tagger/operator:latest
+  insecure: false
+  mirror: true
+status:
+  hashReferences:
+  - from: quay.io/tagger/operator:latest
+    imageReference: mirror.registry/ns/name@<another-sha>
+    importedAt: "2022-02-06T19:09:24Z"
+  - from: quay.io/tagger/operator:latest
+    imageReference: mirror.registry/ns/name@<sha>
+    importedAt: "2022-02-06T19:06:24Z"
+```
+
+Once ImportImage objects have been fully processed and are already showing up inside an Image
+object they can be safely deleted from the cluster.
+
+### Architecture
+
+![Tagger architecture](./assets/architecture.png)
+
+### Mirroring images
+
+Tagger allows administrators to mirror images locally within the cluster. You need to have an
+image registry running inside the cluster (or anywhere else) and ask `Tagger` to do the mirror.
+By doing so a copy of the remote image is going to be made into the mirror registry.
+
+### Tagger Image CRD structure
+
+Tagger leverages a _custom resource definition_ called Image. An Image represents an image tag
+in a remote registry. For instance, a Image called `myapp-devel` may be created to keep track of
+the image `quay.io/company/myapp:devel`. An Image _custom resource_ layout looks like this:
+
+```yaml
+$ kubectl get images.tagger operator -o yaml
+apiVersion: tagger.dev/v1beta1
+kind: Image
+metadata:
+  name: myapp-devel
+  namespace: namespace
+spec:
+  from: quay.io/company/myapp:devel
+  insecure: false
+  mirror: true
+status:
+  hashReferences:
+  - from: quay.io/company/myapp:devel
+    imageReference: mirror.registry.io/namespace/myapp-devel@<sha>
+    importedAt: "2022-02-06T19:06:24Z"
+```
+
+On an Image `.spec` property the following fields are valid:
 
 | Property   | Description                                                                       |
 | ---------- | --------------------------------------------------------------------------------- |
 | from       | Indicates the source of the image (from where Tagger should import it)            |
-| mirror     | Informs if the Image should be mirrored to another registry, more on this below   |
+| mirror     | Informs if the Image should be mirrored to another registry                       |
 | insecure   | Indicates that Tagger should skip tls verification during the image import/mirror |
-
-
-#### Mirroring images locally
-
-If mirroring is set in an Image Tagger will mirror the image content into another registry provided
-by the user.  To mirror images locally one needs to inform Tagger about the mirror registry
-location. There are two ways of doing so, the first one is by following a Kubernetes enhancement
-proposal laid down [here](https://bit.ly/3rxCRqH). This enhancement proposal still does not cover
-things such as authentication thus should not be used in production. Tagger can also be informed
-of the mirror registry location through a Secret called `mirror-registry-config`, this secret may
-contain the following properties:
-
-| Name       | Description                                                                       |
-| -----------| --------------------------------------------------------------------------------- |
-| address    | The mirror registry URL                                                           |
-| username   | Username Tagger should use when accessing the mirror registry                     |
-| password   | The password to be used by Tagger                                                 |
-| token      | The auth token to be used by Tagger (optional)                                    |
-| insecure   | Allows Tagger to access insecure registry if set to "true" (string)               |
-| repository | If set Tagger will mirror all images inside the same Registry repository          |
-
-Follow below an example of a `mirror-registry-config` Secret:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mirror-registry-config
-  namespace: tagger
-data:
-  address: cmVnaXN0cnkuaW8=
-  username: YWRtaW4=
-  password: d2hhdCB3ZXJlIHlvdSB0aGlua2luZz8K
-```
-
-Mirrored Images are stored in a repository with the Namespace's name used for the Image, for
-example, an Image living in the `development` namespace will be mirrored in
-`internal.registry/development/` repository.
-
-#### Importing images from private registries
-
-Tagger supports importing images from private registries, for that to work one needs to define a
-secret with the registry credentials on the same Namespace where the Image lives. This secret must
-be of type `kubernetes.io/dockerconfigjson`. You can find more information about these secrets at
-https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
-
-### Image status
 
 Follow below the properties found on an Image`.status` property and their meaning:
 
 | Name              | Description                                                                |
 | ----------------- | -------------------------------------------------------------------------- |
-| references        | A list of all imported references (aka generations)                        |
+| hashReferences    | A list of all imported references (aka generations)                        |
 
-The property `.status.references` is an array of imports executed, Tagger currently holds up to
-twenty five references for any given imabe. Every item on the array is composed of the following
+The property `.status.hashReferences` is an array of imports executed, Tagger currently holds up to
+twenty five references for any given image. Every item on the array is composed of the following
 properties:
 
+| Name           | Description                                                                   |
+| -------------- | ----------------------------------------------------------------------------- |
+| from           | From where this image was imported, generally points to an image by tag       |
+| importedAt     | Date and time of the import                                                   |
+| imageReference | Where this reference points to (by sha), may point to the mirror registry     |
 
-### Image import
+### Tagger ImageImport CRD structure
 
-Users can also import new Images by creating instances of ImageImport CR:
+Users can import new Images by creating instances of ImageImport custom resource:
 
 ```yaml
 apiVersion: tagger.dev/v1beta1
@@ -220,6 +222,55 @@ As for `.status.importAttempts` the following is valid:
 | succeed | A boolean indicating if the import was successful or not                             |
 | reason  | In case of failure (succeed = false), what was the error                             |
 
+
+#### Mirroring images locally
+
+If mirroring is set in an Image Tagger will mirror the image content into another registry provided
+by the user.  To mirror images locally one needs to inform Tagger about the mirror registry
+location. There are two ways of doing so, the first one is by following a Kubernetes enhancement
+proposal laid down [here](https://bit.ly/3rxCRqH). This enhancement proposal still does not cover
+things such as authentication thus should not be used in production. Tagger can also be informed
+of the mirror registry location through a Secret called `mirror-registry-config`, this secret may
+contain the following properties:
+
+| Name       | Description                                                                       |
+| -----------| --------------------------------------------------------------------------------- |
+| address    | The mirror registry URL                                                           |
+| username   | Username Tagger should use when accessing the mirror registry                     |
+| password   | The password to be used by Tagger                                                 |
+| token      | The auth token to be used by Tagger (optional)                                    |
+| insecure   | Allows Tagger to access insecure registry if set to "true" (string)               |
+| repository | If set Tagger will mirror all images inside the same Registry repository          |
+
+Important to notice that, by default, Tagger will create one repository per namespace so the user
+has to have enough permissiosn to do such an operator (create new repositories and push images to
+them). In other words: by default images are mirrored at `mirror.registry.io/namespace/imagename`
+inside the registry.
+
+If your user doesn't have such permissions you can set up the `repository` property in the config,
+by doing so all images are going to be mirrored inside the provided `repository`, in other words
+images will be mirrored at `mirror.registry.io/repository/namespace-imagename`.
+
+Follow below an example of a `mirror-registry-config` Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mirror-registry-config
+  namespace: tagger
+data:
+  address: cmVnaXN0cnkuaW8=
+  username: YWRtaW4=
+  password: d2hhdCB3ZXJlIHlvdSB0aGlua2luZz8K
+```
+
+#### Importing images from private registries
+
+Tagger supports importing images from private registries, for that to work one needs to define a
+secret with the registry credentials on the same Namespace where the Image lives. This secret must
+be of type `kubernetes.io/dockerconfigjson`. You can find more information about these secrets at
+https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 
 ### Deploying
 
@@ -293,11 +344,11 @@ $ kubectl edit secret certs
 $ kubectl edit mutatingwebhookconfigurations tagger
 ```
 
-### Building kubectl plugin
+### Building kubectl-image plugin
 
 To build the kubectl image plugin you gonna need to install a few dependencies. Depending on the
 distribution you are using the packages may be named differently. To install on a Fedora release
-you can use the following commands (from within Tagger's repository root directory):
+you can run the following commands (from within Tagger's repository root directory):
 
 ```
 sudo dnf install -y \
