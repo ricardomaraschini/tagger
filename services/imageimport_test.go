@@ -16,6 +16,8 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +41,6 @@ func TestImageImportSync(t *testing.T) {
 		corObjects []runtime.Object
 		imgObjects []runtime.Object
 		succeed    bool
-		importErr  string
 	}{
 		{
 			name:    "already imported",
@@ -49,8 +50,25 @@ func TestImageImportSync(t *testing.T) {
 					Namespace: "default",
 					Name:      "empty-img",
 				},
+				Spec: imgv1b1.ImageImportSpec{
+					TargetImage: "empty-img",
+				},
 				Status: imgv1b1.ImageImportStatus{
 					HashReference: &imgv1b1.HashReference{},
+				},
+			},
+			imgObjects: []runtime.Object{
+				&imgv1b1.ImageImport{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "empty-img",
+					},
+					Spec: imgv1b1.ImageImportSpec{
+						TargetImage: "empty-img",
+					},
+					Status: imgv1b1.ImageImportStatus{
+						HashReference: &imgv1b1.HashReference{},
+					},
 				},
 			},
 		},
@@ -62,16 +80,35 @@ func TestImageImportSync(t *testing.T) {
 					Namespace: "default",
 					Name:      "empty-img",
 				},
+				Spec: imgv1b1.ImageImportSpec{
+					TargetImage: "empty-img",
+				},
 				Status: imgv1b1.ImageImportStatus{
 					ImportAttempts: []imgv1b1.ImportAttempt{
 						{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
 					},
 				},
 			},
+			imgObjects: []runtime.Object{
+				&imgv1b1.ImageImport{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "empty-img",
+					},
+					Spec: imgv1b1.ImageImportSpec{
+						TargetImage: "empty-img",
+					},
+					Status: imgv1b1.ImageImportStatus{
+						ImportAttempts: []imgv1b1.ImportAttempt{
+							{}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+						},
+					},
+				},
+			},
 		},
 		{
 			name:    "empty target img",
-			err:     "unable to determine image source registry",
+			err:     "image import without target image",
 			succeed: false,
 			timp: &imgv1b1.ImageImport{
 				ObjectMeta: metav1.ObjectMeta{
@@ -215,12 +252,23 @@ func TestImageImportSync(t *testing.T) {
 				} else if !strings.Contains(err.Error(), tt.err) {
 					t.Errorf("expecting %q, %q received instead", tt.err, err)
 				}
-			} else if len(tt.err) > 0 {
+				return
+			}
+
+			if len(tt.err) > 0 {
 				t.Errorf("expecting error %q, nil received instead", tt.err)
 			}
 
-			succeed := tt.timp.Status.HashReference != nil
+			outimp, err := imgcli.TaggerV1beta1().ImageImports("default").Get(
+				ctx, tt.timp.Name, metav1.GetOptions{},
+			)
+			if err != nil {
+				log.Fatalf("unable to find image import: %s", err)
+			}
+
+			succeed := outimp.Status.HashReference != nil
 			if succeed != tt.succeed {
+				fmt.Println(tt.timp.Status)
 				t.Errorf("wrong succeed(%v), received %v", tt.succeed, succeed)
 			}
 		})

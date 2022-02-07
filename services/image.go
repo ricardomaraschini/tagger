@@ -1,4 +1,4 @@
-// Copyright 2020 The Imageger Authors.
+// Copyright 2020 The Tagger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,29 +65,25 @@ func NewImage(
 
 // RecentlyFinishedImports return all ImageImport objects that refer to provided Image and have
 // been processed since the last import found in provided Image.Status.HashReferences. They are
-// returned in a sorted slice, from the oldest to the newest.
+// returned in a sorted (from oldest to newest) slice.
 func (t *Image) RecentlyFinishedImports(
-	ctx context.Context, it *imgv1b1.Image,
+	ctx context.Context, img *imgv1b1.Image,
 ) ([]imgv1b1.ImageImport, error) {
-	imports, err := t.implis.ImageImports(it.Namespace).List(labels.Everything())
+	imports, err := t.implis.ImageImports(img.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, fmt.Errorf("unable to list images: %w", err)
 	}
 
-	// remove all ImageImport not imported yet, due to failure or due to delays.
 	var sortme []imgv1b1.ImageImport
 	for _, imp := range imports {
-		if imp.Spec.TargetImage != it.Name {
-			continue
-		}
-		if !imp.AlreadyImported() {
+		if !imp.AlreadyImported() || !imp.OwnedByImage(img) {
 			continue
 		}
 
-		// do not return anything that has already been catalogued in the
-		// Image status references.
-		if len(it.Status.HashReferences) > 0 {
-			lastimport := it.Status.HashReferences[0].ImportedAt.Time
+		// do not return anything that has already been catalogued in the Image status
+		// references.
+		if len(img.Status.HashReferences) > 0 {
+			lastimport := img.Status.HashReferences[0].ImportedAt.Time
 			importtime := imp.Status.HashReference.ImportedAt.Time
 			if lastimport.After(importtime) || lastimport.Equal(importtime) {
 				continue
@@ -114,18 +110,18 @@ func (t *Image) RecentlyFinishedImports(
 // Sync manages image updates, assuring we have the image imported.  Beware that we change Image
 // in place before updating it on api server, i.e. use DeepCopy() before passing the image object
 // in.
-func (t *Image) Sync(ctx context.Context, it *imgv1b1.Image) error {
+func (t *Image) Sync(ctx context.Context, img *imgv1b1.Image) error {
 	var err error
 
-	newimports, err := t.RecentlyFinishedImports(ctx, it)
+	newimports, err := t.RecentlyFinishedImports(ctx, img)
 	if err != nil {
 		return fmt.Errorf("unable to read image imports: %w", err)
 	}
 
-	it.PrependFinishedImports(newimports)
+	img.PrependFinishedImports(newimports)
 
-	if _, err = t.imgcli.TaggerV1beta1().Images(it.Namespace).UpdateStatus(
-		ctx, it, metav1.UpdateOptions{},
+	if _, err = t.imgcli.TaggerV1beta1().Images(img.Namespace).UpdateStatus(
+		ctx, img, metav1.UpdateOptions{},
 	); err != nil {
 		return fmt.Errorf("error updating image: %w", err)
 	}
@@ -144,8 +140,8 @@ func (t *Image) Get(ctx context.Context, ns, name string) (*imgv1b1.Image, error
 
 // Validate checks if provided Image contains all mandatory fields. At this stage we only verify
 // if it contain the necessary fields.
-func (t *Image) Validate(ctx context.Context, it *imgv1b1.Image) error {
-	return it.Validate()
+func (t *Image) Validate(ctx context.Context, img *imgv1b1.Image) error {
+	return img.Validate()
 }
 
 // AddEventHandler adds a handler to Image related events.
@@ -164,7 +160,7 @@ type NewImageOpts struct {
 
 // NewImage creates and saves a new Image object. Saves it to kubernetes api before returning.
 func (t *Image) NewImage(ctx context.Context, o NewImageOpts) (*imgv1b1.Image, error) {
-	it := &imgv1b1.Image{
+	img := &imgv1b1.Image{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: o.Name,
 		},
@@ -174,5 +170,6 @@ func (t *Image) NewImage(ctx context.Context, o NewImageOpts) (*imgv1b1.Image, e
 			Insecure: o.Insecure,
 		},
 	}
-	return t.imgcli.TaggerV1beta1().Images(o.Namespace).Create(ctx, it, metav1.CreateOptions{})
+	opts := metav1.CreateOptions{}
+	return t.imgcli.TaggerV1beta1().Images(o.Namespace).Create(ctx, img, opts)
 }

@@ -23,7 +23,7 @@ FROM docker.io/fedora:34
 RUN dnf install -y device-mapper-libs
 COPY --from=builder /src/output/bin/tagger /usr/local/bin/tagger
 COPY --from=builder /src/output/bin/kubectl-image /usr/local/bin/kubectl-image
-# 8080 pod mutating webhook handler.
+# 8080 mutating webhook handlers.
 # 8083 images export/import handler.
 # 8090 metrics endpoint.
-EXPOSE 8080 8081 8082 8083 8090
+EXPOSE 8080 8083 8090

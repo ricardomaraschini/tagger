@@ -89,7 +89,7 @@ func (t *ImageImport) NewImport(ctx context.Context, o ImportOpts) (*imgv1b1.Ima
 	impid := strings.ReplaceAll(uuid.New().String(), "-", "")
 	impid = impid[0:8]
 
-	ti := &imgv1b1.ImageImport{
+	ii := &imgv1b1.ImageImport{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: o.Namespace,
 			Name:      fmt.Sprintf("%s-%s", o.TargetImage, impid),
@@ -103,21 +103,22 @@ func (t *ImageImport) NewImport(ctx context.Context, o ImportOpts) (*imgv1b1.Ima
 	}
 
 	return t.imgcli.TaggerV1beta1().ImageImports(o.Namespace).Create(
-		ctx, ti, metav1.CreateOptions{},
+		ctx, ii, metav1.CreateOptions{},
 	)
 }
 
 // NewImageFor creates a new Image object based on provided ImageImport. Embrace yourselves, from
-// now on I declare WAR on this source code!
+// now on I declare WAR on this source code! XXX it may be a good idea to merge ImageImport and
+// Image services into a single entity.
 func (t *ImageImport) NewImageFor(
-	ctx context.Context, ti *imgv1b1.ImageImport,
+	ctx context.Context, ii *imgv1b1.ImageImport,
 ) (*imgv1b1.Image, error) {
 	opts := NewImageOpts{
-		Namespace: ti.Namespace,
-		Name:      ti.Spec.TargetImage,
-		From:      ti.Spec.From,
-		Mirror:    pointer.BoolDeref(ti.Spec.Mirror, false),
-		Insecure:  pointer.BoolDeref(ti.Spec.Insecure, false),
+		Namespace: ii.Namespace,
+		Name:      ii.Spec.TargetImage,
+		From:      ii.Spec.From,
+		Mirror:    pointer.BoolDeref(ii.Spec.Mirror, false),
+		Insecure:  pointer.BoolDeref(ii.Spec.Insecure, false),
 	}
 	imgsvc := NewImage(nil, t.imgcli, nil)
 	return imgsvc.NewImage(ctx, opts)
@@ -126,63 +127,76 @@ func (t *ImageImport) NewImageFor(
 // Sync manages image import change, assuring we have the image imported. Beware that we change
 // ImageImport in place before updating it on api server, i.e. use DeepCopy() before passing the
 // image import in.
-func (t *ImageImport) Sync(ctx context.Context, ti *imgv1b1.ImageImport) error {
-	if ti.AlreadyImported() {
-		klog.Infof("import %s/%s already executed, ignoring", ti.Namespace, ti.Name)
+func (t *ImageImport) Sync(ctx context.Context, ii *imgv1b1.ImageImport) error {
+	if len(ii.Spec.TargetImage) == 0 {
+		return fmt.Errorf("image import without target image")
+	}
+
+	if ii.AlreadyImported() {
+		klog.Infof("image import %s/%s already executed", ii.Namespace, ii.Name)
 		return nil
 	}
 
-	klog.Infof("image %s/%s needs import, importing...", ti.Namespace, ti.Name)
-	if ti.FailedImportAttempts() >= imgv1b1.MaxImportAttempts {
-		klog.Infof("image %s/%s has failed to import, ignoring", ti.Namespace, ti.Name)
+	if ii.FailedImportAttempts() >= imgv1b1.MaxImportAttempts {
+		klog.Infof("image %s/%s has failed to import", ii.Namespace, ii.Name)
 		return nil
 	}
 
-	img, err := t.imgcli.TaggerV1beta1().Images(ti.Namespace).Get(
-		ctx, ti.Spec.TargetImage, metav1.GetOptions{},
+	klog.Infof("image import %s/%s needs import, importing...", ii.Namespace, ii.Name)
+	img, err := t.imgcli.TaggerV1beta1().Images(ii.Namespace).Get(
+		ctx, ii.Spec.TargetImage, metav1.GetOptions{},
 	)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("unable to get target image: %w", err)
 		}
 
-		// We will create a new Image if none exist. Why not?
-		if img, err = t.NewImageFor(ctx, ti); err != nil {
+		// We will create a new Image if none exist.
+		if img, err = t.NewImageFor(ctx, ii); err != nil {
 			return fmt.Errorf("unable to create target image: %w", err)
 		}
 
 		klog.Infof("new image %s/%s created", img.Namespace, img.Name)
 	}
 
+	if !ii.OwnedByImage(img) {
+		ii.SetOwnerImage(img)
+		if ii, err = t.imgcli.TaggerV1beta1().ImageImports(ii.Namespace).Update(
+			ctx, ii, metav1.UpdateOptions{},
+		); err != nil {
+			klog.Errorf("error setting image import owner: %s", err)
+			return fmt.Errorf("error processing image import: %w", err)
+		}
+	}
+
 	// make sure we inherited values from the target Image object. This essentially means
 	// that we must have no nil pointers in the ImageImport object.
-	ti.InheritValuesFrom(img)
-	if ti.Spec.From == "" {
+	ii.InheritValuesFrom(img)
+	if ii.Spec.From == "" {
 		return fmt.Errorf("unable to determine image source registry")
 	}
 
-	hashref, err := t.Import(ctx, ti)
+	hashref, err := t.Import(ctx, ii)
 	if err != nil {
 		metrics.ImportFailures.Inc()
-		ti.RegisterImportFailure(err)
-		if _, nerr := t.imgcli.TaggerV1beta1().ImageImports(ti.Namespace).UpdateStatus(
-			ctx, ti, metav1.UpdateOptions{},
+		ii.RegisterImportFailure(err)
+		if _, nerr := t.imgcli.TaggerV1beta1().ImageImports(ii.Namespace).UpdateStatus(
+			ctx, ii, metav1.UpdateOptions{},
 		); nerr != nil {
 			klog.Errorf("error updating image import status: %s", nerr)
 		}
-		return fmt.Errorf("fail importing %s/%s: %w", ti.Namespace, ti.Name, err)
+		return fmt.Errorf("fail importing %s/%s: %w", ii.Namespace, ii.Name, err)
 	}
 
-	metrics.ImportFailures.Inc()
-	ti.RegisterImportSuccess()
-	ti.Status.HashReference = hashref
-	if _, err = t.imgcli.TaggerV1beta1().ImageImports(ti.Namespace).UpdateStatus(
-		ctx, ti, metav1.UpdateOptions{},
+	metrics.ImportSuccesses.Inc()
+	ii.Status.HashReference = hashref
+	if _, err = t.imgcli.TaggerV1beta1().ImageImports(ii.Namespace).UpdateStatus(
+		ctx, ii, metav1.UpdateOptions{},
 	); err != nil {
 		return fmt.Errorf("error updating image import: %w", err)
 	}
 
-	klog.Infof("image import %s/%s processed.", ti.Namespace, ti.Name)
+	klog.Infof("image import %s/%s processed.", ii.Namespace, ii.Name)
 	return nil
 }
 
@@ -192,9 +206,9 @@ func (t *ImageImport) Sync(ctx context.Context, ti *imgv1b1.ImageImport) error {
 // for the registry in the ImageImport namespace. If the image is set to be mirrored
 // we push the image to our mirror registry.
 func (t *ImageImport) Import(
-	ctx context.Context, ti *imgv1b1.ImageImport,
+	ctx context.Context, ii *imgv1b1.ImageImport,
 ) (*imgv1b1.HashReference, error) {
-	domain, remainder := t.splitRegistryDomain(ti.Spec.From)
+	domain, remainder := t.splitRegistryDomain(ii.Spec.From)
 
 	registries, err := t.syssvc.RegistriesToSearch(ctx, domain)
 	if err != nil {
@@ -210,8 +224,8 @@ func (t *ImageImport) Import(
 			continue
 		}
 
-		insecure := pointer.BoolDeref(ti.Spec.Insecure, false)
-		sysctxs, err := t.syssvc.SystemContextsFor(ctx, imgref, ti.Namespace, insecure)
+		insecure := pointer.BoolDeref(ii.Spec.Insecure, false)
+		sysctxs, err := t.syssvc.SystemContextsFor(ctx, imgref, ii.Namespace, insecure)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			continue
@@ -223,15 +237,15 @@ func (t *ImageImport) Import(
 			continue
 		}
 
-		if mirror := pointer.BoolDeref(ti.Spec.Mirror, false); mirror {
+		if mirror := pointer.BoolDeref(ii.Spec.Mirror, false); mirror {
 			istore, err := t.syssvc.GetRegistryStore(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("unable to get image store: %w", err)
 			}
 
 			start := time.Now()
-			timg := ti.Spec.TargetImage
-			imghash, err = istore.Load(ctx, imghash, sysctx, ti.Namespace, timg)
+			timg := ii.Spec.TargetImage
+			imghash, err = istore.Load(ctx, imghash, sysctx, ii.Namespace, timg)
 			if err != nil {
 				return nil, fmt.Errorf("fail to mirror image: %w", err)
 			}
@@ -241,7 +255,7 @@ func (t *ImageImport) Import(
 		}
 
 		return &imgv1b1.HashReference{
-			From:           ti.Spec.From,
+			From:           ii.Spec.From,
 			ImportedAt:     metav1.NewTime(time.Now()),
 			ImageReference: imghash.DockerReference().String(),
 		}, nil
@@ -250,17 +264,16 @@ func (t *ImageImport) Import(
 	return nil, fmt.Errorf("unable to import image: %w", errors)
 }
 
-// splitRegistryDomain splits the domain from the repository and image.  For example
-// passing in the "quay.io/tagger/tagger:latest" string will result in "quay.io" and
-// "tagger/tagger:latest".
+// splitRegistryDomain splits the domain from the repository and image.  For example passing in
+// the "quay.io/tagger/tagger:latest" string will result in "quay.io" and "tagger/tagger:latest".
 func (t *ImageImport) splitRegistryDomain(imgPath string) (string, string) {
 	imageSlices := strings.SplitN(imgPath, "/", 2)
 	if len(imageSlices) < 2 {
 		return "", imgPath
 	}
 
-	// if domain does not contain ".", ":" and is not "localhost"
-	// we don't consider it a domain at all, return empty.
+	// if domain does not contain ".", ":" and is not "localhost" we don't consider it a
+	// domain at all, return empty.
 	if !strings.ContainsAny(imageSlices[0], ".:") && imageSlices[0] != "localhost" {
 		return "", imgPath
 	}
@@ -268,8 +281,8 @@ func (t *ImageImport) splitRegistryDomain(imgPath string) (string, string) {
 	return imageSlices[0], imageSlices[1]
 }
 
-// Get returns a ImageImport object. Returned object is already a copy of the cached
-// object and may be modified by caller as needed.
+// Get returns a ImageImport object. Returned object is already a copy of the cached object and
+// may be modified by caller as needed.
 func (t *ImageImport) Get(ctx context.Context, ns, name string) (*imgv1b1.ImageImport, error) {
 	imp, err := t.implis.ImageImports(ns).Get(name)
 	if err != nil {
@@ -278,7 +291,8 @@ func (t *ImageImport) Get(ctx context.Context, ns, name string) (*imgv1b1.ImageI
 	return imp.DeepCopy(), nil
 }
 
-// Validate checks if provided ImageImport contain all mandatory fields.
+// Validate checks if provided ImageImport contain all mandatory fields. If ImageImport does
+// contains an empty "spec.from" we attempt to load the targetImage.
 func (t *ImageImport) Validate(ctx context.Context, imp *imgv1b1.ImageImport) error {
 	if err := imp.Validate(); err != nil {
 		return err
@@ -324,10 +338,10 @@ func (t *ImageImport) HashReferenceByImage(
 	return nil, nil, fmt.Errorf("unable to get hash for image image: %w", errors)
 }
 
-// getImageHash attempts to fetch image hash remotely using provided system context.
-// Hash is full image path with its hash, something like reg.io/repo/img@sha256:...
-// The ideia here is that the "from" reference points to a image by tag, something
-// like reg.io/repo/img:latest.
+// getImageHash attempts to fetch image hash remotely using provided system context. Hash is
+// full image path with its hash, something like reg.io/repo/img@sha256:... The ideia here is
+// that the "from" reference points to a image by tag, something like reg.io/repo/img:latest
+// and we return a reference by hash (something like reg.io/repo/img@sha256:...).
 func (t *ImageImport) getImageHash(
 	ctx context.Context, from types.ImageReference, sysctx *types.SystemContext,
 ) (types.ImageReference, error) {

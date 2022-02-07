@@ -28,8 +28,8 @@ import (
 	"github.com/ricardomaraschini/tagger/infra/metrics"
 )
 
-// ImageImportSyncer abstraction exists to make testing easier. You most likely wanna
-// see Image struct under services/imageimport.go for a concrete implementation of this.
+// ImageImportSyncer abstraction exists to make testing easier. You most likely wanna see
+// ImageImport struct under services/imageimport.go for a concrete implementation of this.
 type ImageImportSyncer interface {
 	Sync(context.Context, *imgv1b1.ImageImport) error
 	Get(context.Context, string, string) (*imgv1b1.ImageImport, error)
@@ -46,9 +46,9 @@ type ImageImport struct {
 	tokens chan bool
 }
 
-// NewImageImport returns a new controller for ImageImports. This controller runs image
-// imports in parallel, at a given time we can have at max "workers" distinct imports being
-// processed.
+// NewImageImport returns a new controller for ImageImports. This controller runs image imports
+// in parallel, at a given time we can have at max "tokens" distinct imports being processed.
+// Max number of parallel imports has been hardcoded to 10.
 func NewImageImport(tisvc ImageImportSyncer) *ImageImport {
 	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
 	ctrl := &ImageImport{
@@ -65,14 +65,13 @@ func (t *ImageImport) Name() string {
 	return "image import"
 }
 
-// RequiresLeaderElection returns if this controller requires or not a
-// leader lease to run.
+// RequiresLeaderElection returns if this controller requires or not a leader lease to run.
 func (t *ImageImport) RequiresLeaderElection() bool {
 	return true
 }
 
-// enqueueEvent generates a key using "namespace/name" for the event received
-// and then enqueues this index to be processed.
+// enqueueEvent generates a key using "namespace/name" for the event received and then enqueues
+// it to be processed.
 func (t *ImageImport) enqueueEvent(o interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(o)
 	if err != nil {
@@ -82,9 +81,8 @@ func (t *ImageImport) enqueueEvent(o interface{}) {
 	t.queue.AddRateLimited(key)
 }
 
-// handlers return a event handler that will be called by the informer
-// whenever an event occurs. This handler basically enqueues everything
-// in our work queue.
+// handlers return a event handler that will be called by the informer whenever an event occurs.
+// This handler basically enqueues everything in our work queue.
 func (t *ImageImport) handlers() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(o interface{}) {
@@ -99,8 +97,8 @@ func (t *ImageImport) handlers() cache.ResourceEventHandler {
 	}
 }
 
-// eventProcessor reads our events calling syncImageImport for all of them. Uses
-// t.tokens to control how many imports are processed in parallel.
+// eventProcessor reads our events calling syncImageImport for all of them. Uses t.tokens to
+// control how many imports are processed in parallel.
 func (t *ImageImport) eventProcessor(wg *sync.WaitGroup) {
 	var running sync.WaitGroup
 	defer wg.Done()
@@ -145,10 +143,10 @@ func (t *ImageImport) eventProcessor(wg *sync.WaitGroup) {
 	}
 }
 
-// syncImageImport process an event for an image import. A max of three minutes is
-// allowed per image import.
+// syncImageImport process an event for an image import. A max of five minutes is allowed per
+// image import.
 func (t *ImageImport) syncImageImport(namespace, name string) error {
-	ctx, cancel := context.WithTimeout(t.appctx, 3*time.Minute)
+	ctx, cancel := context.WithTimeout(t.appctx, 5*time.Minute)
 	defer cancel()
 
 	it, err := t.tisvc.Get(ctx, namespace, name)
