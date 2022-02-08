@@ -77,7 +77,7 @@ func (t *Image) RecentlyFinishedImports(
 
 	var sortme []imgv1b1.ImageImport
 	for _, imp := range imports {
-		if !imp.AlreadyImported() || !imp.OwnedByImage(img) || imp.FlaggedForDeletion() {
+		if !imp.AlreadyImported() || !imp.OwnedByImage(img) || imp.FlaggedAsConsumed() {
 			continue
 		}
 
@@ -131,7 +131,7 @@ func (t *Image) Sync(ctx context.Context, img *imgv1b1.Image) error {
 	// can flag them for deletion. We ignore any errors here, the flagging process will
 	// be retried during next Sync call.
 	for _, imp := range newimports {
-		imp.FlagForDeletion()
+		imp.FlagAsConsumed()
 		if _, err := t.imgcli.TaggerV1beta1().ImageImports(img.Namespace).Update(
 			ctx, &imp, metav1.UpdateOptions{},
 		); err != nil {

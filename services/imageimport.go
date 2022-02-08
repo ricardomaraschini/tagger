@@ -125,24 +125,24 @@ func (t *ImageImport) NewImageFor(
 }
 
 // Delete deletes an ImageImport according to some rules. In order to delete an import this
-// import must be flagged for deletion for at least one hour. The exception made is if the
-// import has a bogus or "unparseable" deletion timestamp, then we log the fact and delete.
+// import must be flagged as consumed for at least one hour. The exception made is if the
+// import has a bogus or "unparseable" consume timestamp, then we log the fact and delete.
 // We only return an error when we actually attempt to delete using k8s api, if the import
 // is filtered out by any of the forementioned rules a nil is returned instead.
 func (t *ImageImport) Delete(ctx context.Context, ii *imgv1b1.ImageImport) error {
-	if !ii.FlaggedForDeletion() {
+	if !ii.FlaggedAsConsumed() {
 		return nil
 	}
 
-	// we save all ImageImport whose deletion flags are readable and they have been
-	// flagged less than one hour ago.
-	duration, err := ii.FlaggedForDeletionDuration()
+	// we avoid to delete ImageImport whose consumed flag is readable and that have been
+	// flagged as consumed less than one hour ago.
+	duration, err := ii.FlaggedAsConsumedDuration()
 	if err == nil && duration < time.Hour {
 		return nil
 	}
 
-	// if we could not parse the deletion flag then we at least log this fact. We
-	// gonna go ahead and delete them.
+	// if we could not parse the consume flag then we at least log this fact. We gonna go
+	// ahead and delete the ImageImport.
 	if err != nil {
 		klog.Infof("deleting %s/%s: %s", ii.Namespace, ii.Name, err)
 	}
@@ -160,7 +160,7 @@ func (t *ImageImport) Sync(ctx context.Context, ii *imgv1b1.ImageImport) error {
 		return fmt.Errorf("invalid image import: %w", err)
 	}
 
-	if ii.FlaggedForDeletion() {
+	if ii.FlaggedAsConsumed() {
 		if err := t.Delete(ctx, ii); err != nil {
 			klog.V(5).Infof(
 				"unable to delete image import %s/%s: %s",
@@ -178,7 +178,7 @@ func (t *ImageImport) Sync(ctx context.Context, ii *imgv1b1.ImageImport) error {
 	// if no more attempts are going to be made on this ImageImport we can flag it for
 	// deletion. Deletion tends to take a while, check Delete() func for more on this.
 	if ii.FailedImportAttempts() >= imgv1b1.MaxImportAttempts {
-		ii.FlagForDeletion()
+		ii.FlagAsConsumed()
 		if _, err := t.imgcli.TaggerV1beta1().ImageImports(ii.Namespace).Update(
 			ctx, ii, metav1.UpdateOptions{},
 		); err != nil {
