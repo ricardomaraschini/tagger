@@ -34,9 +34,21 @@ var (
 	ImageKind = "Image"
 	// ImageImportKind holds the kind we use when saving ImageImports in the k8s API.
 	ImageImportKind = "ImageImport"
-	// FlaggedForDeletionAnnotation is the annotation set in an object whenever the operator
-	// feels like it has no use for it.
-	FlaggedForDeletionAnnotation = "tagger.dev/delete"
+	// ImageImportConsumedFlagAnnotation is the annotation set in an ImageImport object
+	// whenever the temporary ImageImport object has already been consumed and is not
+	// needed anymore.
+	ImageImportConsumedFlagAnnotation = "tagger.dev/consumed"
+	// ConditionTypeImported is a condition we report in ImageImport objects, presenting the
+	// current Import status back to the user.
+	ConditionTypeImported = "Imported"
+	// ConditionReasonProgressing is used to indicate the ImageImport is progressing.
+	ConditionReasonProgressing = "Progressing"
+	// ConditionReasonImageImported is used to indicate an ImageImport attempt has been
+	// executed sucessfully.
+	ConditionReasonImageImported = "ImageImported"
+	// ConditionReasonNoMoreAttempts is used when we can't proceed attempting to process an
+	// ImageImport object.
+	ConditionReasonNoMoreAttempts = "NoMoreAttempts"
 )
 
 // +genclient
@@ -95,34 +107,36 @@ func (t *Image) Validate() error {
 	return nil
 }
 
-// FlagForDeletion is used whenever we don't want this instance anymore. This Annotation does
-// not indicate anything at the k8s scope and it is solely used inside this operator. The value
-// in the annotation is the current date and time encoded as time.ANSIC.
-func (t *ImageImport) FlagForDeletion() {
+// FlagAsConsumed is used whenever we have already processed the data in an ImageImport object.
+// This Annotation does not indicate anything at the k8s scope and it is solely used inside this
+// operator. The value in the annotation is the current date and time encoded as time.ANSIC.
+func (t *ImageImport) FlagAsConsumed() {
 	if t.Annotations == nil {
 		t.Annotations = map[string]string{}
 	}
-	t.Annotations[FlaggedForDeletionAnnotation] = time.Now().Format(time.ANSIC)
+	t.Annotations[ImageImportConsumedFlagAnnotation] = time.Now().Format(time.ANSIC)
 }
 
-// FlaggedForDeletion returns if this ImageImport is flagged for deletion. Inspects the
+// FlaggedAsConsumed returns if this ImageImport is flagged for deletion. Inspects the
 // object's Annotations.
-func (t *ImageImport) FlaggedForDeletion() bool {
-	_, ok := t.Annotations[FlaggedForDeletionAnnotation]
+func (t *ImageImport) FlaggedAsConsumed() bool {
+	_, ok := t.Annotations[ImageImportConsumedFlagAnnotation]
 	return ok
 }
 
-// FlaggedForDeletionDuration returns the amount of time that has passed since the ImageImport
+// FlaggedAsConsumedDuration returns the amount of time that has passed since the ImageImport
 // was flagged for deletion.
-func (t *ImageImport) FlaggedForDeletionDuration() (time.Duration, error) {
-	if !t.FlaggedForDeletion() {
+func (t *ImageImport) FlaggedAsConsumedDuration() (time.Duration, error) {
+	if !t.FlaggedAsConsumed() {
 		return 0, fmt.Errorf("image import not flagged for deletion")
 	}
 
-	strsince := t.Annotations[FlaggedForDeletionAnnotation]
+	strsince := t.Annotations[ImageImportConsumedFlagAnnotation]
 	since, err := time.Parse(time.ANSIC, strsince)
 	if err != nil {
-		return 0, fmt.Errorf("bogus %s annotation: %w", FlaggedForDeletionAnnotation, err)
+		return 0, fmt.Errorf(
+			"bogus %s annotation: %w", ImageImportConsumedFlagAnnotation, err,
+		)
 	}
 
 	return time.Now().Sub(since), nil
@@ -271,7 +285,7 @@ func (t *ImageImport) FailedImportAttempts() int {
 }
 
 // RegisterImportFailure updates the import attempts slice appending a new failed attempt with
-// the provided error.
+// the provided error. This function also sets ImageImport.Status.Condition field.
 func (t *ImageImport) RegisterImportFailure(err error) {
 	t.Status.ImportAttempts = append(
 		t.Status.ImportAttempts,
@@ -281,10 +295,40 @@ func (t *ImageImport) RegisterImportFailure(err error) {
 			Reason:  err.Error(),
 		},
 	)
+
+	// we build kind of a base Condition and then adjust only the necessary fields. This
+	// base Condition means that we have failed all attempts at processing an ImportImage.
+	message := fmt.Sprintf("Import attempt %d/%d", MaxImportAttempts, MaxImportAttempts)
+	nextcond := metav1.Condition{
+		Type:               ConditionTypeImported,
+		Status:             metav1.ConditionFalse,
+		Reason:             ConditionReasonNoMoreAttempts,
+		Message:            message,
+		LastTransitionTime: metav1.NewTime(time.Now()),
+	}
+
+	failures := len(t.Status.ImportAttempts)
+	if failures >= MaxImportAttempts {
+		// here we have exhausted all import attempts, set it as Failed and return.
+		t.Status.Condition = nextcond
+		return
+	}
+
+	// if we hit here then we still have some import attempts to be executed, set its
+	// condition to Progressing.
+	message = fmt.Sprintf("Import attempt %d/%d", failures, MaxImportAttempts)
+	nextcond.Status = metav1.ConditionFalse
+	nextcond.Reason = ConditionReasonProgressing
+	nextcond.Message = message
+	nextcond.LastTransitionTime = t.Status.Condition.LastTransitionTime
+	if nextcond.LastTransitionTime.IsZero() {
+		nextcond.LastTransitionTime = metav1.NewTime(time.Now())
+	}
+	t.Status.Condition = nextcond
 }
 
 // RegisterImportSuccess appends a new ImportAttempt to the status registering it worked as
-// expected.
+// expected. This function also sets ImageImport.Status.Condition field.
 func (t *ImageImport) RegisterImportSuccess() {
 	t.Status.ImportAttempts = append(
 		t.Status.ImportAttempts,
@@ -293,6 +337,14 @@ func (t *ImageImport) RegisterImportSuccess() {
 			Succeed: true,
 		},
 	)
+
+	t.Status.Condition = metav1.Condition{
+		Type:               ConditionTypeImported,
+		Status:             metav1.ConditionTrue,
+		Reason:             ConditionReasonImageImported,
+		Message:            "Image imported successfully",
+		LastTransitionTime: metav1.NewTime(time.Now()),
+	}
 }
 
 // ImageImportSpec represents the body of the request to import a given container image tag from
@@ -307,8 +359,9 @@ type ImageImportSpec struct {
 
 // ImageImportStatus holds the current status for an image tag import attempt.
 type ImageImportStatus struct {
-	ImportAttempts []ImportAttempt `json:"importAttempts"`
-	HashReference  *HashReference  `json:"hashReference,omitempty"`
+	Condition      metav1.Condition `json:"condition"`
+	ImportAttempts []ImportAttempt  `json:"importAttempts"`
+	HashReference  *HashReference   `json:"hashReference,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
