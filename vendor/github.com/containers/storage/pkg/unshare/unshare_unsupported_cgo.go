@@ -1,4 +1,4 @@
-// +build !linux,cgo
+//go:build cgo && !(linux || freebsd)
 
 package unshare
 

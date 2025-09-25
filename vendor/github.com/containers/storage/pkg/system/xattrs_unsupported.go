@@ -1,4 +1,4 @@
-// +build !linux
+//go:build !linux && !darwin && !freebsd
 
 package system
 
@@ -9,7 +9,10 @@ const (
 	E2BIG syscall.Errno = syscall.Errno(0)
 
 	// Operation not supported
-	EOPNOTSUPP syscall.Errno = syscall.Errno(0)
+	ENOTSUP syscall.Errno = syscall.Errno(0)
+
+	// Value is too small or too large for maximum size allowed
+	EOVERFLOW syscall.Errno = syscall.Errno(0)
 )
 
 // Lgetxattr is not supported on platforms other than linux.

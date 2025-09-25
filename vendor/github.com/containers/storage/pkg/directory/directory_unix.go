@@ -1,9 +1,10 @@
-// +build linux darwin freebsd solaris
+//go:build !windows
 
 package directory
 
 import (
-	"os"
+	"errors"
+	"io/fs"
 	"path/filepath"
 	"syscall"
 )
@@ -21,32 +22,33 @@ func Size(dir string) (size int64, err error) {
 func Usage(dir string) (usage *DiskUsage, err error) {
 	usage = &DiskUsage{}
 	data := make(map[uint64]struct{})
-	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
+	err = filepath.WalkDir(dir, func(d string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			// if dir does not exist, Usage() returns the error.
 			// if dir/x disappeared while walking, Usage() ignores dir/x.
-			if os.IsNotExist(err) && d != dir {
+			if errors.Is(err, fs.ErrNotExist) && d != dir {
 				return nil
 			}
 			return err
 		}
 
-		if fileInfo == nil {
-			return nil
+		fileInfo, err := entry.Info()
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
 		}
 
 		// Check inode to only count the sizes of files with multiple hard links once.
 		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		if _, exists := data[uint64(inode)]; exists {
+		if _, exists := data[inode]; exists {
 			return nil
 		}
 
-		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		data[uint64(inode)] = struct{}{}
-
+		data[inode] = struct{}{}
 		// Ignore directory sizes
-		if fileInfo.IsDir() {
+		if entry.IsDir() {
 			return nil
 		}
 

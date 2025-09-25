@@ -2,16 +2,20 @@ package idtools
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/user"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/containers/storage/pkg/system"
-	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // IDMap contains a single entry for user namespace range remapping. An array
@@ -35,8 +39,9 @@ func (e ranges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 func (e ranges) Less(i, j int) bool { return e[i].Start < e[j].Start }
 
 const (
-	subuidFileName string = "/etc/subuid"
-	subgidFileName string = "/etc/subgid"
+	subuidFileName          string = "/etc/subuid"
+	subgidFileName          string = "/etc/subgid"
+	ContainersOverrideXattr        = "user.containers.override_stat"
 )
 
 // MkdirAllAs creates a directory (include any along the path) and then modifies
@@ -82,7 +87,7 @@ func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
 	if len(uidMap) == 1 && uidMap[0].Size == 1 {
 		uid = uidMap[0].HostID
 	} else {
-		uid, err = toHost(0, uidMap)
+		uid, err = RawToHost(0, uidMap)
 		if err != nil {
 			return -1, -1, err
 		}
@@ -90,7 +95,7 @@ func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
 	if len(gidMap) == 1 && gidMap[0].Size == 1 {
 		gid = gidMap[0].HostID
 	} else {
-		gid, err = toHost(0, gidMap)
+		gid, err = RawToHost(0, gidMap)
 		if err != nil {
 			return -1, -1, err
 		}
@@ -98,10 +103,14 @@ func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
 	return uid, gid, nil
 }
 
-// toContainer takes an id mapping, and uses it to translate a
-// host ID to the remapped ID. If no map is provided, then the translation
-// assumes a 1-to-1 mapping and returns the passed in id
-func toContainer(hostID int, idMap []IDMap) (int, error) {
+// RawToContainer takes an id mapping, and uses it to translate a host ID to
+// the remapped ID. If no map is provided, then the translation assumes a
+// 1-to-1 mapping and returns the passed in id.
+//
+// If you wish to map a (uid,gid) combination you should use the corresponding
+// IDMappings methods, which ensure that you are mapping the correct ID against
+// the correct mapping.
+func RawToContainer(hostID int, idMap []IDMap) (int, error) {
 	if idMap == nil {
 		return hostID, nil
 	}
@@ -111,13 +120,17 @@ func toContainer(hostID int, idMap []IDMap) (int, error) {
 			return contID, nil
 		}
 	}
-	return -1, fmt.Errorf("Host ID %d cannot be mapped to a container ID", hostID)
+	return -1, fmt.Errorf("host ID %d cannot be mapped to a container ID", hostID)
 }
 
-// toHost takes an id mapping and a remapped ID, and translates the
-// ID to the mapped host ID. If no map is provided, then the translation
-// assumes a 1-to-1 mapping and returns the passed in id #
-func toHost(contID int, idMap []IDMap) (int, error) {
+// RawToHost takes an id mapping and a remapped ID, and translates the ID to
+// the mapped host ID. If no map is provided, then the translation assumes a
+// 1-to-1 mapping and returns the passed in id.
+//
+// If you wish to map a (uid,gid) combination you should use the corresponding
+// IDMappings methods, which ensure that you are mapping the correct ID against
+// the correct mapping.
+func RawToHost(contID int, idMap []IDMap) (int, error) {
 	if idMap == nil {
 		return contID, nil
 	}
@@ -127,7 +140,7 @@ func toHost(contID int, idMap []IDMap) (int, error) {
 			return hostID, nil
 		}
 	}
-	return -1, fmt.Errorf("Container ID %d cannot be mapped to a host ID", contID)
+	return -1, fmt.Errorf("container ID %d cannot be mapped to a host ID", contID)
 }
 
 // IDPair is a UID and GID pair
@@ -155,10 +168,10 @@ func NewIDMappings(username, groupname string) (*IDMappings, error) {
 		return nil, err
 	}
 	if len(subuidRanges) == 0 {
-		return nil, fmt.Errorf("No subuid ranges found for user %q in %s", username, subuidFileName)
+		return nil, fmt.Errorf("no subuid ranges found for user %q in %s", username, subuidFileName)
 	}
 	if len(subgidRanges) == 0 {
-		return nil, fmt.Errorf("No subgid ranges found for group %q in %s", groupname, subgidFileName)
+		return nil, fmt.Errorf("no subgid ranges found for group %q in %s", groupname, subgidFileName)
 	}
 
 	return &IDMappings{
@@ -182,31 +195,87 @@ func (i *IDMappings) RootPair() IDPair {
 }
 
 // ToHost returns the host UID and GID for the container uid, gid.
-// Remapping is only performed if the ids aren't already the remapped root ids
 func (i *IDMappings) ToHost(pair IDPair) (IDPair, error) {
+	var err error
+	var target IDPair
+
+	target.UID, err = RawToHost(pair.UID, i.uids)
+	if err != nil {
+		return target, err
+	}
+
+	target.GID, err = RawToHost(pair.GID, i.gids)
+	return target, err
+}
+
+var (
+	overflowUIDOnce sync.Once
+	overflowGIDOnce sync.Once
+	overflowUID     int
+	overflowGID     int
+)
+
+// getOverflowUID returns the UID mapped to the overflow user
+func getOverflowUID() int {
+	overflowUIDOnce.Do(func() {
+		// 65534 is the value on older kernels where /proc/sys/kernel/overflowuid is not present
+		overflowUID = 65534
+		if content, err := os.ReadFile("/proc/sys/kernel/overflowuid"); err == nil {
+			if tmp, err := strconv.Atoi(string(content)); err == nil {
+				overflowUID = tmp
+			}
+		}
+	})
+	return overflowUID
+}
+
+// getOverflowGID returns the GID mapped to the overflow user
+func getOverflowGID() int {
+	overflowGIDOnce.Do(func() {
+		// 65534 is the value on older kernels where /proc/sys/kernel/overflowgid is not present
+		overflowGID = 65534
+		if content, err := os.ReadFile("/proc/sys/kernel/overflowgid"); err == nil {
+			if tmp, err := strconv.Atoi(string(content)); err == nil {
+				overflowGID = tmp
+			}
+		}
+	})
+	return overflowGID
+}
+
+// ToHost returns the host UID and GID for the container uid, gid.
+// Remapping is only performed if the ids aren't already the remapped root ids
+// If the mapping is not possible because the target ID is not mapped into
+// the namespace, then the overflow ID is used.
+func (i *IDMappings) ToHostOverflow(pair IDPair) (IDPair, error) {
 	var err error
 	target := i.RootPair()
 
 	if pair.UID != target.UID {
-		target.UID, err = toHost(pair.UID, i.uids)
+		target.UID, err = RawToHost(pair.UID, i.uids)
 		if err != nil {
-			return target, err
+			target.UID = getOverflowUID()
+			logrus.Debugf("Failed to map UID %v to the target mapping, using the overflow ID %v", pair.UID, target.UID)
 		}
 	}
 
 	if pair.GID != target.GID {
-		target.GID, err = toHost(pair.GID, i.gids)
+		target.GID, err = RawToHost(pair.GID, i.gids)
+		if err != nil {
+			target.GID = getOverflowGID()
+			logrus.Debugf("Failed to map GID %v to the target mapping, using the overflow ID %v", pair.GID, target.GID)
+		}
 	}
-	return target, err
+	return target, nil
 }
 
 // ToContainer returns the container UID and GID for the host uid and gid
 func (i *IDMappings) ToContainer(pair IDPair) (int, int, error) {
-	uid, err := toContainer(pair.UID, i.uids)
+	uid, err := RawToContainer(pair.UID, i.uids)
 	if err != nil {
 		return -1, -1, err
 	}
-	gid, err := toContainer(pair.GID, i.gids)
+	gid, err := RawToContainer(pair.GID, i.gids)
 	return uid, gid, err
 }
 
@@ -274,16 +343,16 @@ func parseSubidFile(path, username string) (ranges, error) {
 		}
 		parts := strings.Split(text, ":")
 		if len(parts) != 3 {
-			return rangeList, fmt.Errorf("Cannot parse subuid/gid information: Format not correct for %s file", path)
+			return rangeList, fmt.Errorf("cannot parse subuid/gid information: Format not correct for %s file", path)
 		}
 		if parts[0] == username || username == "ALL" || (parts[0] == uidstr && parts[0] != "") {
 			startid, err := strconv.Atoi(parts[1])
 			if err != nil {
-				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
+				return rangeList, fmt.Errorf("string to int conversion failed during subuid/gid parsing of %s: %w", path, err)
 			}
 			length, err := strconv.Atoi(parts[2])
 			if err != nil {
-				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
+				return rangeList, fmt.Errorf("string to int conversion failed during subuid/gid parsing of %s: %w", path, err)
 			}
 			rangeList = append(rangeList, subIDRange{startid, length})
 		}
@@ -292,13 +361,186 @@ func parseSubidFile(path, username string) (ranges, error) {
 }
 
 func checkChownErr(err error, name string, uid, gid int) error {
-	if e, ok := err.(*os.PathError); ok && e.Err == syscall.EINVAL {
-		return errors.Wrapf(err, "potentially insufficient UIDs or GIDs available in user namespace (requested %d:%d for %s): Check /etc/subuid and /etc/subgid", uid, gid, name)
+	var e *os.PathError
+	if errors.As(err, &e) && e.Err == syscall.EINVAL {
+		return fmt.Errorf(`potentially insufficient UIDs or GIDs available in user namespace (requested %d:%d for %s): Check /etc/subuid and /etc/subgid if configured locally and run "podman system migrate": %w`, uid, gid, name, err)
 	}
 	return err
 }
 
+// Stat contains file states that can be overridden with ContainersOverrideXattr.
+type Stat struct {
+	IDs   IDPair
+	Mode  os.FileMode
+	Major int
+	Minor int
+}
+
+// FormatContainersOverrideXattr will format the given uid, gid, and mode into a string
+// that can be used as the value for the ContainersOverrideXattr xattr.
+func FormatContainersOverrideXattr(uid, gid, mode int) string {
+	return FormatContainersOverrideXattrDevice(uid, gid, fs.FileMode(mode), 0, 0)
+}
+
+// FormatContainersOverrideXattrDevice will format the given uid, gid, and mode into a string
+// that can be used as the value for the ContainersOverrideXattr xattr.  For devices, it also
+// needs the major and minor numbers.
+func FormatContainersOverrideXattrDevice(uid, gid int, mode fs.FileMode, major, minor int) string {
+	typ := ""
+	switch mode & os.ModeType {
+	case os.ModeDir:
+		typ = "dir"
+	case os.ModeSymlink:
+		typ = "symlink"
+	case os.ModeNamedPipe:
+		typ = "pipe"
+	case os.ModeSocket:
+		typ = "socket"
+	case os.ModeDevice:
+		typ = fmt.Sprintf("block-%d-%d", major, minor)
+	case os.ModeDevice | os.ModeCharDevice:
+		typ = fmt.Sprintf("char-%d-%d", major, minor)
+	default:
+		typ = "file"
+	}
+	unixMode := mode & os.ModePerm
+	if mode&os.ModeSetuid != 0 {
+		unixMode |= 0o4000
+	}
+	if mode&os.ModeSetgid != 0 {
+		unixMode |= 0o2000
+	}
+	if mode&os.ModeSticky != 0 {
+		unixMode |= 0o1000
+	}
+	return fmt.Sprintf("%d:%d:%04o:%s", uid, gid, unixMode, typ)
+}
+
+// GetContainersOverrideXattr will get and decode ContainersOverrideXattr.
+func GetContainersOverrideXattr(path string) (Stat, error) {
+	xstat, err := system.Lgetxattr(path, ContainersOverrideXattr)
+	if err != nil {
+		return Stat{}, err
+	}
+	return parseOverrideXattr(xstat) // This will fail if (xstat, err) == (nil, nil), i.e. the xattr does not exist.
+}
+
+func parseOverrideXattr(xstat []byte) (Stat, error) {
+	var stat Stat
+	attrs := strings.Split(string(xstat), ":")
+	if len(attrs) < 3 {
+		return stat, fmt.Errorf("the number of parts in %s is less than 3",
+			ContainersOverrideXattr)
+	}
+
+	value, err := strconv.ParseUint(attrs[0], 10, 32)
+	if err != nil {
+		return stat, fmt.Errorf("failed to parse UID: %w", err)
+	}
+	stat.IDs.UID = int(value)
+
+	value, err = strconv.ParseUint(attrs[1], 10, 32)
+	if err != nil {
+		return stat, fmt.Errorf("failed to parse GID: %w", err)
+	}
+	stat.IDs.GID = int(value)
+
+	value, err = strconv.ParseUint(attrs[2], 8, 32)
+	if err != nil {
+		return stat, fmt.Errorf("failed to parse mode: %w", err)
+	}
+	stat.Mode = os.FileMode(value) & os.ModePerm
+	if value&0o1000 != 0 {
+		stat.Mode |= os.ModeSticky
+	}
+	if value&0o2000 != 0 {
+		stat.Mode |= os.ModeSetgid
+	}
+	if value&0o4000 != 0 {
+		stat.Mode |= os.ModeSetuid
+	}
+
+	if len(attrs) > 3 {
+		typ := attrs[3]
+		if strings.HasPrefix(typ, "file") {
+		} else if strings.HasPrefix(typ, "dir") {
+			stat.Mode |= os.ModeDir
+		} else if strings.HasPrefix(typ, "symlink") {
+			stat.Mode |= os.ModeSymlink
+		} else if strings.HasPrefix(typ, "pipe") {
+			stat.Mode |= os.ModeNamedPipe
+		} else if strings.HasPrefix(typ, "socket") {
+			stat.Mode |= os.ModeSocket
+		} else if strings.HasPrefix(typ, "block") {
+			stat.Mode |= os.ModeDevice
+			stat.Major, stat.Minor, err = parseDevice(typ)
+			if err != nil {
+				return stat, err
+			}
+		} else if strings.HasPrefix(typ, "char") {
+			stat.Mode |= os.ModeDevice | os.ModeCharDevice
+			stat.Major, stat.Minor, err = parseDevice(typ)
+			if err != nil {
+				return stat, err
+			}
+		} else {
+			return stat, fmt.Errorf("invalid file type %s", typ)
+		}
+	}
+	return stat, nil
+}
+
+func parseDevice(typ string) (int, int, error) {
+	parts := strings.Split(typ, "-")
+	// If there are more than 3 parts, just ignore them to be forward compatible
+	if len(parts) < 3 {
+		return 0, 0, fmt.Errorf("invalid device type %s", typ)
+	}
+	if parts[0] != "block" && parts[0] != "char" {
+		return 0, 0, fmt.Errorf("invalid device type %s", typ)
+	}
+	major, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse major number: %w", err)
+	}
+	minor, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse minor number: %w", err)
+	}
+	return major, minor, nil
+}
+
+// SetContainersOverrideXattr will encode and set ContainersOverrideXattr.
+func SetContainersOverrideXattr(path string, stat Stat) error {
+	value := FormatContainersOverrideXattrDevice(stat.IDs.UID, stat.IDs.GID, stat.Mode, stat.Major, stat.Minor)
+	return system.Lsetxattr(path, ContainersOverrideXattr, []byte(value), 0)
+}
+
 func SafeChown(name string, uid, gid int) error {
+	if runtime.GOOS == "darwin" {
+		stat := Stat{
+			Mode: os.FileMode(0o0700),
+		}
+		xstat, err := system.Lgetxattr(name, ContainersOverrideXattr)
+		if err == nil && xstat != nil {
+			stat, err = parseOverrideXattr(xstat)
+			if err != nil {
+				return err
+			}
+		} else {
+			st, err := os.Stat(name) // Ideally we would share this with system.Stat below, but then we would need to convert Mode.
+			if err != nil {
+				return err
+			}
+			stat.Mode = st.Mode()
+		}
+		stat.IDs = IDPair{UID: uid, GID: gid}
+		if err = SetContainersOverrideXattr(name, stat); err != nil {
+			return err
+		}
+		uid = os.Getuid()
+		gid = os.Getgid()
+	}
 	if stat, statErr := system.Stat(name); statErr == nil {
 		if stat.UID() == uint32(uid) && stat.GID() == uint32(gid) {
 			return nil
@@ -308,6 +550,30 @@ func SafeChown(name string, uid, gid int) error {
 }
 
 func SafeLchown(name string, uid, gid int) error {
+	if runtime.GOOS == "darwin" {
+		stat := Stat{
+			Mode: os.FileMode(0o0700),
+		}
+		xstat, err := system.Lgetxattr(name, ContainersOverrideXattr)
+		if err == nil && xstat != nil {
+			stat, err = parseOverrideXattr(xstat)
+			if err != nil {
+				return err
+			}
+		} else {
+			st, err := os.Lstat(name) // Ideally we would share this with system.Stat below, but then we would need to convert Mode.
+			if err != nil {
+				return err
+			}
+			stat.Mode = st.Mode()
+		}
+		stat.IDs = IDPair{UID: uid, GID: gid}
+		if err = SetContainersOverrideXattr(name, stat); err != nil {
+			return err
+		}
+		uid = os.Getuid()
+		gid = os.Getgid()
+	}
 	if stat, statErr := system.Lstat(name); statErr == nil {
 		if stat.UID() == uint32(uid) && stat.GID() == uint32(gid) {
 			return nil

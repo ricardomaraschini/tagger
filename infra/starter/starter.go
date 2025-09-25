@@ -117,7 +117,7 @@ func (s *Starter) Start(ctx context.Context, lockID string) error {
 	ctx, s.cancel = context.WithCancel(ctx)
 
 	lock, err := resourcelock.New(
-		resourcelock.ConfigMapsResourceLock,
+		resourcelock.LeasesResourceLock,
 		s.namespace,
 		lockID,
 		s.corcli.CoreV1(),

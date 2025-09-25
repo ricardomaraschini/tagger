@@ -3,7 +3,7 @@ package tarball
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -36,15 +36,15 @@ func (t *tarballTransport) ParseReference(reference string) (types.ImageReferenc
 	filenames := strings.Split(reference, separator)
 	for _, filename := range filenames {
 		if filename == "-" {
-			stdin, err = ioutil.ReadAll(os.Stdin)
+			stdin, err = io.ReadAll(os.Stdin)
 			if err != nil {
-				return nil, fmt.Errorf("error buffering stdin: %v", err)
+				return nil, fmt.Errorf("error buffering stdin: %w", err)
 			}
 			continue
 		}
 		f, err := os.Open(filename)
 		if err != nil {
-			return nil, fmt.Errorf("error opening %q: %v", filename, err)
+			return nil, fmt.Errorf("error opening %q: %w", filename, err)
 		}
 		f.Close()
 	}

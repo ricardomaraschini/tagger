@@ -1,4 +1,4 @@
-// +build windows
+//go:build windows
 
 package graphdriver
 
@@ -9,6 +9,12 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 )
 
-func platformLChown(path string, info os.FileInfo, toHost, toContainer *idtools.IDMappings) error {
+type platformChowner struct{}
+
+func newLChowner() *platformChowner {
+	return &platformChowner{}
+}
+
+func (c *platformChowner) LChown(path string, info os.FileInfo, toHost, toContainer *idtools.IDMappings) error {
 	return &os.PathError{"lchown", path, syscall.EWINDOWS}
 }
