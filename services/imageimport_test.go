@@ -118,7 +118,7 @@ func TestImageImportSync(t *testing.T) {
 			},
 		},
 		{
-			name:    "first import (happy path)",
+			name:    "first import happy path",
 			succeed: true,
 			timp: &imgv1b1.ImageImport{
 				ObjectMeta: metav1.ObjectMeta{
@@ -127,7 +127,7 @@ func TestImageImportSync(t *testing.T) {
 				},
 				Spec: imgv1b1.ImageImportSpec{
 					TargetImage: "new-img",
-					From:        "centos:latest",
+					From:        "alpine:latest",
 				},
 			},
 			imgObjects: []runtime.Object{
@@ -138,7 +138,7 @@ func TestImageImportSync(t *testing.T) {
 					},
 					Spec: imgv1b1.ImageImportSpec{
 						TargetImage: "new-img",
-						From:        "centos:latest",
+						From:        "alpine:latest",
 					},
 				},
 				&imgv1b1.Image{
@@ -147,7 +147,7 @@ func TestImageImportSync(t *testing.T) {
 						Name:      "new-img",
 					},
 					Spec: imgv1b1.ImageSpec{
-						From: "centos:latest",
+						From: "alpine:latest",
 					},
 				},
 			},
@@ -180,7 +180,7 @@ func TestImageImportSync(t *testing.T) {
 						Name:      "new-img",
 					},
 					Spec: imgv1b1.ImageSpec{
-						From: "centos:latest",
+						From: "alpine:latest",
 					},
 				},
 			},
@@ -216,7 +216,7 @@ func TestImageImportSync(t *testing.T) {
 						Name:      "new-img",
 					},
 					Spec: imgv1b1.ImageSpec{
-						From: "centos:latest",
+						From: "alpine:latest",
 					},
 				},
 			},
@@ -350,7 +350,7 @@ func TestImportPath(t *testing.T) {
 			err:  "no unqualified registries found",
 			timp: &imgv1b1.ImageImport{
 				Spec: imgv1b1.ImageImportSpec{
-					From: "centos:latest",
+					From: "alpine:latest",
 				},
 			},
 		},
@@ -359,7 +359,7 @@ func TestImportPath(t *testing.T) {
 			unqreg: []string{"docker.io"},
 			timp: &imgv1b1.ImageImport{
 				Spec: imgv1b1.ImageImportSpec{
-					From: "centos:latest",
+					From: "alpine:latest",
 				},
 			},
 		},
@@ -367,7 +367,7 @@ func TestImportPath(t *testing.T) {
 			name: "happy path with full image reference",
 			timp: &imgv1b1.ImageImport{
 				Spec: imgv1b1.ImageImportSpec{
-					From: "docker.io/centos:latest",
+					From: "docker.io/alpine:latest",
 				},
 			},
 		},

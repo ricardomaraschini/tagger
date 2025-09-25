@@ -25,15 +25,17 @@ build: $(TAGGER) $(PLUGIN_DARWIN) $(PLUGIN)
 
 .PHONY: $(TAGGER)
 $(TAGGER):
-	go build \
+	CGO_ENABLED=0 go build \
 		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-tags containers_image_openpgp \
 		-o $(TAGGER_BIN) \
 		./cmd/$(TAGGER)
 
 .PHONY: $(PLUGIN)
 $(PLUGIN):
-	go build \
+	CGO_ENABLED=0 go build \
 		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-tags containers_image_openpgp \
 		-o $(PLUGIN_BIN) \
 		./cmd/$(PLUGIN)
 
