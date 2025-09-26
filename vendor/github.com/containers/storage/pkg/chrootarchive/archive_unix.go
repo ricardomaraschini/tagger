@@ -1,22 +1,47 @@
-// +build !windows
+//go:build !windows && !darwin
 
 package chrootarchive
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/reexec"
-	"github.com/pkg/errors"
 )
+
+type unpackDestination struct {
+	root *os.File
+	dest string
+}
+
+func (dst *unpackDestination) Close() error {
+	return dst.root.Close()
+}
+
+// tarOptionsDescriptor is passed as an extra file
+const tarOptionsDescriptor = 3
+
+// rootFileDescriptor is passed as an extra file
+const rootFileDescriptor = 4
+
+// procPathForFd gives us a string for a descriptor.
+// Note that while Linux supports actually *reading* this
+// path, FreeBSD and other platforms don't; but in this codebase
+// we only compare strings.
+func procPathForFd(fd int) string {
+	return fmt.Sprintf("/proc/self/fd/%d", fd)
+}
 
 // untar is the entry-point for storage-untar on re-exec. This is not used on
 // Windows as it does not support chroot, hence no point sandboxing through
@@ -27,8 +52,8 @@ func untar() {
 
 	var options archive.TarOptions
 
-	//read the options from the pipe "ExtraFiles"
-	if err := json.NewDecoder(os.NewFile(3, "options")).Decode(&options); err != nil {
+	// read the options from the pipe "ExtraFiles"
+	if err := json.NewDecoder(os.NewFile(tarOptionsDescriptor, "options")).Decode(&options); err != nil {
 		fatal(err)
 	}
 
@@ -38,7 +63,17 @@ func untar() {
 		root = flag.Arg(1)
 	}
 
-	if root == "" {
+	// FreeBSD doesn't have proc/self, but we can handle it here
+	if root == procPathForFd(rootFileDescriptor) {
+		// Take ownership to ensure it's closed; no need to leak
+		// this afterwards.
+		rootFd := os.NewFile(rootFileDescriptor, "tar-root")
+		defer rootFd.Close()
+		if err := unix.Fchdir(int(rootFd.Fd())); err != nil {
+			fatal(err)
+		}
+		root = "."
+	} else if root == "" {
 		root = dst
 	}
 
@@ -57,11 +92,35 @@ func untar() {
 	os.Exit(0)
 }
 
-func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions, root string) error {
+// newUnpackDestination takes a root directory and a destination which
+// must be underneath it, and returns an object that can unpack
+// in the target root using a file descriptor.
+func newUnpackDestination(root, dest string) (*unpackDestination, error) {
 	if root == "" {
-		return errors.New("must specify a root to chroot to")
+		return nil, errors.New("must specify a root to chroot to")
+	}
+	relDest, err := filepath.Rel(root, dest)
+	if err != nil {
+		return nil, err
+	}
+	if relDest == "." {
+		relDest = "/"
+	}
+	if relDest[0] != '/' {
+		relDest = "/" + relDest
 	}
 
+	rootfdRaw, err := unix.Open(root, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, &fs.PathError{Op: "open", Path: root, Err: err}
+	}
+	return &unpackDestination{
+		root: os.NewFile(uintptr(rootfdRaw), "rootfs"),
+		dest: relDest,
+	}, nil
+}
+
+func invokeUnpack(decompressedArchive io.Reader, dest *unpackDestination, options *archive.TarOptions) error {
 	// We can't pass a potentially large exclude list directly via cmd line
 	// because we easily overrun the kernel's max argument/environment size
 	// when the full image list is passed (e.g. when this is used by
@@ -69,50 +128,42 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 	// child
 	r, w, err := os.Pipe()
 	if err != nil {
-		return fmt.Errorf("Untar pipe failure: %v", err)
+		return fmt.Errorf("untar pipe failure: %w", err)
 	}
 
-	if root != "" {
-		relDest, err := filepath.Rel(root, dest)
-		if err != nil {
-			return err
-		}
-		if relDest == "." {
-			relDest = "/"
-		}
-		if relDest[0] != '/' {
-			relDest = "/" + relDest
-		}
-		dest = relDest
-	}
-
-	cmd := reexec.Command("storage-untar", dest, root)
+	cmd := reexec.Command("storage-untar", dest.dest, procPathForFd(rootFileDescriptor))
 	cmd.Stdin = decompressedArchive
 
-	cmd.ExtraFiles = append(cmd.ExtraFiles, r)
+	// If you change this, change tarOptionsDescriptor above
+	cmd.ExtraFiles = append(cmd.ExtraFiles, r) // fd 3
+	// If you change this, change rootFileDescriptor above too
+	cmd.ExtraFiles = append(cmd.ExtraFiles, dest.root) // fd 4
 	output := bytes.NewBuffer(nil)
 	cmd.Stdout = output
 	cmd.Stderr = output
 
 	if err := cmd.Start(); err != nil {
 		w.Close()
-		return fmt.Errorf("Untar error on re-exec cmd: %v", err)
+		return fmt.Errorf("untar error on re-exec cmd: %w", err)
 	}
 
-	//write the options to the pipe for the untar exec to read
+	// write the options to the pipe for the untar exec to read
 	if err := json.NewEncoder(w).Encode(options); err != nil {
 		w.Close()
-		return fmt.Errorf("Untar json encode to pipe failed: %v", err)
+		return fmt.Errorf("untar json encode to pipe failed: %w", err)
 	}
 	w.Close()
 
 	if err := cmd.Wait(); err != nil {
+		errorOut := fmt.Errorf("unpacking failed (error: %w; output: %s)", err, output)
 		// when `xz -d -c -q | storage-untar ...` failed on storage-untar side,
 		// we need to exhaust `xz`'s output, otherwise the `xz` side will be
 		// pending on write pipe forever
-		io.Copy(ioutil.Discard, decompressedArchive)
+		if _, err := io.Copy(io.Discard, decompressedArchive); err != nil {
+			return fmt.Errorf("%w\nexhausting input failed (error: %w)", errorOut, err)
+		}
 
-		return fmt.Errorf("Error processing tar file(%v): %s", err, output)
+		return errorOut
 	}
 	return nil
 }
@@ -184,22 +235,24 @@ func invokePack(srcPath string, options *archive.TarOptions, root string) (io.Re
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting options pipe for tar process")
+		return nil, fmt.Errorf("getting options pipe for tar process: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, errors.Wrap(err, "tar error on re-exec cmd")
+		return nil, fmt.Errorf("tar error on re-exec cmd: %w", err)
 	}
 
 	go func() {
 		err := cmd.Wait()
-		err = errors.Wrapf(err, "error processing tar file: %s", errBuff)
+		if err != nil {
+			err = fmt.Errorf("processing tar file(%s): %w", errBuff, err)
+		}
 		tarW.CloseWithError(err)
 	}()
 
 	if err := json.NewEncoder(stdin).Encode(options); err != nil {
 		stdin.Close()
-		return nil, errors.Wrap(err, "tar json encode to pipe failed")
+		return nil, fmt.Errorf("tar json encode to pipe failed: %w", err)
 	}
 	stdin.Close()
 

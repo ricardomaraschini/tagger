@@ -1,4 +1,4 @@
-#ifndef UNSHARE_NO_CODE_AT_ALL
+#if !defined(UNSHARE_NO_CODE_AT_ALL) && defined(__linux__)
 
 #define _GNU_SOURCE
 #include <sys/types.h>
@@ -15,6 +15,7 @@
 #include <termios.h>
 #include <errno.h>
 #include <unistd.h>
+#include <libgen.h>
 #include <sys/vfs.h>
 #include <sys/mount.h>
 #include <linux/limits.h>

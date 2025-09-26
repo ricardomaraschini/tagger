@@ -25,15 +25,17 @@ build: $(TAGGER) $(PLUGIN_DARWIN) $(PLUGIN)
 
 .PHONY: $(TAGGER)
 $(TAGGER):
-	go build \
+	CGO_ENABLED=0 go build \
 		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-tags containers_image_openpgp \
 		-o $(TAGGER_BIN) \
 		./cmd/$(TAGGER)
 
 .PHONY: $(PLUGIN)
 $(PLUGIN):
-	go build \
+	CGO_ENABLED=0 go build \
 		-ldflags="-X 'main.Version=$(VERSION)'" \
+		-tags containers_image_openpgp \
 		-o $(PLUGIN_BIN) \
 		./cmd/$(PLUGIN)
 
@@ -49,7 +51,7 @@ $(PLUGIN_DARWIN):
 get-code-generator:
 	rm -rf $(GEN_BIN) || true
 	git clone --depth=1 \
-		--branch v0.22.0 \
+		--branch v0.34.1 \
 		https://github.com/kubernetes/code-generator.git \
 		$(GEN_BIN)
 

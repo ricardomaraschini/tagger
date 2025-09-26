@@ -1,17 +1,16 @@
-// +build linux
+//go:build linux
 
 package aufs
 
 import (
 	"bufio"
-	"io/ioutil"
 	"os"
 	"path"
 )
 
 // Return all the directories
 func loadIds(root string) ([]string, error) {
-	dirs, err := ioutil.ReadDir(root)
+	dirs, err := os.ReadDir(root)
 	if err != nil {
 		return nil, err
 	}

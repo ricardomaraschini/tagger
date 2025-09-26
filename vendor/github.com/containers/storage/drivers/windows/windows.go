@@ -1,4 +1,5 @@
-//+build windows
+//go:build windows
+// +build windows
 
 package windows
 
@@ -9,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,9 +23,11 @@ import (
 	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/hcsshim"
-	"github.com/containers/storage/drivers"
+	graphdriver "github.com/containers/storage/drivers"
+	"github.com/containers/storage/internal/tempdir"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/directory"
+	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/longpath"
@@ -53,7 +55,7 @@ var (
 
 // init registers the windows graph drivers to the register.
 func init() {
-	graphdriver.Register("windowsfilter", InitFilter)
+	graphdriver.MustRegister("windowsfilter", InitFilter)
 	// DOCKER_WINDOWSFILTER_NOREEXEC allows for inline processing which makes
 	// debugging issues in the re-exec codepath significantly easier.
 	if os.Getenv("DOCKER_WINDOWSFILTER_NOREEXEC") != "" {
@@ -64,8 +66,7 @@ func init() {
 	}
 }
 
-type checker struct {
-}
+type checker struct{}
 
 func (c *checker) IsMounted(path string) bool {
 	return false
@@ -102,8 +103,8 @@ func InitFilter(home string, options graphdriver.Options) (graphdriver.Driver, e
 		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
 	}
 
-	if err := idtools.MkdirAllAs(home, 0700, 0, 0); err != nil {
-		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
+	if err := idtools.MkdirAllAs(home, 0o700, 0, 0); err != nil {
+		return nil, fmt.Errorf("windowsfilter failed to create '%s': %w", home, err)
 	}
 
 	d := &Driver{
@@ -185,6 +186,11 @@ func (d *Driver) Exists(id string) bool {
 	return result
 }
 
+// List layers (not including additional image stores)
+func (d *Driver) ListLayers() ([]string, error) {
+	return nil, graphdriver.ErrNotSupported
+}
+
 // CreateFromTemplate creates a layer with the same contents and parent as another layer.
 func (d *Driver) CreateFromTemplate(id, template string, templateIDMappings *idtools.IDMappings, parent string, parentIDMappings *idtools.IDMappings, opts *graphdriver.CreateOpts, readWrite bool) error {
 	return graphdriver.NaiveCreateFromTemplate(d, id, template, templateIDMappings, parent, parentIDMappings, opts, readWrite)
@@ -227,7 +233,7 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		if err != nil {
 			return err
 		}
-		if _, err := os.Stat(filepath.Join(parentPath, "Files")); err == nil {
+		if err := fileutils.Exists(filepath.Join(parentPath, "Files")); err == nil {
 			// This is a legitimate parent layer (not the empty "-init" layer),
 			// so include it in the layer chain.
 			layerChain = []string{parentPath}
@@ -252,7 +258,7 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 
 		storageOptions, err := parseStorageOpt(storageOpt)
 		if err != nil {
-			return fmt.Errorf("Failed to parse storage options - %s", err)
+			return fmt.Errorf("failed to parse storage options - %s", err)
 		}
 
 		if storageOptions.size != 0 {
@@ -262,11 +268,11 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		}
 	}
 
-	if _, err := os.Lstat(d.dir(parent)); err != nil {
+	if err := fileutils.Lexists(d.dir(parent)); err != nil {
 		if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
 			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err2)
 		}
-		return fmt.Errorf("Cannot create layer with missing parent %s: %s", parent, err)
+		return fmt.Errorf("cannot create layer with missing parent %s: %s", parent, err)
 	}
 
 	if err := d.setLayerChain(id, layerChain); err != nil {
@@ -474,7 +480,7 @@ func (d *Driver) Put(id string) error {
 // We use this opportunity to cleanup any -removing folders which may be
 // still left if the daemon was killed while it was removing a layer.
 func (d *Driver) Cleanup() error {
-	items, err := ioutil.ReadDir(d.info.HomeDir)
+	items, err := os.ReadDir(d.info.HomeDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -759,8 +765,8 @@ func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, 
 	buf := bufio.NewWriter(nil)
 	for err == nil {
 		base := path.Base(hdr.Name)
-		if strings.HasPrefix(base, archive.WhiteoutPrefix) {
-			name := path.Join(path.Dir(hdr.Name), base[len(archive.WhiteoutPrefix):])
+		if rm, ok := strings.CutPrefix(base, archive.WhiteoutPrefix); ok {
+			name := path.Join(path.Dir(hdr.Name), rm)
 			err = w.Remove(filepath.FromSlash(name))
 			if err != nil {
 				return 0, err
@@ -810,7 +816,7 @@ func (d *Driver) importLayer(id string, layerData io.Reader, parentLayerPaths []
 		}
 
 		if err = cmd.Wait(); err != nil {
-			return 0, fmt.Errorf("re-exec error: %v: output: %s", err, output)
+			return 0, fmt.Errorf("re-exec output: %s: error: %w", output, err)
 		}
 
 		return strconv.ParseInt(output.String(), 10, 64)
@@ -869,7 +875,7 @@ func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ..
 
 // resolveID computes the layerID information based on the given id.
 func (d *Driver) resolveID(id string) (string, error) {
-	content, err := ioutil.ReadFile(filepath.Join(d.dir(id), "layerID"))
+	content, err := os.ReadFile(filepath.Join(d.dir(id), "layerID"))
 	if os.IsNotExist(err) {
 		return id, nil
 	} else if err != nil {
@@ -880,23 +886,23 @@ func (d *Driver) resolveID(id string) (string, error) {
 
 // setID stores the layerId in disk.
 func (d *Driver) setID(id, altID string) error {
-	return ioutil.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0600)
+	return os.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0o600)
 }
 
 // getLayerChain returns the layer chain information.
 func (d *Driver) getLayerChain(id string) ([]string, error) {
 	jPath := filepath.Join(d.dir(id), "layerchain.json")
-	content, err := ioutil.ReadFile(jPath)
+	content, err := os.ReadFile(jPath)
 	if os.IsNotExist(err) {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("Unable to read layerchain file - %s", err)
+		return nil, fmt.Errorf("unable to read layerchain file - %s", err)
 	}
 
 	var layerChain []string
 	err = json.Unmarshal(content, &layerChain)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshall layerchain json - %s", err)
+		return nil, fmt.Errorf("failed to unmarshall layerchain json - %s", err)
 	}
 
 	return layerChain, nil
@@ -906,13 +912,13 @@ func (d *Driver) getLayerChain(id string) ([]string, error) {
 func (d *Driver) setLayerChain(id string, chain []string) error {
 	content, err := json.Marshal(&chain)
 	if err != nil {
-		return fmt.Errorf("Failed to marshall layerchain json - %s", err)
+		return fmt.Errorf("failed to marshall layerchain json - %s", err)
 	}
 
 	jPath := filepath.Join(d.dir(id), "layerchain.json")
-	err = ioutil.WriteFile(jPath, content, 0600)
+	err = os.WriteFile(jPath, content, 0o600)
 	if err != nil {
-		return fmt.Errorf("Unable to write layerchain file - %s", err)
+		return fmt.Errorf("unable to write layerchain file - %s", err)
 	}
 
 	return nil
@@ -970,14 +976,19 @@ func (d *Driver) AdditionalImageStores() []string {
 	return nil
 }
 
+// Dedup performs deduplication of the driver's storage.
+func (d *Driver) Dedup(req graphdriver.DedupArgs) (graphdriver.DedupResult, error) {
+	return graphdriver.DedupResult{}, nil
+}
+
 // UpdateLayerIDMap changes ownerships in the layer's filesystem tree from
 // matching those in toContainer to matching those in toHost.
 func (d *Driver) UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMappings, mountLabel string) error {
 	return fmt.Errorf("windows doesn't support changing ID mappings")
 }
 
-// SupportsShifting tells whether the driver support shifting of the UIDs/GIDs in an userNS
-func (d *Driver) SupportsShifting() bool {
+// SupportsShifting tells whether the driver support shifting of the UIDs/GIDs to the provided mapping in an userNS
+func (d *Driver) SupportsShifting(uidmap, gidmap []idtools.IDMap) bool {
 	return false
 }
 
@@ -999,8 +1010,19 @@ func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
 			}
 			options.size = uint64(size)
 		default:
-			return nil, fmt.Errorf("Unknown storage option: %s", key)
+			return nil, fmt.Errorf("unknown storage option: %s", key)
 		}
 	}
 	return &options, nil
+}
+
+// DeferredRemove is not implemented.
+// It calls Remove directly.
+func (d *Driver) DeferredRemove(id string) (tempdir.CleanupTempDirFunc, error) {
+	return nil, d.Remove(id)
+}
+
+// GetTempDirRootDirs is not implemented.
+func (d *Driver) GetTempDirRootDirs() []string {
+	return []string{}
 }
