@@ -24,6 +24,25 @@ jobs:
     - name: Run vet
       run: go vet ./...
 
+  staticcheck:
+    name: Static check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install dependencies
+      run: sudo apt install libbtrfs-dev libgpgme-dev -y
+
+    - name: Check out source code
+      uses: actions/checkout@v5
+
+    - name: Install go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '^1.25'
+
+    - name: Run static check
+      run: |-
+        go tool staticcheck ./...
+
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -47,6 +66,7 @@ jobs:
     needs:
     - vet
     - unit
+    - staticcheck
     runs-on: ubuntu-latest
     steps:
     - name: Install dependencies
