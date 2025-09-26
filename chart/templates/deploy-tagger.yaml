@@ -20,7 +20,7 @@ spec:
       containers:
       - name: tagger
         image: {{ .Values.image }}
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
         command:
           - /usr/local/bin/tagger
         volumeMounts:
