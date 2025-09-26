@@ -8,24 +8,24 @@ on:
 
 jobs:
   image:
-    name: image
+    name: Build Image
     runs-on: ubuntu-latest
     steps:
       - name: check out code
         uses: actions/checkout@v5
 
-      - name: registry login
+      - name: Registry login
         uses: docker/login-action@v3 
         with:
           registry: quay.io
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: extract current tag
+      - name: Extract current tag
         id: get_tag
         run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
-      - name: build image and push
+      - name: Build image and push
         uses: docker/build-push-action@v6
         with:
           push: true
@@ -36,45 +36,40 @@ jobs:
           tags: quay.io/tagger/operator:${{ steps.get_tag.outputs.tag }}
 
   release:
-    name: release
+    name: Create release
     needs:
-      - image
+    - image
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/tagger/actions-image:latest
     steps:
     - name: checkout source code
       uses: actions/checkout@v5
 
-    - name: extract current tag
+    - name: Extract current tag
       id: get_tag
       run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
 
-    - name: build linux plugin
+    - name: Build linux plugin
       run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-image
 
-    - name: compress linux plugin
+    - name: Compress linux plugin
       run: tar -C output/bin -czvf kubectl-image-linux-amd64.tgz kubectl-image
 
-    - name: build darwin plugin
+    - name: Build darwin plugin
       run: VERSION=${{ steps.get_tag.outputs.tag }} make kubectl-image-darwin
 
-    - name: compress darwin plugin
+    - name: Compress darwin plugin
       run: tar -C output/bin -czvf kubectl-image-darwin-amd64.tgz kubectl-image
 
-    - name: setting image tag in values.yaml
+    - name: Setting image tag in values.yaml
       run: sed -i 's/latest/${{ steps.get_tag.outputs.tag }}/g' chart/values.yaml
 
-    - name: setting version in chart.yaml
+    - name: Setting version in chart.yaml
       run: sed -i 's/v0.0.0/${{ steps.get_tag.outputs.tag }}/g' chart/Chart.yaml
 
-    - name: build helm chart release
+    - name: Build helm chart release
       run: helm package chart/
 
-    - name: build readme pdf
-      run: make pdf
-
-    - name: publish release
+    - name: Publish release
       uses: marvinpinto/action-automatic-releases@latest
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
