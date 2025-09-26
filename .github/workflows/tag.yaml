@@ -41,12 +41,12 @@ jobs:
     - image
     runs-on: ubuntu-latest
     steps:
-    - name: checkout source code
+    - name: Check out source code
       uses: actions/checkout@v5
 
     - name: Install dependencies
       run: |-
-        apt install pandoc texlive-full -y
+        sudo apt install pandoc texlive-full -y
 
     - name: Extract current tag
       id: get_tag
