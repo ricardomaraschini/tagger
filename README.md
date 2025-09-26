@@ -1,8 +1,3 @@
-**THIS PROJECT IS BEING MOVED**
-
-I am doing an effort of moving this project [this](https://github.com/shipwright-io/image) repo,
-please refer to it for new versions and updates. Everything that follows may be deprecated.
-
 ![Tagger logo](./assets/tagger.png)
 
 ### Motivation

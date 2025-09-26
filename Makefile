@@ -92,3 +92,8 @@ image:
 .PHONY: clean
 clean:
 	rm -rf $(OUTPUT_DIR)
+
+.PHONY: pdf
+pdf:
+	mkdir -p $(OUTPUT_DOC) || true
+	pandoc README.md -o $(OUTPUT_DOC)/README.pdf

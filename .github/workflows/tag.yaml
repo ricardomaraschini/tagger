@@ -11,7 +11,7 @@ jobs:
     name: Build Image
     runs-on: ubuntu-latest
     steps:
-      - name: check out code
+      - name: Check out code
         uses: actions/checkout@v5
 
       - name: Registry login
@@ -44,6 +44,10 @@ jobs:
     - name: checkout source code
       uses: actions/checkout@v5
 
+    - name: Install dependencies
+      run: |-
+        apt install pandoc texlive-full -y
+
     - name: Extract current tag
       id: get_tag
       run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)
@@ -69,11 +73,14 @@ jobs:
     - name: Build helm chart release
       run: helm package chart/
 
+    - name: Build documentation
+      run: make pdf
+
     - name: Publish release
       uses: marvinpinto/action-automatic-releases@latest
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
-        files: |
+        files: |-
           *.tgz
           output/doc/README.pdf
