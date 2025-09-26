@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
 
       - name: registry login
         uses: docker/login-action@v1 
@@ -44,7 +44,7 @@ jobs:
       image: quay.io/tagger/actions-image:latest
     steps:
     - name: checkout source code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v5
 
     - name: extract current tag
       id: get_tag
