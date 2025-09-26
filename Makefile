@@ -92,11 +92,3 @@ image:
 .PHONY: clean
 clean:
 	rm -rf $(OUTPUT_DIR)
-
-.PHONY: pdf
-pdf:
-	mkdir -p $(OUTPUT_DOC)
-	cat README.md | pandoc \
-		-fmarkdown-implicit_figures \
-		-V geometry:margin=1in \
-		-o $(OUTPUT_DOC)/README.pdf
