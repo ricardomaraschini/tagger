@@ -1,0 +1,15 @@
+{{- if .Values.loadBalancer }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: imageio-external
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: tagger
+  ports:
+    - port: 8083
+      targetPort: 8083
+{{- end }}

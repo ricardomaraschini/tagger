@@ -2,11 +2,18 @@
 replicas: 1
 # the image to be used when deploying tagger.
 image: "quay.io/tagger/operator:latest"
-# key is the tls key to be used by tagger when communicating with kubernetes api.
-# if not provided a self signed one will be generated during install and upgrade.
-# this key must contain as alternative name 'mutating-webhooks.<namespace>.svc'.
+# key is the tls key to be used by tagger when communicating with kubernetes
+# api. if not provided a self signed one will be generated during install and
+# upgrade. this key must contain as alternative name
+# 'mutating-webhooks.<namespace>.svc'.
 key: ""
-# cert is the certificate to be trusted by kubernetes api when communicating with tagger.
-# if not provided a self signed one will be generated during install and upgrade.
-# this cert must contain as alternative name 'mutating-webhooks.<namespace>.svc'.
+# cert is the certificate to be trusted by kubernetes api when communicating
+# with tagger. if not provided a self signed one will be generated during
+# install and upgrade. this cert must contain as alternative name
+# 'mutating-webhooks.<namespace>.svc'.
 cert: ""
+# imagePullPolicy determines the image pull policy for the tagger container.
+imagePullPolicy: "IfNotPresent"
+# loadBalancer determines if a LoadBalancer service for imageio should be
+# created.
+loadBalancer: true
