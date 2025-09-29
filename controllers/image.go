@@ -38,7 +38,7 @@ type ImageSyncer interface {
 // Image controller handles events related to Images. It starts and receives events from the
 // informer, calling appropriate functions on our concrete services layer implementation.
 type Image struct {
-	queue  workqueue.RateLimitingInterface
+	queue  workqueue.TypedRateLimitingInterface[string]
 	imgsvc ImageSyncer
 	appctx context.Context
 	tokens chan bool
@@ -47,13 +47,14 @@ type Image struct {
 // NewImage returns a new controller for Images. This controller runs image imports in parallel,
 // at a given time we can have at max "tokens" distinct images being processed (hardcoded to 10).
 func NewImage(imgsvc ImageSyncer) *Image {
-	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
+	rl := workqueue.NewTypedItemExponentialFailureRateLimiter[string](time.Second, time.Minute)
 	ctrl := &Image{
-		queue:  workqueue.NewRateLimitingQueue(ratelimit),
+		queue:  workqueue.NewTypedRateLimitingQueue(rl),
 		imgsvc: imgsvc,
 		tokens: make(chan bool, 10),
 	}
 	imgsvc.AddEventHandler(ctrl.handlers())
+
 	return ctrl
 }
 
@@ -116,7 +117,7 @@ func (t *Image) eventProcessor(wg *sync.WaitGroup) {
 				running.Done()
 			}()
 
-			namespace, name, err := cache.SplitMetaNamespaceKey(evt.(string))
+			namespace, name, err := cache.SplitMetaNamespaceKey(evt)
 			if err != nil {
 				klog.Errorf("invalid event received %s: %s", evt, err)
 				t.queue.Done(evt)

@@ -40,7 +40,7 @@ type ImageImportSyncer interface {
 // events from the informer, calling appropriate functions on our concrete services
 // layer implementation.
 type ImageImport struct {
-	queue  workqueue.RateLimitingInterface
+	queue  workqueue.TypedRateLimitingInterface[string]
 	tisvc  ImageImportSyncer
 	appctx context.Context
 	tokens chan bool
@@ -50,9 +50,9 @@ type ImageImport struct {
 // in parallel, at a given time we can have at max "tokens" distinct imports being processed.
 // Max number of parallel imports has been hardcoded to 10.
 func NewImageImport(tisvc ImageImportSyncer) *ImageImport {
-	ratelimit := workqueue.NewItemExponentialFailureRateLimiter(time.Second, time.Minute)
+	rl := workqueue.NewTypedItemExponentialFailureRateLimiter[string](time.Second, time.Minute)
 	ctrl := &ImageImport{
-		queue:  workqueue.NewRateLimitingQueue(ratelimit),
+		queue:  workqueue.NewTypedRateLimitingQueue(rl),
 		tisvc:  tisvc,
 		tokens: make(chan bool, 10),
 	}
@@ -121,7 +121,7 @@ func (t *ImageImport) eventProcessor(wg *sync.WaitGroup) {
 				metrics.ActiveWorkers.Dec()
 			}()
 
-			namespace, name, err := cache.SplitMetaNamespaceKey(evt.(string))
+			namespace, name, err := cache.SplitMetaNamespaceKey(evt)
 			if err != nil {
 				klog.Errorf("invalid event received %s: %s", evt, err)
 				t.queue.Done(evt)
