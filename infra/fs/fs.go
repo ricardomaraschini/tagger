@@ -15,7 +15,6 @@
 package fs
 
 import (
-	"io/ioutil"
 	"os"
 
 	"k8s.io/klog/v2"
@@ -48,7 +47,7 @@ func New(opts ...Option) *FS {
 // TempDir creates and returns a temporary dir inside our base temp dir specified on FS.tmpdir.
 // Returns the directory path, a clean up function (delete dir) or an error.
 func (f *FS) TempDir() (string, func(), error) {
-	dir, err := ioutil.TempDir(f.tmpdir, "tmp-dir-*")
+	dir, err := os.MkdirTemp(f.tmpdir, "tmp-dir-*")
 	if err != nil {
 		return "", nil, err
 	}
@@ -64,7 +63,7 @@ func (f *FS) TempDir() (string, func(), error) {
 // TempFile creates and returns a temporary file inside our base temp directory.  Returns the
 // opened file, a clean up function (close and delete file) or an error.
 func (f *FS) TempFile() (*os.File, func(), error) {
-	fp, err := ioutil.TempFile(f.tmpdir, "tmp-file-*")
+	fp, err := os.CreateTemp(f.tmpdir, "tmp-file-*")
 	if err != nil {
 		return nil, nil, err
 	}

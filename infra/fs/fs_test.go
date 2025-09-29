@@ -15,7 +15,7 @@
 package fs
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -77,7 +77,7 @@ func TestTempFile(t *testing.T) {
 	}
 
 	clean()
-	if _, err = ioutil.ReadAll(fp); err == nil {
+	if _, err = io.ReadAll(fp); err == nil {
 		t.Errorf("temp file not closed")
 	}
 
