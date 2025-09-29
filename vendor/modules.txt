@@ -656,6 +656,8 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
+# golang.org/x/tools/go/expect v0.1.1-deprecated
+## explicit; go 1.23.0
 # google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7
 ## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/api
@@ -1457,7 +1459,6 @@ k8s.io/utils/buffer
 k8s.io/utils/clock
 k8s.io/utils/internal/third_party/forked/golang/net
 k8s.io/utils/net
-k8s.io/utils/pointer
 k8s.io/utils/ptr
 k8s.io/utils/trace
 # sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8
