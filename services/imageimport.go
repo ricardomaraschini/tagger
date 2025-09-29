@@ -301,7 +301,7 @@ func (t *ImageImport) Import(
 				return nil, fmt.Errorf("fail to mirror image: %w", err)
 			}
 
-			latency := time.Now().Sub(start).Seconds()
+			latency := time.Since(start).Seconds()
 			metrics.MirrorLatency.Observe(latency)
 		}
 

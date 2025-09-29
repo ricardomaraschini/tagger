@@ -70,7 +70,7 @@ func (t *ImageIO) Push(ctx context.Context, ns, name string, fpath string) error
 			metrics.PushFailures.Inc()
 			return
 		}
-		latency := time.Now().Sub(start).Seconds()
+		latency := time.Since(start).Seconds()
 		metrics.PushLatency.Observe(latency)
 		metrics.PushSuccesses.Inc()
 	}()
@@ -126,7 +126,7 @@ func (t *ImageIO) Pull(ctx context.Context, ns, name string) (*os.File, func(), 
 			return
 		}
 
-		latency := time.Now().Sub(start).Seconds()
+		latency := time.Since(start).Seconds()
 		metrics.PullLatency.Observe(latency)
 		metrics.PullSuccesses.Inc()
 	}()

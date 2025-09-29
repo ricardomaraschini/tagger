@@ -132,14 +132,14 @@ func (t *ImageImport) FlaggedAsConsumedDuration() (time.Duration, error) {
 	}
 
 	strsince := t.Annotations[ImageImportConsumedFlagAnnotation]
-	since, err := time.Parse(time.ANSIC, strsince)
+	when, err := time.Parse(time.ANSIC, strsince)
 	if err != nil {
 		return 0, fmt.Errorf(
 			"bogus %s annotation: %w", ImageImportConsumedFlagAnnotation, err,
 		)
 	}
 
-	return time.Now().Sub(since), nil
+	return time.Since(when), nil
 }
 
 // CurrentReferenceForImage looks through provided Image  and returns the most recent imported
