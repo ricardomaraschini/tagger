@@ -133,15 +133,16 @@ func saveImage(ctx context.Context, tidx imageindex) (*os.File, func(), error) {
 func pushImage(
 	ctx context.Context, idx imageindex, from *os.File, token string, insecure bool,
 ) error {
-	conn, err := grpc.DialContext(
-		ctx, idx.server, grpc.WithTransportCredentials(
-			credentials.NewTLS(&tls.Config{
-				InsecureSkipVerify: insecure,
-			}),
+	conn, err := grpc.NewClient(
+		idx.server,
+		grpc.WithTransportCredentials(
+			credentials.NewTLS(
+				&tls.Config{InsecureSkipVerify: insecure},
+			),
 		),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("error connecting: %w", err)
 	}
 
 	client := pb.NewImageIOServiceClient(conn)
