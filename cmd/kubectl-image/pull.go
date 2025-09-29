@@ -109,13 +109,12 @@ var imagepull = &cobra.Command{
 func pullImage(
 	ctx context.Context, idx imageindex, token string, insecure bool,
 ) (types.ImageReference, func(), error) {
-	conn, err := grpc.DialContext(
-		ctx,
+	conn, err := grpc.NewClient(
 		idx.server,
 		grpc.WithTransportCredentials(
-			credentials.NewTLS(&tls.Config{
-				InsecureSkipVerify: insecure,
-			}),
+			credentials.NewTLS(
+				&tls.Config{InsecureSkipVerify: insecure},
+			),
 		),
 	)
 	if err != nil {
