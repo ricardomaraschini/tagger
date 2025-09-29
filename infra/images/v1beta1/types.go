@@ -19,7 +19,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 var (
@@ -259,11 +259,11 @@ func (t *ImageImport) InheritValuesFrom(it *Image) {
 	}
 
 	if t.Spec.Insecure == nil {
-		t.Spec.Insecure = pointer.Bool(it.Spec.Insecure)
+		t.Spec.Insecure = ptr.To(it.Spec.Insecure)
 	}
 
 	if t.Spec.Mirror == nil {
-		t.Spec.Mirror = pointer.Bool(it.Spec.Mirror)
+		t.Spec.Mirror = ptr.To(it.Spec.Mirror)
 	}
 }
 

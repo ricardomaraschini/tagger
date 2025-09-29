@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/informers"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
@@ -100,8 +100,8 @@ func (t *ImageIO) Push(ctx context.Context, ns, name string, fpath string) error
 		Namespace:   ns,
 		TargetImage: name,
 		From:        dstref.DockerReference().String(),
-		Mirror:      pointer.Bool(false),
-		Insecure:    pointer.Bool(insecure),
+		Mirror:      ptr.To(false),
+		Insecure:    ptr.To(insecure),
 	}
 
 	impsvc := NewImageImport(nil, t.imgcli, nil)
