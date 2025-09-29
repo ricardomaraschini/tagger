@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -147,7 +147,7 @@ func (m *MutatingWebHook) imageimport(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	reviewReq := &admnv1.AdmissionReview{}
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("error reading body: %s", err)
 		m.responseError(w, reviewReq, err)
@@ -204,7 +204,7 @@ func (m *MutatingWebHook) image(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	reviewReq := &admnv1.AdmissionReview{}
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("error reading body: %s", err)
 		m.responseError(w, reviewReq, err)
