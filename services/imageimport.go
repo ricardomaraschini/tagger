@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -117,8 +117,8 @@ func (t *ImageImport) NewImageFor(
 		Namespace: ii.Namespace,
 		Name:      ii.Spec.TargetImage,
 		From:      ii.Spec.From,
-		Mirror:    pointer.BoolDeref(ii.Spec.Mirror, false),
-		Insecure:  pointer.BoolDeref(ii.Spec.Insecure, false),
+		Mirror:    ptr.Deref(ii.Spec.Mirror, false),
+		Insecure:  ptr.Deref(ii.Spec.Insecure, false),
 	}
 	imgsvc := NewImage(nil, t.imgcli, nil)
 	return imgsvc.NewImage(ctx, opts)
@@ -275,7 +275,7 @@ func (t *ImageImport) Import(
 			continue
 		}
 
-		insecure := pointer.BoolDeref(ii.Spec.Insecure, false)
+		insecure := ptr.Deref(ii.Spec.Insecure, false)
 		sysctxs, err := t.syssvc.SystemContextsFor(ctx, imgref, ii.Namespace, insecure)
 		if err != nil {
 			errors = multierror.Append(errors, err)
@@ -288,7 +288,7 @@ func (t *ImageImport) Import(
 			continue
 		}
 
-		if mirror := pointer.BoolDeref(ii.Spec.Mirror, false); mirror {
+		if mirror := ptr.Deref(ii.Spec.Mirror, false); mirror {
 			istore, err := t.syssvc.GetRegistryStore(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("unable to get image store: %w", err)
