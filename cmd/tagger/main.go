@@ -29,11 +29,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"github.com/ricardomaraschini/tagger/controllers"
-	iimgcli "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
-	iimginf "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions"
-	"github.com/ricardomaraschini/tagger/infra/starter"
-	"github.com/ricardomaraschini/tagger/services"
+	"tagger/controllers"
+	iimgcli "tagger/infra/images/v1beta1/gen/clientset/versioned"
+	iimginf "tagger/infra/images/v1beta1/gen/informers/externalversions"
+	"tagger/infra/starter"
+	"tagger/services"
 )
 
 // Version holds the current binary version. Set at compile time.

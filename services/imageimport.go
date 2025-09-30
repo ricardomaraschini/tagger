@@ -33,11 +33,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 
-	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	imgclient "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
-	imginform "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions"
-	imglist "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
-	"github.com/ricardomaraschini/tagger/infra/metrics"
+	imgv1b1 "tagger/infra/images/v1beta1"
+	imgclient "tagger/infra/images/v1beta1/gen/clientset/versioned"
+	imginform "tagger/infra/images/v1beta1/gen/informers/externalversions"
+	imglist "tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
+	"tagger/infra/metrics"
 )
 
 // ImageImport gather all actions related to image import objects.

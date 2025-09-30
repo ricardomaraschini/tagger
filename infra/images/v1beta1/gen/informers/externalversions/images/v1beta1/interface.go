@@ -19,7 +19,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	internalinterfaces "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
+	internalinterfaces "tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

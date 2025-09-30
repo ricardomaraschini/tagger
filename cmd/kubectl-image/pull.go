@@ -30,9 +30,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/ricardomaraschini/tagger/cmd/kubectl-image/static"
-	"github.com/ricardomaraschini/tagger/infra/pb"
-	"github.com/ricardomaraschini/tagger/infra/progbar"
+	"tagger/cmd/kubectl-image/static"
+	"tagger/infra/pb"
+	"tagger/infra/progbar"
 )
 
 func init() {

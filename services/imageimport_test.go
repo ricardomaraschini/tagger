@@ -28,9 +28,9 @@ import (
 	corfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	imgfake "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned/fake"
-	imginf "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions"
+	imgv1b1 "tagger/infra/images/v1beta1"
+	imgfake "tagger/infra/images/v1beta1/gen/clientset/versioned/fake"
+	imginf "tagger/infra/images/v1beta1/gen/informers/externalversions"
 )
 
 func TestImageImportSync(t *testing.T) {

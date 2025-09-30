@@ -1,4 +1,4 @@
-module github.com/ricardomaraschini/tagger
+module tagger
 
 go 1.25
 

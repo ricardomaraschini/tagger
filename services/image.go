@@ -25,10 +25,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	imgclient "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
-	imginform "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions"
-	imglist "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
+	imgv1b1 "tagger/infra/images/v1beta1"
+	imgclient "tagger/infra/images/v1beta1/gen/clientset/versioned"
+	imginform "tagger/infra/images/v1beta1/gen/informers/externalversions"
+	imglist "tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
 )
 
 // Image gather all actions related to image img objects.

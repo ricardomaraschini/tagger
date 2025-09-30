@@ -21,8 +21,8 @@ package versioned
 import (
 	fmt "fmt"
 	http "net/http"
+	taggerv1beta1 "tagger/infra/images/v1beta1/gen/clientset/versioned/typed/images/v1beta1"
 
-	taggerv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned/typed/images/v1beta1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

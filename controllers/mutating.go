@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
-	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
+	imgv1b1 "tagger/infra/images/v1beta1"
 )
 
 // ImageImportValidator is implemented in services/imageimport.go. This abstraction exists to make

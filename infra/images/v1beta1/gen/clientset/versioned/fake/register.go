@@ -19,7 +19,8 @@ limitations under the License.
 package fake
 
 import (
-	taggerv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
+	taggerv1beta1 "tagger/infra/images/v1beta1"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

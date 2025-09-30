@@ -13,7 +13,7 @@
 // limitations under the License.
 
 syntax = "proto3";
-option go_package = "github.com/ricardomaraschini/tagger/images/pb";
+option go_package = "tagger/images/pb";
 
 package pb;
 

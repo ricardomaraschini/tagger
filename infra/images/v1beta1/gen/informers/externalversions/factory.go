@@ -21,11 +21,11 @@ package externalversions
 import (
 	reflect "reflect"
 	sync "sync"
+	versioned "tagger/infra/images/v1beta1/gen/clientset/versioned"
+	images "tagger/infra/images/v1beta1/gen/informers/externalversions/images"
+	internalinterfaces "tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
 	time "time"
 
-	versioned "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
-	images "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions/images"
-	internalinterfaces "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

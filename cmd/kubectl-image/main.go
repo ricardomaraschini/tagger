@@ -27,7 +27,7 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/spf13/cobra"
 
-	"github.com/ricardomaraschini/tagger/infra/fs"
+	"tagger/infra/fs"
 )
 
 func main() {

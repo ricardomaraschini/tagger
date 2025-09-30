@@ -19,8 +19,8 @@ limitations under the License.
 package images
 
 import (
-	v1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions/images/v1beta1"
-	internalinterfaces "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
+	v1beta1 "tagger/infra/images/v1beta1/gen/informers/externalversions/images/v1beta1"
+	internalinterfaces "tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

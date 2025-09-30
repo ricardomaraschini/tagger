@@ -19,8 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	v1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned/typed/images/v1beta1"
+	v1beta1 "tagger/infra/images/v1beta1"
+	imagesv1beta1 "tagger/infra/images/v1beta1/gen/clientset/versioned/typed/images/v1beta1"
+
 	gentype "k8s.io/client-go/gentype"
 )
 

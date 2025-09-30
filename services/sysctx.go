@@ -30,8 +30,9 @@ import (
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
 	"github.com/hashicorp/go-multierror"
-	"github.com/ricardomaraschini/tagger/infra/imagestore"
 	"gopkg.in/yaml.v2"
+
+	"tagger/infra/imagestore"
 )
 
 // We use dockerAuthConfig to unmarshal a default docker configuration present on secrets of

@@ -19,7 +19,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
+	imagesv1beta1 "tagger/infra/images/v1beta1"
+
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
 	cache "k8s.io/client-go/tools/cache"

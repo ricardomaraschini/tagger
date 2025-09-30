@@ -25,9 +25,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	imgfake "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned/fake"
-	imginformer "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions"
+	imgv1b1 "tagger/infra/images/v1beta1"
+	imgfake "tagger/infra/images/v1beta1/gen/clientset/versioned/fake"
+	imginformer "tagger/infra/images/v1beta1/gen/informers/externalversions"
 )
 
 type imgsvc struct {
