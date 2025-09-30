@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	imgv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
+	imgv1beta1 "tagger/infra/images/v1beta1"
 )
 
 type imgImportValidator struct{}

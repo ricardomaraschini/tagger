@@ -26,10 +26,10 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 
-	imgclient "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
-	imginform "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions"
-	imglist "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
-	"github.com/ricardomaraschini/tagger/infra/metrics"
+	imgclient "tagger/infra/images/v1beta1/gen/clientset/versioned"
+	imginform "tagger/infra/images/v1beta1/gen/informers/externalversions"
+	imglist "tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
+	"tagger/infra/metrics"
 )
 
 // ImageIO is an entity that gather operations related to Image images input and output. This

@@ -21,9 +21,9 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/ricardomaraschini/tagger/cmd/kubectl-image/static"
-	itagcli "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
-	"github.com/ricardomaraschini/tagger/services"
+	"tagger/cmd/kubectl-image/static"
+	itagcli "tagger/infra/images/v1beta1/gen/clientset/versioned"
+	"tagger/services"
 )
 
 func init() {

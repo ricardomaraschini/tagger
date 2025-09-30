@@ -28,9 +28,9 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/ricardomaraschini/tagger/infra/fs"
-	"github.com/ricardomaraschini/tagger/infra/pb"
-	"github.com/ricardomaraschini/tagger/infra/progbar"
+	"tagger/infra/fs"
+	"tagger/infra/pb"
+	"tagger/infra/progbar"
 )
 
 // ImagePusherPuller is here to make tests easier. You may be looking

@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	imgv1b1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
+	imgv1b1 "tagger/infra/images/v1beta1"
 )
 
 // ImageSyncer abstraction exists to make testing easier. You most likely wanna see Image struct

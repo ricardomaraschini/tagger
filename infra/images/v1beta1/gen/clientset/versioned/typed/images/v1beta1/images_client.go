@@ -20,9 +20,9 @@ package v1beta1
 
 import (
 	http "net/http"
+	imagesv1beta1 "tagger/infra/images/v1beta1"
+	scheme "tagger/infra/images/v1beta1/gen/clientset/versioned/scheme"
 
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	scheme "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

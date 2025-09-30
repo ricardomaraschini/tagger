@@ -20,12 +20,12 @@ package v1beta1
 
 import (
 	context "context"
+	infraimagesv1beta1 "tagger/infra/images/v1beta1"
+	versioned "tagger/infra/images/v1beta1/gen/clientset/versioned"
+	internalinterfaces "tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
+	imagesv1beta1 "tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
 	time "time"
 
-	infraimagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	versioned "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
-	internalinterfaces "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

@@ -25,7 +25,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 
-	"github.com/ricardomaraschini/tagger/infra/fs"
+	"tagger/infra/fs"
 )
 
 // CleanFn is a function that must be called in order to clean up or free resources in use.

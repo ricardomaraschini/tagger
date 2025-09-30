@@ -20,9 +20,9 @@ package v1beta1
 
 import (
 	context "context"
+	imagesv1beta1 "tagger/infra/images/v1beta1"
+	scheme "tagger/infra/images/v1beta1/gen/clientset/versioned/scheme"
 
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	scheme "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
