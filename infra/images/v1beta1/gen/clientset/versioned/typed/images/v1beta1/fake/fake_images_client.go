@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,11 +29,11 @@ type FakeTaggerV1beta1 struct {
 }
 
 func (c *FakeTaggerV1beta1) Images(namespace string) v1beta1.ImageInterface {
-	return &FakeImages{c, namespace}
+	return newFakeImages(c, namespace)
 }
 
 func (c *FakeTaggerV1beta1) ImageImports(namespace string) v1beta1.ImageImportInterface {
-	return &FakeImageImports{c, namespace}
+	return newFakeImageImports(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

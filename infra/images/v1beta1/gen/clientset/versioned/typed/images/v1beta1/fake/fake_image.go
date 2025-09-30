@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,124 +19,30 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned/typed/images/v1beta1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeImages implements ImageInterface
-type FakeImages struct {
+// fakeImages implements ImageInterface
+type fakeImages struct {
+	*gentype.FakeClientWithList[*v1beta1.Image, *v1beta1.ImageList]
 	Fake *FakeTaggerV1beta1
-	ns   string
 }
 
-var imagesResource = schema.GroupVersionResource{Group: "tagger.dev", Version: "v1beta1", Resource: "images"}
-
-var imagesKind = schema.GroupVersionKind{Group: "tagger.dev", Version: "v1beta1", Kind: "Image"}
-
-// Get takes name of the image, and returns the corresponding image object, and an error if there is any.
-func (c *FakeImages) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.Image, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(imagesResource, c.ns, name), &v1beta1.Image{})
-
-	if obj == nil {
-		return nil, err
+func newFakeImages(fake *FakeTaggerV1beta1, namespace string) imagesv1beta1.ImageInterface {
+	return &fakeImages{
+		gentype.NewFakeClientWithList[*v1beta1.Image, *v1beta1.ImageList](
+			fake.Fake,
+			namespace,
+			v1beta1.SchemeGroupVersion.WithResource("images"),
+			v1beta1.SchemeGroupVersion.WithKind("Image"),
+			func() *v1beta1.Image { return &v1beta1.Image{} },
+			func() *v1beta1.ImageList { return &v1beta1.ImageList{} },
+			func(dst, src *v1beta1.ImageList) { dst.ListMeta = src.ListMeta },
+			func(list *v1beta1.ImageList) []*v1beta1.Image { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1beta1.ImageList, items []*v1beta1.Image) { list.Items = gentype.FromPointerSlice(items) },
+		),
+		fake,
 	}
-	return obj.(*v1beta1.Image), err
-}
-
-// List takes label and field selectors, and returns the list of Images that match those selectors.
-func (c *FakeImages) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.ImageList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewListAction(imagesResource, imagesKind, c.ns, opts), &v1beta1.ImageList{})
-
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1beta1.ImageList{ListMeta: obj.(*v1beta1.ImageList).ListMeta}
-	for _, item := range obj.(*v1beta1.ImageList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested images.
-func (c *FakeImages) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(imagesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a image and creates it.  Returns the server's representation of the image, and an error, if there is any.
-func (c *FakeImages) Create(ctx context.Context, image *v1beta1.Image, opts v1.CreateOptions) (result *v1beta1.Image, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(imagesResource, c.ns, image), &v1beta1.Image{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1beta1.Image), err
-}
-
-// Update takes the representation of a image and updates it. Returns the server's representation of the image, and an error, if there is any.
-func (c *FakeImages) Update(ctx context.Context, image *v1beta1.Image, opts v1.UpdateOptions) (result *v1beta1.Image, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(imagesResource, c.ns, image), &v1beta1.Image{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1beta1.Image), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeImages) UpdateStatus(ctx context.Context, image *v1beta1.Image, opts v1.UpdateOptions) (*v1beta1.Image, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(imagesResource, "status", c.ns, image), &v1beta1.Image{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1beta1.Image), err
-}
-
-// Delete takes name of the image and deletes it. Returns an error if one occurs.
-func (c *FakeImages) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(imagesResource, c.ns, name), &v1beta1.Image{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeImages) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(imagesResource, c.ns, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1beta1.ImageList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched image.
-func (c *FakeImages) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.Image, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(imagesResource, c.ns, name, pt, data, subresources...), &v1beta1.Image{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1beta1.Image), err
 }

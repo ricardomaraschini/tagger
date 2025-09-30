@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,13 +19,13 @@ limitations under the License.
 package v1beta1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
+	infraimagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
 	versioned "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/clientset/versioned"
 	internalinterfaces "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/informers/externalversions/internalinterfaces"
-	v1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
+	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1/gen/listers/images/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Images.
 type ImageInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.ImageLister
+	Lister() imagesv1beta1.ImageLister
 }
 
 type imageInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredImageInformer(client versioned.Interface, namespace string, resy
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.TaggerV1beta1().Images(namespace).List(context.TODO(), options)
+				return client.TaggerV1beta1().Images(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.TaggerV1beta1().Images(namespace).Watch(context.TODO(), options)
+				return client.TaggerV1beta1().Images(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.TaggerV1beta1().Images(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.TaggerV1beta1().Images(namespace).Watch(ctx, options)
 			},
 		},
-		&imagesv1beta1.Image{},
+		&infraimagesv1beta1.Image{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *imageInformer) defaultInformer(client versioned.Interface, resyncPeriod
 }
 
 func (f *imageInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&imagesv1beta1.Image{}, f.defaultInformer)
+	return f.factory.InformerFor(&infraimagesv1beta1.Image{}, f.defaultInformer)
 }
 
-func (f *imageInformer) Lister() v1beta1.ImageLister {
-	return v1beta1.NewImageLister(f.Informer().GetIndexer())
+func (f *imageInformer) Lister() imagesv1beta1.ImageLister {
+	return imagesv1beta1.NewImageLister(f.Informer().GetIndexer())
 }

@@ -53,8 +53,12 @@ var (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 
 // Image is a map between an internal kubernetes image tag and multiple remote hosted images.
+// +kubebuilder:printcolumn:name="Insecure",type=boolean,JSONPath=".spec.insecure"
+// +kubebuilder:printcolumn:name="Mirroring",type=boolean,JSONPath=".spec.mirror"
+// +kubebuilder:printcolumn:name="Current Image Source",type=string,JSONPath=".spec.from"
 type Image struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -191,9 +195,15 @@ type ImageList struct {
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 
 // ImageImport represents a request, made by the user, to import a Image from a remote repository
 // and into an Image object.
+// +kubebuilder:printcolumn:name="Insecure",type=boolean,JSONPath=".spec.insecure"
+// +kubebuilder:printcolumn:name="Mirroring",type=boolean,JSONPath=".spec.mirror"
+// +kubebuilder:printcolumn:name="Target Image",type=string,JSONPath=".spec.targetImage"
+// +kubebuilder:printcolumn:name="Imported At",type=string,JSONPath=".status.hashReference.importedAt"
+// +kubebuilder:printcolumn:name="Image Reference",type=string,JSONPath=".status.hashReference.imageReference"
 type ImageImport struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
