@@ -90,10 +90,31 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v5
 
+    # we need to control the ip addresses used so we can properly deploy
+    # the metal lb later on so we pre-create the kind network. for the
+    # tests purpose this network does not need to be very large.
+    - name: Create the kind network
+      run: |-
+        docker network create \
+          --gateway "172.18.100.1" \
+          --scope "local" \
+          --driver "bridge" \
+          --subnet "172.18.100.0/24" \
+          --ipv4 \
+          kind
+
     - name: Install kind
       uses: helm/kind-action@v1
       with:
+        config: .github/workflows/etc/kind-cluster.yaml
         cluster_name: kind
+
+    - name: Install and configure metal load balancer
+      run: |-
+        kubectl create namespace metallb
+        helm repo add metallb https://metallb.github.io/metallb
+        helm install --debug --wait -n metallb metallb metallb/metallb
+        kubectl apply -f ./.github/workflows/etc/metallb.yaml
 
     - name: Build image
       id: push
@@ -123,7 +144,6 @@ jobs:
         helm install --debug --wait \
           --set image=quay.io/tagger/operator:pr-${{ github.event.number }} \
           --set imagePullPolicy=Never \
-          --set loadBalancer=false \
           tagger ./chart
 
     - name: Run integration tests

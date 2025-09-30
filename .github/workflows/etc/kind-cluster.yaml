@@ -1,0 +1,10 @@
+# This is the default kind cluster configuration used in the CI/CD pipeline.
+# Be aware that there will be a limit on how far we can stretch this. For the
+# basic functionality tests it should be more than enough.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
+- role: worker
