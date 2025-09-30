@@ -1,5 +1,5 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ limitations under the License.
 package v1beta1
 
 import (
-	v1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
+	imagesv1beta1 "github.com/ricardomaraschini/tagger/infra/images/v1beta1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ImageImportLister helps list ImageImports.
@@ -30,7 +30,7 @@ import (
 type ImageImportLister interface {
 	// List lists all ImageImports in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.ImageImport, err error)
+	List(selector labels.Selector) (ret []*imagesv1beta1.ImageImport, err error)
 	// ImageImports returns an object that can list and get ImageImports.
 	ImageImports(namespace string) ImageImportNamespaceLister
 	ImageImportListerExpansion
@@ -38,25 +38,17 @@ type ImageImportLister interface {
 
 // imageImportLister implements the ImageImportLister interface.
 type imageImportLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*imagesv1beta1.ImageImport]
 }
 
 // NewImageImportLister returns a new ImageImportLister.
 func NewImageImportLister(indexer cache.Indexer) ImageImportLister {
-	return &imageImportLister{indexer: indexer}
-}
-
-// List lists all ImageImports in the indexer.
-func (s *imageImportLister) List(selector labels.Selector) (ret []*v1beta1.ImageImport, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.ImageImport))
-	})
-	return ret, err
+	return &imageImportLister{listers.New[*imagesv1beta1.ImageImport](indexer, imagesv1beta1.Resource("imageimport"))}
 }
 
 // ImageImports returns an object that can list and get ImageImports.
 func (s *imageImportLister) ImageImports(namespace string) ImageImportNamespaceLister {
-	return imageImportNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return imageImportNamespaceLister{listers.NewNamespaced[*imagesv1beta1.ImageImport](s.ResourceIndexer, namespace)}
 }
 
 // ImageImportNamespaceLister helps list and get ImageImports.
@@ -64,36 +56,15 @@ func (s *imageImportLister) ImageImports(namespace string) ImageImportNamespaceL
 type ImageImportNamespaceLister interface {
 	// List lists all ImageImports in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.ImageImport, err error)
+	List(selector labels.Selector) (ret []*imagesv1beta1.ImageImport, err error)
 	// Get retrieves the ImageImport from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1beta1.ImageImport, error)
+	Get(name string) (*imagesv1beta1.ImageImport, error)
 	ImageImportNamespaceListerExpansion
 }
 
 // imageImportNamespaceLister implements the ImageImportNamespaceLister
 // interface.
 type imageImportNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all ImageImports in the indexer for a given namespace.
-func (s imageImportNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.ImageImport, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.ImageImport))
-	})
-	return ret, err
-}
-
-// Get retrieves the ImageImport from the indexer for a given namespace and name.
-func (s imageImportNamespaceLister) Get(name string) (*v1beta1.ImageImport, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1beta1.Resource("imageimport"), name)
-	}
-	return obj.(*v1beta1.ImageImport), nil
+	listers.ResourceIndexer[*imagesv1beta1.ImageImport]
 }
