@@ -1,5 +1,7 @@
 FROM golang:latest AS builder
 WORKDIR /src
+COPY go.mod go.sum .
+RUN go mod download
 ARG version
 ENV VERSION=${version:-v0.0.0}
 COPY . .
