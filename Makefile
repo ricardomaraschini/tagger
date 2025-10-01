@@ -62,22 +62,11 @@ pdf:
 	mkdir -p output/doc || true
 	pandoc README.md -o output/doc/README.pdf
 
-# creates a test cluster locally using kind. this installs the cluster using a
-# custom network cidr that may not work for everyone. we use a custom cidr to
-# be able to properly configure metal lb with a working address pool. feel free
-# to edit the ranges if needed but remember to adjust the metal lb config.
 .PHONY: create-test-cluster
 create-test-cluster:
-	docker network create            \
-		--scope local            \
-		--gateway 172.18.100.1   \
-		--driver bridge          \
-		--subnet 172.18.100.0/24 \
-		kind
-	kind create cluster                                      \
-		--config .github/workflows/etc/kind-cluster.yaml \
-		--name kind
-	kubectl create namespace metallb
-	helm repo add metallb https://metallb.github.io/metallb
-	helm install --wait -n metallb metallb metallb/metallb
-	kubectl apply -f ./.github/workflows/etc/metallb.yaml
+	./hack/create-test.cluster.sh
+	./hack/create-token-based-auth.sh
+
+.PHONY: deploy-from-source
+deploy-from-source: image
+	IMAGE=$(IMAGE) ./hack/deploy-from-source.sh
