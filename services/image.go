@@ -108,6 +108,43 @@ func (t *Image) RecentlyFinishedImports(
 	return sorted, nil
 }
 
+// Rollback rolls back a given image to its previous hash reference. Current
+// version becomes the last one.
+func (t *Image) Rollback(ctx context.Context, img *imgv1b1.Image) error {
+	if len(img.Status.HashReferences) < 2 {
+		return fmt.Errorf("no previous version to roll back to")
+	}
+
+	img.Status.HashReferences = append(
+		img.Status.HashReferences[1:],
+		img.Status.HashReferences[0],
+	)
+
+	_, err := t.imgcli.TaggerV1beta1().Images(img.Namespace).UpdateStatus(
+		ctx, img, metav1.UpdateOptions{},
+	)
+	return err
+}
+
+// Rollforward rolls forward a given image to its next hash reference. Current
+// version becomes the last one.
+func (t *Image) Rollforward(ctx context.Context, img *imgv1b1.Image) error {
+	if len(img.Status.HashReferences) < 2 {
+		return fmt.Errorf("no next version to roll forward to")
+	}
+
+	last := len(img.Status.HashReferences) - 1
+	img.Status.HashReferences = append(
+		[]imgv1b1.HashReference{img.Status.HashReferences[last]},
+		img.Status.HashReferences[:last]...,
+	)
+
+	_, err := t.imgcli.TaggerV1beta1().Images(img.Namespace).UpdateStatus(
+		ctx, img, metav1.UpdateOptions{},
+	)
+	return err
+}
+
 // Sync manages image updates, assuring we have the image imported.  Beware that we change Image
 // in place before updating it on api server, i.e. use DeepCopy() before passing the image object
 // in.
@@ -147,13 +184,25 @@ func (t *Image) Sync(ctx context.Context, img *imgv1b1.Image) error {
 	return nil
 }
 
-// Get returns a Image object. Returned object is already a copy of the cached object and may be
-// modified by caller as needed.
+// Get returns a Image object. Returned object is already a copy of the cached
+// object and may be modified by caller as needed. This method defaults to the
+// informer cache, if it is not available then falls back to api server call.
 func (t *Image) Get(ctx context.Context, ns, name string) (*imgv1b1.Image, error) {
+	if t.imglis == nil {
+		img, err := t.imgcli.TaggerV1beta1().Images(ns).Get(
+			ctx, name, metav1.GetOptions{},
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get image: %w", err)
+		}
+		return img.DeepCopy(), nil
+	}
+
 	img, err := t.imglis.Images(ns).Get(name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get image: %w", err)
 	}
+
 	return img.DeepCopy(), nil
 }
 
