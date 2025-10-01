@@ -23,19 +23,12 @@ import (
 
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/containers/storage/pkg/reexec"
-	"github.com/containers/storage/pkg/unshare"
 	"github.com/spf13/cobra"
 
 	"tagger/infra/fs"
 )
 
 func main() {
-	if reexec.Init() {
-		panic("reexec returned true")
-	}
-	unshare.MaybeReexecUsingUserNamespace(true)
-
 	sigs := []os.Signal{syscall.SIGTERM, syscall.SIGINT}
 	ctx, cancel := signal.NotifyContext(context.Background(), sigs...)
 	defer cancel()
@@ -44,7 +37,14 @@ func main() {
 		Use:          "kubectl-image",
 		SilenceUsage: true,
 	}
-	root.AddCommand(imageversion, imageimport, imagepush, imagepull)
+	root.AddCommand(
+		imageversion,
+		imageimport,
+		imagepush,
+		imagepull,
+		imageroll,
+	)
+
 	root.ExecuteContext(ctx)
 }
 
@@ -60,6 +60,11 @@ func namespace(c *cobra.Command) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	if cfg.Contexts[cfg.CurrentContext].Namespace == "" {
+		return "default", nil
+	}
+
 	return cfg.Contexts[cfg.CurrentContext].Namespace, nil
 }
 
