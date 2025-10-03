@@ -44,10 +44,6 @@ jobs:
     - name: Check out source code
       uses: actions/checkout@v5
 
-    - name: Install dependencies
-      run: |-
-        sudo apt install pandoc texlive-full -y
-
     - name: Extract current tag
       id: get_tag
       run: echo ::set-output name=tag::$(echo $GITHUB_REF | cut -d / -f 3)

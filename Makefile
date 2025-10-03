@@ -60,7 +60,7 @@ clean:
 .PHONY: pdf
 pdf:
 	mkdir -p output/doc || true
-	pandoc README.md -o output/doc/README.pdf
+	docker run --rm -v $(shell pwd):/data pandoc/latex README.md -o output/doc/README.pdf
 
 .PHONY: create-test-cluster
 create-test-cluster:
