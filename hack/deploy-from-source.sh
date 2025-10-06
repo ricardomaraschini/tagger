@@ -15,7 +15,7 @@ echo "Creating namespace tagger"
 kubectl create namespace tagger > /dev/null 2>&1 || true
 
 echo "Installing tagger"
-helm install -n tagger tagger ./chart
+helm install --wait -n tagger tagger ./chart
 
-echo "Deploying and configuring a test mirror registry"
-kubectl apply -f hack/mirror-registry/
+echo "Configuring a test mirror registry"
+kubectl apply -f hack/manifests/mirror-registry-config/
