@@ -106,7 +106,7 @@ jobs:
     - name: Install kind
       uses: helm/kind-action@v1
       with:
-        config: .github/workflows/etc/kind-cluster.yaml
+        config: hack/manifests/kind/config.yaml
         cluster_name: kind
 
     - name: Install and configure metal load balancer
@@ -114,7 +114,7 @@ jobs:
         kubectl create namespace metallb
         helm repo add metallb https://metallb.github.io/metallb
         helm install --debug --wait -n metallb metallb metallb/metallb
-        kubectl apply -f ./.github/workflows/etc/metallb.yaml
+        kubectl apply -f hack/manifests/metal-loadbalancer/deploy.yaml
 
     - name: Build image
       id: push

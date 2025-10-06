@@ -31,8 +31,8 @@ fi
 
 
 echo "Creating kind cluster"
-kind create cluster                                  \
-	--config .github/workflows/etc/kind-cluster.yaml \
+kind create cluster                         \
+	--config hack/manifests/kind/config.yaml \
 	--name kind
 
 echo "Fixing kubeconfig permissions"
@@ -44,6 +44,9 @@ helm repo add metallb https://metallb.github.io/metallb
 helm install --wait -n metallb metallb metallb/metallb
 
 echo "Configuring metallb"
-kubectl apply -f ./.github/workflows/etc/metallb.yaml
+kubectl apply -f hack/manifests/metal-loadbalancer/deploy.yaml
+
+echo "Deploying and configuring a test mirror registry"
+kubectl apply -f hack/manifests/mirror-registry/
 
 echo "All done, cluster is ready"
