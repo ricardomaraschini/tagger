@@ -58,7 +58,7 @@ jobs:
       run: helm package chart/
 
     - name: Download image artifact
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: image
         path: ./
