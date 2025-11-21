@@ -14,7 +14,7 @@ jobs:
       run: sudo apt install libbtrfs-dev libgpgme-dev -y
 
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install go
       uses: actions/setup-go@v6
@@ -32,7 +32,7 @@ jobs:
       run: sudo apt install libbtrfs-dev libgpgme-dev -y
 
     - name: Check out source code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install go
       uses: actions/setup-go@v6
@@ -51,7 +51,7 @@ jobs:
       run: sudo apt install libbtrfs-dev libgpgme-dev -y
 
     - name: Check out source code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install go
       uses: actions/setup-go@v6
@@ -73,7 +73,7 @@ jobs:
       run: sudo apt install libbtrfs-dev libgpgme-dev -y
 
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install go
       uses: actions/setup-go@v6
@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     # we need to control the ip addresses used so we can properly deploy
     # the metal lb later on so we pre-create the kind network. for the
