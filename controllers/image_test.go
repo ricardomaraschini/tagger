@@ -96,14 +96,14 @@ func TestImageCreated(t *testing.T) {
 		t.Fatal("timeout waiting for caches to sync")
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	starter := func() {
 		if err := ctrl.Start(ctx); err != nil {
 			t.Errorf("unexpected error after start: %s", err)
 		}
-	}()
+	}
+
+	var wg sync.WaitGroup
+	wg.Go(starter)
 
 	img := &imgv1b1.Image{
 		ObjectMeta: metav1.ObjectMeta{
@@ -159,14 +159,14 @@ func TestImageUpdated(t *testing.T) {
 		t.Fatal("timeout waiting for caches to sync")
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	starter := func() {
 		if err := ctrl.Start(ctx); err != nil {
 			t.Errorf("unexpected error after start: %s", err)
 		}
-	}()
+	}
+
+	var wg sync.WaitGroup
+	wg.Go(starter)
 
 	img := &imgv1b1.Image{
 		ObjectMeta: metav1.ObjectMeta{
@@ -237,16 +237,16 @@ func TestImageParallel(t *testing.T) {
 		t.Fatal("timeout waiting for caches to sync")
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	starter := func() {
 		if err := ctrl.Start(ctx); err != nil {
 			t.Errorf("unexpected error after start: %s", err)
 		}
-	}()
+	}
 
-	for i := 0; i < 10; i++ {
+	var wg sync.WaitGroup
+	wg.Go(starter)
+
+	for i := range 10 {
 		img := &imgv1b1.Image{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "namespace",
@@ -297,14 +297,14 @@ func TestImageDeleted(t *testing.T) {
 		t.Fatal("timeout waiting for caches to sync")
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	starter := func() {
 		if err := ctrl.Start(ctx); err != nil {
 			t.Errorf("unexpected error after start: %s", err)
 		}
-	}()
+	}
+
+	var wg sync.WaitGroup
+	wg.Go(starter)
 
 	img := &imgv1b1.Image{
 		ObjectMeta: metav1.ObjectMeta{

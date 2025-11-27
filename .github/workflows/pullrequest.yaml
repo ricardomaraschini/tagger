@@ -90,10 +90,17 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v6
 
+    - name: Install dependencies
+      run: |-
+        curl -o kind -L https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-linux-amd64
+        chmod 755 kind && mv kind /usr/local/bin/kind
+        curl -o kuttl -L https://github.com/kudobuilder/kuttl/releases/download/v0.22.0/kubectl-kuttl_0.22.0_linux_x86_64
+        chmod 755 kuttl && mv kuttl /usr/local/bin/kuttl
+
     # we need to control the ip addresses used so we can properly deploy
     # the metal lb later on so we pre-create the kind network. for the
     # tests purpose this network does not need to be very large.
-    - name: Create the kind network
+    - name: Create kind network
       run: |-
         docker network create \
           --gateway "172.18.100.1" \
@@ -103,18 +110,9 @@ jobs:
           --ipv4 \
           kind
 
-    - name: Install kind
-      uses: helm/kind-action@v1
-      with:
-        config: hack/manifests/kind/config.yaml
-        cluster_name: kind
-
-    - name: Install and configure metal load balancer
+    - name: Create kind cluster
       run: |-
-        kubectl create namespace metallb
-        helm repo add metallb https://metallb.github.io/metallb
-        helm install --debug --wait -n metallb metallb metallb/metallb
-        kubectl apply -f hack/manifests/metal-loadbalancer/deploy.yaml
+        make create-test-cluster
 
     - name: Build image
       id: push
@@ -134,11 +132,6 @@ jobs:
         kubectl create namespace tagger
         kubectl config set-context --current --namespace=tagger
 
-    - name: Install kuttl
-      run: |-
-        curl -o kuttl -L https://github.com/kudobuilder/kuttl/releases/download/v0.22.0/kubectl-kuttl_0.22.0_linux_x86_64
-        chmod 755 kuttl
-
     - name: Install helm chart
       run: |-
         helm install --debug --wait \
@@ -147,7 +140,7 @@ jobs:
           tagger ./chart
 
     - name: Run integration tests
-      run: ./kuttl test --timeout=180 e2e
+      run: kuttl test --timeout=180 e2e
 
     - name: Collect information for debugging
       if: failure()
