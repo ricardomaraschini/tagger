@@ -70,7 +70,7 @@ func (t *Image) RequiresLeaderElection() bool {
 
 // enqueueEvent generates a key using "namespace/name" for the event received and then enqueues
 // it to be processed.
-func (t *Image) enqueueEvent(o interface{}) {
+func (t *Image) enqueueEvent(o any) {
 	key, err := cache.MetaNamespaceKeyFunc(o)
 	if err != nil {
 		klog.Errorf("fail to enqueue event: %v : %s", o, err)
@@ -83,13 +83,13 @@ func (t *Image) enqueueEvent(o interface{}) {
 // This handler basically enqueues everything in our work queue using enqueueEvent.
 func (t *Image) handlers() cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
-		AddFunc: func(o interface{}) {
+		AddFunc: func(o any) {
 			t.enqueueEvent(o)
 		},
-		UpdateFunc: func(o, n interface{}) {
+		UpdateFunc: func(o, n any) {
 			t.enqueueEvent(o)
 		},
-		DeleteFunc: func(o interface{}) {
+		DeleteFunc: func(o any) {
 			t.enqueueEvent(o)
 		},
 	}

@@ -35,9 +35,6 @@ kind create cluster                         \
 	--config hack/manifests/kind/config.yaml \
 	--name kind
 
-echo "Fixing kubeconfig permissions"
-chmod 600 ~/.kube/config > /dev/null 2>&1 || true
-
 echo "Installing metallb"
 kubectl create namespace metallb
 helm repo add metallb https://metallb.github.io/metallb
