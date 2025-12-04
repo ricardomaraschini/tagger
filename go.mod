@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/vbauerster/mpb/v6 v6.0.4
 	google.golang.org/grpc v1.77.0
 	google.golang.org/protobuf v1.36.10
