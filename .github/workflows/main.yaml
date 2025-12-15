@@ -28,7 +28,7 @@ jobs:
         tar -czvf image.tgz image.tar
 
     - name: Upload image artifact
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: image
         path: ./image.tgz
