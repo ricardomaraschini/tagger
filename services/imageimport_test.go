@@ -226,7 +226,7 @@ func TestImageImportSync(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			corcli := corfake.NewSimpleClientset(tt.corObjects...)
+			corcli := corfake.NewClientset(tt.corObjects...)
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 
 			imgcli := imgfake.NewSimpleClientset(tt.imgObjects...)
@@ -401,7 +401,7 @@ func TestImportPath(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			corcli := corfake.NewSimpleClientset()
+			corcli := corfake.NewClientset()
 			corinf := coreinf.NewSharedInformerFactory(corcli, time.Minute)
 
 			imp := &ImageImport{
