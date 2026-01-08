@@ -168,7 +168,7 @@ func Test_authsFor(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			fakecli := fake.NewSimpleClientset(tt.objects...)
+			fakecli := fake.NewClientset(tt.objects...)
 			informer := coreinf.NewSharedInformerFactory(fakecli, time.Minute)
 
 			sysctx := NewSysContext(informer)
