@@ -19,7 +19,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v6
       with:
-        go-version: '^1.25'
+        go-version: '^1.26'
 
     - name: Run vet
       run: go vet ./...
@@ -37,7 +37,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v6
       with:
-        go-version: '^1.25'
+        go-version: '^1.26'
 
     - name: Run static check
       run: |-
@@ -56,7 +56,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v6
       with:
-        go-version: '^1.25'
+        go-version: '^1.26'
 
     - name: Run tests
       run: go test -v ./...
@@ -78,7 +78,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v6
       with:
-        go-version: '^1.25'
+        go-version: '^1.26'
 
     - name: Build all
       run: make build
